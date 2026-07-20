@@ -3,5 +3,9 @@
  "receiptsAdded": [],
  "shipments": [],
  "seq": 0,
- "meta": { "updatedAt": null, "updatedBy": null, "note": "Kho dữ liệu chung TVS N-X-T — cập nhật tự động từ web app" }
+ "meta": {
+  "updatedAt": "2026-07-20T11:04:38.684Z",
+  "updatedBy": "thukho",
+  "app": "TVS N-X-T v4"
+ }
 }
