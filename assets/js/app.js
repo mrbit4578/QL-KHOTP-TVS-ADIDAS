@@ -328,11 +328,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
   /* ── Khởi động ── */
   window.App = App;
   window.addEventListener("hashchange", navigate);
+  /* ── Đồng hồ hệ thống realtime (theo đúng ngày giờ máy tính) ── */
+  function startSystemClock() {
+    const pad = n => String(n).padStart(2, "0");
+    const dEl = document.getElementById("sysDate");
+    const tEl = document.getElementById("sysTime");
+    const tick = () => {
+      const now = new Date();
+      if (dEl) dEl.textContent = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+      if (tEl) tEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    };
+    tick();
+    /* cập nhật đúng nhịp giây: canh về đầu giây rồi chạy mỗi 1000ms */
+    if (App._clockTimer) { clearInterval(App._clockTimer); clearTimeout(App._clockAlign); }
+    App._clockAlign = setTimeout(() => {
+      tick();
+      App._clockTimer = setInterval(tick, 1000);
+    }, 1000 - (Date.now() % 1000));
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     App.applyTheme(App.getTheme());
     const tb = document.getElementById("themeBtn");
     if (tb) tb.onclick = App.toggleTheme;
-    document.getElementById("todayLabel").textContent = U.fmtDate(TVS_META.today);
+    startSystemClock();
     if (window.Auth) Auth.apply();
     App.renderSyncChip();
     const gs = document.getElementById("globalSearch");

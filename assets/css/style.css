@@ -137,6 +137,9 @@ svg.ico{width:14px;height:14px;flex-shrink:0;vertical-align:-2px}
 .global-search input{border:0;background:transparent;outline:0;font:inherit;font-size:13px;width:100%;color:var(--txt)}
 .today-chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-weight:700;font-size:12.5px;background:var(--card);white-space:nowrap}
 .today-chip .ico{width:14px;height:14px;color:var(--acc)}
+.today-chip .clk{color:var(--txt-3)}
+.today-chip .clock-sep{width:1px;height:15px;background:var(--line-2);margin:0 2px}
+.sys-time{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:.02em;color:var(--acc);min-width:64px;display:inline-block;text-align:center}
 .theme-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--txt-2);cursor:pointer;flex-shrink:0}
 .theme-btn:hover{color:var(--acc);border-color:var(--acc)}
 .burger{display:none}
