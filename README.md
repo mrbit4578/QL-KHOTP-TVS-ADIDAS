@@ -104,6 +104,7 @@ Theo đúng file mẫu `PHIEU XUAT KHO THANH PHAM.xlsx`:
 3. Hệ thống **tải số lượng từ màn hình Nhập kho + PACKING LIST (CLP)** → mỗi dòng = 1 nhóm thùng đúng packing: thùng nguyên (6 đôi), thùng lẻ, **thùng MIX SIZE gộp đúng như packing list** (xuất nguyên thùng bật/tắt); số carton & số thùng #từ–đến lấy chính xác theo packing
 4. **Xác nhận XUẤT KHO** → ghi **Ngày thực xuất** → trừ tồn N-X-T ngay lập tức
 5. Hệ thống đối chiếu Ngày thực xuất ↔ Ngày xuất KD → **tỷ lệ xuất đúng hạn %** (theo chỉ thị & theo số đôi, chênh lệch bình quân ngày)
+   - **Ô "Ngày thực xuất" nhập trực tiếp trên bảng lệnh giao hàng (v4.1):** mỗi phiếu có 1 ô ngày ngay tại danh sách — phiếu đã xuất sửa ngày sẽ tự tính lại tỷ lệ đúng hạn; phiếu nháp nhập sẵn ngày để bước "Xuất kho" điền tự động (người chỉ-xem thấy ngày dạng chữ, không sửa được)
 6. **In phiếu phân trang** — hệ thống tự chia trang, chân mỗi trang in **"Trang i/tổng"** + số phiếu + ngày in; khối **XÁC NHẬN** theo mẫu chuẩn (dải tiêu đề xanh navy): Người lập phiếu · Người nhận hàng · Thủ kho · Bảo vệ · Phòng.NVKD · Ban giám đốc
 7. **Chọn hướng giấy in ▯ Đứng / ▭ Ngang (A4)** ngay trên phiếu — hệ thống tự tính lại số dòng mỗi trang theo khổ giấy (ngân sách chiều cao mm thật), bơm rule `@page{size:A4 …}` để hộp thoại in nhận đúng hướng; số "Trang i/n" luôn khớp số tờ máy in báo; lựa chọn được ghi nhớ cho lần in sau
 8. **Tự co dòng vừa trang** — khi trang cuối chỉ còn ít dòng + khối ký mà thiếu chỗ, hệ thống tự nén chiều cao dòng/khối ký để gói gọn trong trang, không lấn sang tờ sau (có badge "tự co dòng vừa trang")
