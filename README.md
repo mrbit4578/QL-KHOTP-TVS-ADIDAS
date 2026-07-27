@@ -82,6 +82,13 @@ python3 -m http.server 8080
 | Architecture | **Kiến trúc hệ thống** | Sơ đồ ERP ↔ WMS ↔ WCS/OMS/TMS + 5 kiến trúc RAG (hình tham chiếu ②) |
 | AI Layer | **Trợ lý AI** | Chatbot mô phỏng Agentic RAG: hỏi đáp trực tiếp trên dữ liệu thật (kể cả % đúng hạn) |
 
+## 🎨 Giao diện: nền Sáng / Tối & phông chữ (v4.3)
+
+- **Nút đổi nền Sáng/Tối** ở góc trên bên phải (☀/🌙) — chọn nền tối để dịu mắt khi làm ca đêm; lựa chọn được **ghi nhớ** cho lần mở sau. Bảng màu tối được tinh chỉnh tương phản hài hòa (không đen tuyệt đối), biểu đồ & bảng số liệu tự đổi màu theo nền.
+- **Tiêu đề** (tiêu đề trang, tiêu đề đầu mục, số liệu lớn, tiêu đề phiếu in) dùng font **UTM Neo Sans Intel**; **nội dung** dùng **Roboto**.
+- Đảm bảo **không lỗi dấu tiếng Việt**: nếu máy chưa cài UTM Neo Sans Intel, hệ thống tự lùi về **Be Vietnam Pro** (Google Fonts, đủ dấu tiếng Việt). Muốn hiển thị đúng UTM Neo Sans Intel cho mọi máy → đặt file font vào `assets/fonts/` (xem `assets/fonts/README.txt`).
+- Phiếu in luôn giữ nền trắng chữ đen (chuẩn in giấy) dù đang xem ở nền tối.
+
 ## ✍️ Nhập liệu · Import · Export (v2.0)
 
 **Màn hình nhập liệu** trên cả 3 màn hình dữ liệu:

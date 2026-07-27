@@ -225,10 +225,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .px-mix{font-size:9.6px;font-weight:600;color:#333;white-space:nowrap}
 .px-sign-tbl{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
 .px-sign-tbl th{background:#1f4e79;color:#fff;font-size:10.8px;font-weight:800;letter-spacing:.02em;border:1px solid #16385a;padding:5px 4px;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.px-sign-tbl td{border:1px solid #9aa3b2;border-top:0;vertical-align:top;padding:4px 6px;font-size:10.4px}
-.px-sign-tbl .px-ky{color:#333}
-.px-sign-tbl .px-sign-space{height:58px}
-.px-sign-tbl i{font-style:normal;color:#222}
+.px-sign-tbl td{border:1px solid #9aa3b2;border-top:0;vertical-align:top;padding:7px 8px 6px;font-size:10.6px}
+.px-sign-tbl .px-ky{color:#555;font-style:italic}
+.px-sign-tbl .px-sign-space{height:92px}
+.px-sign-tbl i{font-style:normal;color:#111;display:block;border-top:1px dotted #c9ced6;padding-top:4px}
 .px-foot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:10px;border-top:1px solid #c9ced6;padding-top:6px;font-size:10.2px;color:#555;background:#fff}
 .px-foot .px-pageno{font-weight:800;color:#111}
 .px-page.compact .px-tbl th{padding:2.5px 4px;font-size:9.4px}
@@ -236,7 +236,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .px-page.compact .px-mix{font-size:8.8px}
 .px-page.compact .px-sign-tbl th{padding:3.5px 4px;font-size:10px}
 .px-page.compact .px-sign-tbl td{padding:3px 5px;font-size:9.6px}
-.px-page.compact .px-sign-tbl .px-sign-space{height:32px}
+.px-page.compact .px-sign-tbl .px-sign-space{height:64px}
 .px-page.compact .px-sec{margin:8px 0 4px}
 .px-page.compact .px-cont-info{padding:4px 8px;margin-bottom:5px}`;
 
@@ -298,6 +298,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     }
   };
 
+  /* ── Chế độ nền SÁNG / TỐI ── */
+  const SUN = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8l1.8-1.8M18 6l1.8-1.8"/></svg>`;
+  const MOON = `<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>`;
+  App.getTheme = () => { try { return localStorage.getItem("TVS_THEME") === "dark" ? "dark" : "light"; } catch (e) { return "light"; } };
+  App.applyTheme = t => {
+    document.documentElement.setAttribute("data-theme", t === "dark" ? "dark" : "light");
+    const b = document.getElementById("themeBtn");
+    if (b) b.innerHTML = t === "dark" ? SUN : MOON;
+  };
+  App.toggleTheme = () => {
+    const t = App.getTheme() === "dark" ? "light" : "dark";
+    try { localStorage.setItem("TVS_THEME", t); } catch (e) {}
+    App.applyTheme(t);
+    App.refresh();   /* vẽ lại để biểu đồ đổi màu theo nền */
+    App.toast(t === "dark" ? "🌙 Đã chuyển nền tối" : "☀ Đã chuyển nền sáng", "ok");
+  };
+
   /* ── Chip trạng thái đồng bộ GitHub ── */
   App.renderSyncChip = function () {
     const el = document.getElementById("syncChip");
@@ -312,6 +329,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
   window.App = App;
   window.addEventListener("hashchange", navigate);
   document.addEventListener("DOMContentLoaded", () => {
+    App.applyTheme(App.getTheme());
+    const tb = document.getElementById("themeBtn");
+    if (tb) tb.onclick = App.toggleTheme;
     document.getElementById("todayLabel").textContent = U.fmtDate(TVS_META.today);
     if (window.Auth) Auth.apply();
     App.renderSyncChip();

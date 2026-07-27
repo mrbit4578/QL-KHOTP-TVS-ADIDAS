@@ -599,15 +599,17 @@
     </tr>`;
   }
 
-  function pxkSignBlock() {
+  function pxkSignBlock(s) {
+    /* Ngày ký tự động = NGÀY THỰC XUẤT của phiếu (nếu đã có) */
+    const ngay = s && s.actualDate ? U.fmtDate(s.actualDate) : "…… / …… / ………";
     return `
       <div class="px-sec">XÁC NHẬN</div>
       <table class="px-sign-tbl">
         <tr>${SIGN_ROLES.map(r => `<th>${r}</th>`).join("")}</tr>
         <tr>${SIGN_ROLES.map((r, i) => `<td>
-          ${i < SIGN_ROLES.length - 1 ? `<span class="px-ky">Ký, ghi họ &amp; tên</span>` : `<span class="px-ky">&nbsp;</span>`}
+          ${i < SIGN_ROLES.length - 1 ? `<span class="px-ky">(Ký, ghi rõ họ &amp; tên)</span>` : `<span class="px-ky">&nbsp;</span>`}
           <div class="px-sign-space"></div>
-          ${i < SIGN_ROLES.length - 1 ? `<i>Ngày: …………………</i>` : `<i>&nbsp;</i>`}
+          ${i < SIGN_ROLES.length - 1 ? `<i>Ngày: <b>${ngay}</b></i>` : `<i>&nbsp;</i>`}
         </td>`).join("")}</tr>
       </table>`;
   }
@@ -636,7 +638,7 @@
     const ROWC = ROW * 0.72;                            // mm/dòng khi NÉN
     /* Trang 2+ KHÔNG lặp lại header công ty/tiêu đề — chỉ còn dải số phiếu nhỏ */
     const HEAD_FULL = 30, INFO = 78, SEC = 8, THEAD = 8, FOOT = 12, HEAD_CONT = 14;
-    const TOTAL = 9, SIGN = 52, TOTALC = 7, SIGNC = 38; // tổng + khối ký (thường / nén)
+    const TOTAL = 9, SIGN = 64, TOTALC = 7, SIGNC = 48; // tổng + khối ký (thường / nén) — ô ký to hơn
     const cap1 = H - HEAD_FULL - INFO - SEC - THEAD - FOOT;
     const capN = H - HEAD_CONT - THEAD - FOOT;
     const capOf = i => (i === 0 ? cap1 : capN);
@@ -709,7 +711,7 @@
           ${chunk.join("")}
           ${isLast ? totalRow : `<tr><td colspan="12" class="px-carry">(còn tiếp trang ${pi + 2}/${n}…)</td></tr>`}
         </tbody></table>` : `<div class="px-carry-d">(chi tiết xuất kho tiếp tục ở trang ${pi + 2}/${n}…)</div>`}
-        ${isLast ? pxkSignBlock() : ""}
+        ${isLast ? pxkSignBlock(s) : ""}
         <div class="px-foot">
           <span>${U.esc(s.code)} · In ngày ${printedAt}</span>
           <span>TVS — hệ thống N-X-T adidas Rubber Boots · A4 ${orient === "landscape" ? "ngang" : "đứng"}</span>
