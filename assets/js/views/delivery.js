@@ -87,7 +87,8 @@
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr>
               <th>Số phiếu</th><th>Lệnh GH số</th><th>Ngày phiếu</th><th>Chỉ thị</th><th>Xuất cho</th>
-              <th class="num">Số đôi</th><th class="num">Số thùng</th><th>Trạng thái</th><th>Hành động</th>
+              <th class="num">Số đôi</th><th class="num">Số thùng</th><th>Trạng thái</th>
+              <th style="min-width:158px">Ngày thực xuất</th><th>Hành động</th>
             </tr></thead>
             <tbody>${ships.length ? ships.map(s => `
               <tr>
@@ -99,6 +100,12 @@
                 <td class="num">${U.fmt(U.sum(s.lines, l => l.qty))}</td>
                 <td class="num">${U.fmt(U.sum(s.lines, l => l.ctn))}</td>
                 <td>${stBdg(s)}</td>
+                <td>
+                  <input type="date" class="cell-in need-edit" style="width:140px"
+                    value="${s.actualDate || ""}" title="Nhập / sửa ngày thực xuất"
+                    onchange="Views._setActual('${s.id}', this.value)">
+                  <span class="view-only">${s.actualDate ? U.fmtDate(s.actualDate) : "—"}</span>
+                </td>
                 <td style="white-space:nowrap">
                   <button class="btn small" onclick="Views._pxkView('${s.id}')">${App.icon("print", "ico")} Phiếu</button>
                   ${s.status !== "shipped"
@@ -109,11 +116,12 @@
                        <button class="btn small danger need-edit" onclick="Views._pxkRevert('${s.id}')">Hủy xuất</button>`}
                 </td>
               </tr>`).join("") : `
-              <tr><td colspan="9" style="text-align:center;padding:34px" class="note">
+              <tr><td colspan="10" style="text-align:center;padding:34px" class="note">
                 Chưa có lệnh giao hàng nào. Bấm <b>“Tạo lệnh giao hàng”</b> → chọn các chỉ thị cần xuất —
                 hệ thống tải số lượng thực nhập từ kho và tính thùng theo packing list.</td></tr>`}
             </tbody>
           </table></div>
+          <div class="note" style="padding:6px 18px 2px">Ô <b>Ngày thực xuất</b> nhập trực tiếp tại đây: phiếu đã xuất → tự cập nhật tỷ lệ đúng hạn; phiếu nháp → điền sẵn cho bước “Xuất kho”.</div>
         </div>
 
         <div class="card mt">
@@ -467,7 +475,7 @@
         <p style="font-size:13.5px">Xuất <b>${U.fmt(U.sum(s.lines, l => l.qty))} đôi</b> = ${U.fmt(U.sum(s.lines, l => l.ctn))} thùng
         cho <b>${U.esc(s.receiver)}</b> (${s.orders.join(", ")}).</p>
         <div class="frm mt"><label>Ngày thực xuất (ghi nhận đối chiếu đúng hạn)
-          <input type="date" id="cShipDate" value="${TVS_META.today}"></label></div>
+          <input type="date" id="cShipDate" value="${s.actualDate || TVS_META.today}"></label></div>
         <div class="mt" style="display:flex;gap:8px">
           <button class="btn primary" id="cGo">✓ Xuất kho & ghi ngày thực xuất</button>
           <button class="btn" onclick="App.closeModal()">Huỷ</button>
@@ -479,6 +487,16 @@
       App.closeModal();
       App.toast(`✓ Phiếu <b>${U.esc(s.code)}</b> đã xuất kho — hệ thống đã ghi ngày thực xuất & cập nhật % đúng hạn`, "ok");
     };
+  };
+  /* Nhập / sửa NGÀY THỰC XUẤT trực tiếp từ ô trên bảng lệnh giao hàng */
+  window.Views._setActual = function (id, iso) {
+    const s = Store.getShipment(id); if (!s) return;
+    Store.setActualDate(id, iso);
+    if (!iso) { App.toast(`Đã xoá ngày thực xuất phiếu <b>${U.esc(s.code)}</b>`, "warn"); return; }
+    if (s.status === "shipped")
+      App.toast(`✓ Cập nhật ngày thực xuất phiếu <b>${U.esc(s.code)}</b> = ${U.fmtDate(iso)} — đã tính lại tỷ lệ đúng hạn`, "ok");
+    else
+      App.toast(`Đã lưu ngày thực xuất dự kiến ${U.fmtDate(iso)} cho phiếu nháp <b>${U.esc(s.code)}</b> — bấm “Xuất kho” để ghi nhận chính thức`, "ok");
   };
   window.Views._pxkRevert = function (id) {
     const s = Store.getShipment(id);

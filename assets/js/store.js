@@ -167,6 +167,15 @@
     Store.local.shipments = Store.local.shipments.filter(s => s.id !== id);
     commit();
   };
+  /* Nhập/sửa NGÀY THỰC XUẤT trực tiếp trên màn hình lệnh giao hàng.
+     • Phiếu đã xuất: cập nhật ngày → tự tính lại tỷ lệ đúng hạn
+     • Phiếu nháp: lưu ngày dự kiến để lần "Xuất kho" điền sẵn */
+  Store.setActualDate = function (id, iso) {
+    if (!Store.guard()) return;
+    const s = Store.getShipment(id); if (!s) return;
+    s.actualDate = iso || null;
+    commit();
+  };
 
   Store.counts = () => ({
     orders: Store.local.ordersAdded.length,

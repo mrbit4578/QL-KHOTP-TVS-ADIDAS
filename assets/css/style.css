@@ -283,6 +283,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 
 /* ── Phân quyền: viewer bị ẩn mọi nút thao tác dữ liệu ─────── */
 .role-viewer .need-edit{display:none!important}
+.view-only{display:none}
+.role-viewer .view-only{display:inline}
 .user-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-radius:99px;padding:5px 12px;white-space:nowrap}
 .user-chip.editor{background:var(--ok-bg);color:var(--ok)}
 .user-chip.viewer{background:var(--neu-bg);color:var(--txt-2)}
