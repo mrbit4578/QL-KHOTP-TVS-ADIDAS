@@ -990,6 +990,28 @@
    "notProduced": null,
    "_id": "Lmrx472k322yi",
    "_src": "import"
+  },
+  {
+   "rd": "2026-07-20",
+   "rdLabel": "20/07/2026",
+   "ctry": "ITALY",
+   "ord": "AE2607131",
+   "po": "0903080022-1",
+   "item": "NVQ89",
+   "col": "LC1783",
+   "sz": "UK 9",
+   "prs": 15,
+   "ctn": 3,
+   "qcQty": null,
+   "qcDate": null,
+   "ordered": 15,
+   "diff": 0,
+   "bat": 1,
+   "actualExp": null,
+   "planExp": "2026-07-25",
+   "notProduced": null,
+   "_id": "Lms2jf2fndwiz",
+   "_src": "manual"
   }
  ],
  "shipments": [
@@ -1210,7 +1232,7 @@
  ],
  "seq": 1,
  "meta": {
-  "updatedAt": "2026-07-27T01:14:41.769Z",
+  "updatedAt": "2026-07-27T01:17:45.183Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
