@@ -1273,8 +1273,31 @@
   }
  ],
  "seq": 3,
+ "receiptEdits": {
+  "16/07/2026||AE2607131": {
+   "rev": 1,
+   "log": [
+    {
+     "rev": 1,
+     "at": "2026-07-27T06:25:02.818Z",
+     "by": "thukho",
+     "reason": "Trùng số liệu",
+     "before": {
+      "UK 4": 42,
+      "UK 5": 53,
+      "UK 6": 53,
+      "UK 7": 43,
+      "UK 8": 14
+     },
+     "after": null
+    }
+   ],
+   "deleted": true,
+   "sizes": null
+  }
+ },
  "meta": {
-  "updatedAt": "2026-07-27T06:00:13.382Z",
+  "updatedAt": "2026-07-27T06:25:04.433Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
