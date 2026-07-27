@@ -110,16 +110,20 @@
               <th>Ngày Nhập Kho</th><th>Ghi chú</th><th>Quốc gia</th><th>Chỉ thị</th><th>PO</th>
               <th>Mã hàng</th><th>Màu sắc</th>
               ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}
-              <th class="num">Tổng đôi</th><th class="num">Thùng</th>
+              <th class="num">Tổng đôi</th><th class="num">Thùng</th><th>Lần sửa</th><th>Thao tác</th>
             </tr></thead>
             <tbody>${(() => {
               const days = [...U.groupBy(R, r => r.rdLabel + "|" + r.ord)];
-              return days.map(([k, rows]) => {
+              Views._mtx = days.map(([k, rows]) => ({ rdLabel: rows[0].rdLabel, ord: rows[0].ord }));
+              return days.map(([k, rows], gi) => {
                 const r0 = rows[0];
                 const bySz = {};
                 rows.forEach(r => bySz[r.sz] = (bySz[r.sz] || 0) + r.prs);
                 const notes = [...new Set(rows.map(r => r.notProduced).filter(Boolean))];
-                return `<tr>
+                const info = Store.receiptEditInfo ? Store.receiptEditInfo(r0.rdLabel, r0.ord) : null;
+                const rev = info ? info.rev : 0;
+                const lastLog = info && info.log.length ? info.log[info.log.length - 1] : null;
+                return `<tr${rev ? ' style="background:#fbf7ef"' : ''}>
                   <td><b>${U.esc(r0.rdLabel)}</b></td>
                   <td>${notes.length ? `<span class="bdg warn plain">${notes.map(U.esc).join("; ")}</span>` : "—"}</td>
                   <td>${U.flag(r0.ctry)} ${U.esc(r0.ctry)}</td>
@@ -130,16 +134,24 @@
                   ${U.SIZES.map(s => `<td class="num">${bySz[s] ? U.fmt(bySz[s]) : ""}</td>`).join("")}
                   <td class="num"><b>${U.fmt(U.sum(rows, r => r.prs))}</b></td>
                   <td class="num">${U.fmt(U.sum(rows, r => r.ctn))}</td>
+                  <td>${rev
+                    ? `<span class="bdg acc plain clickable" title="${lastLog ? U.esc("Lần " + rev + " · " + lastLog.by + " · " + lastLog.reason) : ""}" onclick="Views._mtxHistory(${gi})">✎ ${rev} lần</span>`
+                    : `<span class="note">—</span>`}</td>
+                  <td style="white-space:nowrap">
+                    <button class="btn small need-edit" onclick="Views._mtxEdit(${gi})">${App.icon("gear", "ico")} Sửa</button>
+                    <button class="btn small danger need-edit" onclick="Views._mtxDelete(${gi})">${App.icon("trash", "ico")}</button>
+                    ${rev ? `<button class="btn small" onclick="Views._mtxHistory(${gi})">Lịch sử</button>` : ""}
+                  </td>
                 </tr>`;
               }).join("");
             })()}</tbody>
             <tfoot><tr>
               <td colspan="7">TỔNG CỘNG</td>
               ${U.SIZES.map(s => `<td class="num">${U.fmt(U.sum(R.filter(r => r.sz === s), r => r.prs)) === "0" ? "" : U.fmt(U.sum(R.filter(r => r.sz === s), r => r.prs))}</td>`).join("")}
-              <td class="num">${U.fmt(totPrs)}</td><td class="num">${U.fmt(totCtn)}</td>
+              <td class="num">${U.fmt(totPrs)}</td><td class="num">${U.fmt(totCtn)}</td><td colspan="2"></td>
             </tr></tfoot>
           </table></div>
-          <div class="note" style="padding:10px 18px">Import file .xlsx/.csv theo đúng mẫu này — hệ thống tự unpivot từng size thành dòng chi tiết bên dưới và mapping PO/màu/SL đặt/đợt/ngày xuất KD từ đơn hàng.</div>
+          <div class="note" style="padding:10px 18px">Import file .xlsx/.csv theo đúng mẫu này — hệ thống tự unpivot từng size thành dòng chi tiết bên dưới và mapping PO/màu/SL đặt/đợt/ngày xuất KD từ đơn hàng. Mỗi dòng có thể <b>Sửa số lượng</b> hoặc <b>Xóa</b> — mỗi lần sửa hệ thống ghi lại số lần sửa &amp; lý do (bấm “Lịch sử”).</div>
         </div>
 
         <div class="card mt">
@@ -330,4 +342,119 @@
       };
     });
   }
+
+  /* ═════════ SỬA / XÓA / LỊCH SỬ 1 DÒNG MA TRẬN NHẬP KHO ═════════ */
+  Views._mtx = [];
+  const grp = gi => Views._mtx[gi];
+
+  /* Sửa số lượng theo size + bắt buộc nhập lý do */
+  Views._mtxEdit = function (gi) {
+    const g = grp(gi); if (!g) return;
+    const o = U.orderByCode(g.ord);
+    const cur = Store.receiptGroupSizes(g.rdLabel, g.ord);
+    const info = Store.receiptEditInfo(g.rdLabel, g.ord);
+    App.openModal(`
+      <div class="modal-h"><h3>Sửa số lượng nhập kho</h3>
+        ${info ? `<span class="bdg acc plain">đã sửa ${info.rev} lần</span>` : ""}
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b">
+        <div class="note" style="margin-bottom:10px">Ngày NK <b>${U.esc(g.rdLabel)}</b> · Chỉ thị <b>${g.ord}</b>${o ? ` · ${U.flag(o.ctry)} ${U.esc(o.ctry)} · màu ${o.col} · xuất KD ${U.fmtDate(o.d)}` : ""}</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Size</th>${o ? `<th class="num">SL đặt</th>` : ""}<th class="num">SL hiện tại</th><th class="num" style="min-width:120px">SL sửa thành</th></tr></thead>
+          <tbody>${U.SIZES.filter(s => cur[s] != null || (o && o.sizes[s])).map(s => `
+            <tr>
+              <td><b>${s}</b></td>
+              ${o ? `<td class="num">${o.sizes[s] ? U.fmt(o.sizes[s].ordered) : "—"}</td>` : ""}
+              <td class="num">${cur[s] != null ? U.fmt(cur[s]) : "—"}</td>
+              <td class="num"><input class="cell-in" type="number" min="0" value="${cur[s] != null ? cur[s] : 0}" data-sz="${s}"></td>
+            </tr>`).join("")}</tbody>
+          <tfoot><tr><td colspan="${o ? 3 : 2}">TỔNG</td><td class="num" id="meSum">0</td></tr></tfoot>
+        </table></div>
+        <div class="frm mt"><label>Lý do sửa <span style="color:var(--bad)">*</span>
+          <input id="meReason" placeholder="VD: đếm lại thực tế, sửa sai sót nhập liệu, QC trả về…"></label></div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center">
+          <button class="btn primary" id="meSave">Lưu thay đổi & ghi nhật ký</button>
+          <button class="btn" onclick="App.closeModal()">Huỷ</button>
+          <span class="note" id="meErr" style="margin-left:auto"></span>
+        </div>
+      </div>`, true);
+    const inputs = [...document.querySelectorAll("#modalBack input[data-sz]")];
+    const recalc = () => document.getElementById("meSum").textContent =
+      U.fmt(inputs.reduce((a, i) => a + (parseInt(i.value || "0", 10) || 0), 0));
+    inputs.forEach(i => i.addEventListener("input", recalc)); recalc();
+    document.getElementById("meSave").onclick = () => {
+      const sizes = {}; inputs.forEach(i => sizes[i.dataset.sz] = parseInt(i.value || "0", 10) || 0);
+      const r = Store.editReceiptGroup(g.rdLabel, g.ord, sizes, document.getElementById("meReason").value);
+      if (!r.ok) { document.getElementById("meErr").innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
+      App.closeModal();
+      App.toast(`✓ Đã sửa dòng <b>${g.ord}</b> (${U.esc(g.rdLabel)}) — lần sửa thứ ${r.rev}, đã ghi nhật ký`, "ok");
+    };
+  };
+
+  /* Xóa cả dòng ma trận + bắt buộc lý do */
+  Views._mtxDelete = function (gi) {
+    const g = grp(gi); if (!g) return;
+    const cur = Store.receiptGroupSizes(g.rdLabel, g.ord);
+    const tot = Object.values(cur).reduce((a, b) => a + b, 0);
+    App.openModal(`
+      <div class="modal-h"><h3>Xóa dòng nhập kho</h3>
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b" style="max-width:520px">
+        <div class="alert" style="margin-bottom:12px"><div class="a-t">Xóa toàn bộ lần nhập <b>${U.esc(g.rdLabel)}</b> của chỉ thị <b>${g.ord}</b>
+          (<b>${U.fmt(tot)} đôi</b>). Số liệu N-X-T & tồn kho sẽ trừ lại tương ứng. Thao tác được ghi vào nhật ký và có thể khôi phục.</div></div>
+        <div class="frm"><label>Lý do xóa <span style="color:var(--bad)">*</span>
+          <input id="mdReason" placeholder="VD: nhập nhầm chỉ thị, trùng lặp, hủy lô…"></label></div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center">
+          <button class="btn danger" id="mdGo">Xóa dòng & ghi nhật ký</button>
+          <button class="btn" onclick="App.closeModal()">Huỷ</button>
+          <span class="note" id="mdErr" style="margin-left:auto"></span>
+        </div>
+      </div>`);
+    document.getElementById("mdGo").onclick = () => {
+      const r = Store.deleteReceiptGroup(g.rdLabel, g.ord, document.getElementById("mdReason").value);
+      if (!r.ok) { document.getElementById("mdErr").innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
+      App.closeModal();
+      App.toast(`✓ Đã xóa dòng <b>${g.ord}</b> (${U.esc(g.rdLabel)}) — đã ghi nhật ký`, "warn");
+    };
+  };
+
+  /* Xem NHẬT KÝ chỉnh sửa của 1 dòng */
+  Views._mtxHistory = function (gi) {
+    const g = grp(gi); if (!g) return;
+    const info = Store.receiptEditInfo(g.rdLabel, g.ord);
+    if (!info) { App.toast("Dòng này chưa có chỉnh sửa", "warn"); return; }
+    const szTxt = m => m ? U.SIZES.filter(s => m[s]).map(s => `${s.replace("UK ", "")}×${m[s]}`).join(" · ") || "—" : "(đã xóa)";
+    const rows = info.log.slice().reverse().map(l => `
+      <tr>
+        <td class="num"><b>${l.rev}</b></td>
+        <td>${new Date(l.at).toLocaleString("vi-VN")}</td>
+        <td><b>${U.esc(l.by)}</b></td>
+        <td>${l.restored ? '<span class="bdg neu plain">khôi phục gốc</span>' : (l.after === null ? '<span class="bdg bad plain">xóa dòng</span>' : '<span class="bdg acc plain">sửa số lượng</span>')}</td>
+        <td class="note">${l.restored ? "—" : szTxt(l.before)}</td>
+        <td class="note">${l.restored ? "về gốc" : szTxt(l.after)}</td>
+        <td>${U.esc(l.reason || "")}</td>
+      </tr>`).join("");
+    App.openModal(`
+      <div class="modal-h"><h3>Nhật ký chỉnh sửa — ${g.ord}</h3>
+        <span class="bdg acc plain">${info.rev} lần sửa</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b">
+        <div class="note" style="margin-bottom:10px">Ngày NK <b>${U.esc(g.rdLabel)}</b> · Chỉ thị <b>${g.ord}</b>${info.deleted ? ' · <span class="bdg bad plain">đang ở trạng thái ĐÃ XÓA</span>' : ""}</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Lần</th><th>Thời điểm</th><th>Người sửa</th><th>Loại</th><th>Trước</th><th>Sau</th><th>Lý do</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <div class="mt" style="display:flex;gap:8px">
+          <button class="btn need-edit" id="mhRestore">↺ Khôi phục về gốc</button>
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+    const rb = document.getElementById("mhRestore");
+    if (rb) rb.onclick = () => {
+      const r = Store.restoreReceiptGroup(g.rdLabel, g.ord, "Khôi phục về gốc từ nhật ký");
+      if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+      App.closeModal();
+      App.toast(`✓ Đã khôi phục dòng <b>${g.ord}</b> (${U.esc(g.rdLabel)}) về số liệu gốc`, "ok");
+    };
+  };
 })();

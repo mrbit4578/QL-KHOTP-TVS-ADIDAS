@@ -15,8 +15,10 @@
   const SEED_RECEIPTS = window.TVS_RECEIPTS.slice();
 
   function blank() {
-    return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0 };
+    return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0, receiptEdits: {} };
   }
+  const SIZES6 = ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8", "UK 9"];
+  const PK = (window.TVS_META && TVS_META.packing) || 6;
   /* Kiểm tra localStorage có khả dụng không (một số môi trường nhúng chặn) */
   Store.persistent = (function () {
     try { localStorage.setItem("__tvs_t", "1"); localStorage.removeItem("__tvs_t"); return true; }
@@ -35,10 +37,61 @@
   }
   Store.local = load();
 
+  /* ── Áp override SỬA/XÓA dòng ma trận nhập kho (theo nhóm ngày+chỉ thị) ──
+     Hoạt động cho cả dòng Excel gốc lẫn dòng nhập thêm. Không đụng seed gốc. */
+  const gkOf = r => r.rdLabel + "||" + r.ord;
+  function applyReceiptEdits(rows) {
+    const edits = Store.local.receiptEdits || {};
+    if (!Object.keys(edits).length) return rows;
+    const byKey = {};
+    rows.forEach(r => { (byKey[gkOf(r)] = byKey[gkOf(r)] || []).push(r); });
+    const out = [], editedOrders = new Set(), handled = new Set();
+    for (const r of rows) {
+      const gk = gkOf(r), e = edits[gk];
+      if (!e) { out.push(r); continue; }
+      editedOrders.add(r.ord);
+      if (e.deleted) continue;                 // đã xóa → bỏ toàn nhóm
+      if (!e.sizes) { out.push(r); continue; }  // không override size
+      if (handled.has(gk)) continue;
+      handled.add(gk);
+      const base = byKey[gk], tmpl = base[0];
+      SIZES6.forEach(sz => {
+        const q = e.sizes[sz];
+        if (!q || q <= 0) return;
+        const src = base.find(x => x.sz === sz) || tmpl;
+        out.push(Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev }));
+      });
+    }
+    if (editedOrders.size) {
+      for (let i = 0; i < out.length; i++)
+        if (editedOrders.has(out[i].ord)) out[i] = Object.assign({}, out[i]); // clone, tránh sửa seed
+      recomputeDiffs(out, editedOrders);
+    }
+    return out;
+  }
+  /* Tính lại cột Thiếu/Đủ cho các đơn có chỉnh sửa (dòng cuối mỗi size mang net) */
+  function recomputeDiffs(rows, ordSet) {
+    const ordered = {}, recv = {}, lastIdx = {};
+    for (const o of (window.TVS_ORDERS || [])) {
+      if (!ordSet.has(o.ord)) continue;
+      ordered[o.ord + "|" + o.sz] = (ordered[o.ord + "|" + o.sz] || 0) + o.prs;
+    }
+    rows.forEach((r, i) => {
+      if (!ordSet.has(r.ord)) return;
+      recv[r.ord + "|" + r.sz] = (recv[r.ord + "|" + r.sz] || 0) + r.prs;
+      lastIdx[r.ord + "|" + r.sz] = i;
+    });
+    rows.forEach((r, i) => {
+      if (!ordSet.has(r.ord)) return;
+      const key = r.ord + "|" + r.sz;
+      r.diff = (lastIdx[key] === i) ? (recv[key] - (ordered[key] || 0)) : 0;
+    });
+  }
+
   /* Gộp gốc + overlay vào biến toàn cục cho utils.js dùng */
   Store.merge = function () {
     window.TVS_ORDERS = SEED_ORDERS.concat(Store.local.ordersAdded);
-    window.TVS_RECEIPTS = SEED_RECEIPTS.concat(Store.local.receiptsAdded);
+    window.TVS_RECEIPTS = applyReceiptEdits(SEED_RECEIPTS.concat(Store.local.receiptsAdded));
     window.TVS_SHIPMENTS = Store.local.shipments;
   };
   Store.merge();
@@ -70,11 +123,64 @@
       receiptsAdded: data.receiptsAdded || [],
       shipments: data.shipments || [],
       seq: data.seq || 0,
+      receiptEdits: data.receiptEdits || {},
     });
     persist();
     Store.merge();
     if (window.U && U.rebuild) U.rebuild();
     if (window.App && App.refresh) App.refresh();
+  };
+
+  /* ── SỬA / XÓA dòng ma trận nhập kho + NHẬT KÝ (số lần sửa · lý do) ──
+     Nhóm = 1 dòng ma trận = (Ngày NK + Chỉ thị). newSizes = { "UK 4": số đôi, … } */
+  Store.receiptGroupSizes = function (rdLabel, ord) {
+    const sizes = {};
+    (window.TVS_RECEIPTS || []).forEach(r => {
+      if (r.rdLabel === rdLabel && r.ord === ord) sizes[r.sz] = (sizes[r.sz] || 0) + r.prs;
+    });
+    return sizes;
+  };
+  Store.receiptEditInfo = function (rdLabel, ord) {
+    return (Store.local.receiptEdits || {})[rdLabel + "||" + ord] || null;
+  };
+  const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
+
+  Store.editReceiptGroup = function (rdLabel, ord, newSizes, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do sửa" };
+    const before = Store.receiptGroupSizes(rdLabel, ord);
+    const after = {};
+    Object.keys(newSizes || {}).forEach(sz => { const q = parseInt(newSizes[sz], 10) || 0; if (q > 0) after[sz] = q; });
+    if (!Object.keys(after).length) return { ok: false, msg: "Phải còn ít nhất 1 size > 0 (muốn bỏ hết hãy dùng Xóa)" };
+    const gk = rdLabel + "||" + ord;
+    const e = (Store.local.receiptEdits[gk]) || { rev: 0, log: [] };
+    e.rev += 1; e.sizes = after; e.deleted = false;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(), before, after });
+    Store.local.receiptEdits[gk] = e;
+    commit();
+    return { ok: true, rev: e.rev };
+  };
+  Store.deleteReceiptGroup = function (rdLabel, ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do xóa" };
+    const before = Store.receiptGroupSizes(rdLabel, ord);
+    const gk = rdLabel + "||" + ord;
+    const e = (Store.local.receiptEdits[gk]) || { rev: 0, log: [] };
+    e.rev += 1; e.deleted = true; e.sizes = null;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(), before, after: null });
+    Store.local.receiptEdits[gk] = e;
+    commit();
+    return { ok: true };
+  };
+  /* Khôi phục nhóm về trạng thái gốc (gỡ mọi override, giữ nhật ký) */
+  Store.restoreReceiptGroup = function (rdLabel, ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const gk = rdLabel + "||" + ord;
+    const e = Store.local.receiptEdits[gk]; if (!e) return { ok: false, msg: "Nhóm chưa có chỉnh sửa" };
+    e.rev += 1; e.deleted = false; e.sizes = null;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: (reason || "Khôi phục về gốc").trim(), restored: true });
+    commit();
+    return { ok: true };
   };
 
   /* ── Số phiếu tự tăng theo mẫu PXK-ADI-2026-0001 ───────────── */
