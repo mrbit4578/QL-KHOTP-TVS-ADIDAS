@@ -1909,10 +1909,32 @@
    ],
    "deleted": true,
    "sizes": null
+  },
+  "17/07/2026||AE2607172": {
+   "rev": 1,
+   "log": [
+    {
+     "rev": 1,
+     "at": "2026-07-30T06:15:52.147Z",
+     "by": "thukho",
+     "reason": "Trùng số liệu",
+     "before": {
+      "UK 3": 8,
+      "UK 4": 96,
+      "UK 5": 206,
+      "UK 6": 212,
+      "UK 7": 162,
+      "UK 8": 84
+     },
+     "after": null
+    }
+   ],
+   "deleted": true,
+   "sizes": null
   }
  },
  "meta": {
-  "updatedAt": "2026-07-30T06:06:37.538Z",
+  "updatedAt": "2026-07-30T06:15:53.763Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
