@@ -2053,10 +2053,27 @@
    ],
    "deleted": true,
    "sizes": null
+  },
+  "21/07/2026||AE2607171": {
+   "rev": 1,
+   "log": [
+    {
+     "rev": 1,
+     "at": "2026-07-30T06:16:29.890Z",
+     "by": "thukho",
+     "reason": "Trùng số liệu",
+     "before": {
+      "UK 8": 18
+     },
+     "after": null
+    }
+   ],
+   "deleted": true,
+   "sizes": null
   }
  },
  "meta": {
-  "updatedAt": "2026-07-30T06:16:26.199Z",
+  "updatedAt": "2026-07-30T06:16:31.506Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
