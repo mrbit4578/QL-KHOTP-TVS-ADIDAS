@@ -61,13 +61,12 @@ python3 -m http.server 8080
 | Sheet Excel | Nội dung | Đưa vào hệ thống |
 |---|---|---|
 | `Data` — DATA ĐƠN ĐẶT HÀNG GỐC | 549 dòng chi tiết đơn đặt hàng từ khách adidas: ngày xuất KD, quốc gia, đơn hàng, PO, màu, size, số đôi, số thùng, đợt | `assets/js/data.js` → `TVS_ORDERS` |
-| `ChitietNK` — CHI TIẾT THÀNH PHẨM ADIDAS NHẬP KHO | Từng ngày sản xuất xong → đóng thùng → nhập kho (17 cột: SL kiểm, SL đặt, thiếu/đủ, chưa SX, ngày thực xuất…) | `assets/js/data.js` → `TVS_RECEIPTS` |
+| `chi tiet nhap kho theo ngay.xlsx` (cập nhật 30/07/2026) | **Dữ liệu nhập kho nguồn** — 11 dòng ma trận theo ngày (16/07→22/07) = **2.006 đôi / 345 thùng**, 5 chỉ thị: AE2607131, AE2607171, AE2607172, AE2607173, AE2607563 | `assets/js/data.js` → `TVS_RECEIPTS` (45 dòng chi tiết sau unpivot) |
 
 **Số liệu tổng (đối chiếu khớp 100% với Excel):**
 - Tổng đặt hàng: **40.027 đôi = 6.909 thùng** · 95 đơn hàng · 14 quốc gia · 5 mã màu (LC1783–LC1787) · size UK 3–9 · 3 đợt
-- Đã nhập kho (đến 17/07/2026): **679 đôi = 117 thùng** (AE2607172 Argentina + AE2607131 Ý)
+- Đã nhập kho (nguồn 30/07/2026): **2.006 đôi = 345 thùng** — 11 lần nhập từ 16/07 → 22/07 của 5 chỉ thị
 - Quy cách đóng thùng: **6 đôi/thùng** — Số thùng = `ROUNDUP(Số đôi ÷ 6)` (đúng công thức trong file)
-- Thiếu khi nhập: 10 đôi (UK 6 −6, UK 8 −4) · Chưa sản xuất: UK 9 = 11 (Argentina) + UK 9 = 15 (Ý)
 
 ## 🧭 Các phân hệ (theo sơ đồ kiến trúc WMS — hình tham chiếu ①)
 
@@ -134,6 +133,15 @@ Theo đúng file mẫu `PHIEU XUAT KHO THANH PHAM.xlsx`:
 - Dữ liệu Excel gốc là **bất biến** (nhúng trong `data.js`)
 - Dữ liệu nhập tay / import / phiếu xuất kho lưu trong **localStorage của trình duyệt** — tự phục hồi khi mở lại
 - Nút **↺ Khôi phục gốc** (chân sidebar) xoá toàn bộ dữ liệu bổ sung, quay về 100% Excel gốc
+
+### 🔓 Dữ liệu gốc nhập kho — fix cứng nhưng SỬA ĐƯỢC (v4.5)
+Dữ liệu nhập kho gốc được **fix cứng** trong `assets/js/data.js`, nhưng người dùng nhập liệu **toàn quyền thay đổi** ngay trên web (mọi thao tác đều ghi nhật ký người sửa / lý do):
+- **Sửa / Xoá từng dòng** ma trận nhập kho (kể cả dòng gốc) — xem mục Ma trận nhập kho theo ngày
+- **Bỏ dùng dữ liệu gốc** → ẩn toàn bộ số liệu gốc, chỉ dùng dữ liệu bạn nhập/import; **Dùng lại** bất cứ lúc nào
+- **↺ Khôi phục gốc ban đầu** → về đúng bộ dữ liệu nguồn, xoá mọi dòng thêm & mọi chỉnh sửa
+- **Xoá sạch nhập kho** → dọn trắng để nạp bộ dữ liệu mới hoàn toàn từ file
+- Khi **Import**, chọn 1 trong 2 chế độ: **Thêm vào** dữ liệu hiện có, hoặc **Thay thế toàn bộ** (xoá sạch rồi nạp file làm dữ liệu duy nhất)
+- ✅ Đã sửa lỗi: trước đây nếu xoá một dòng rồi import lại đúng ngày + chỉ thị đó thì dữ liệu mới **bị ẩn** (tưởng như không import được). Nay hệ thống tự gỡ trạng thái đã xoá/đã sửa của dòng đó và thông báo rõ.
 - Lưu ý: nếu mở qua môi trường nhúng chặn lưu trữ, hệ thống chạy ở *chế độ demo* (có cảnh báo) — bản .zip mở trên máy thật lưu bình thường
 
 ## 🗂 Cấu trúc dự án

@@ -15,7 +15,8 @@
   const SEED_RECEIPTS = window.TVS_RECEIPTS.slice();
 
   function blank() {
-    return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0, receiptEdits: {} };
+    return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0, receiptEdits: {},
+             seedReceiptsOff: false };
   }
   const SIZES6 = ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8", "UK 9"];
   const PK = (window.TVS_META && TVS_META.packing) || 6;
@@ -88,13 +89,47 @@
     });
   }
 
-  /* Gộp gốc + overlay vào biến toàn cục cho utils.js dùng */
+  /* Gộp gốc + overlay vào biến toàn cục cho utils.js dùng.
+     seedReceiptsOff = true → KHÔNG dùng dữ liệu nhập kho gốc (đã thay thế bằng
+     dữ liệu import/nhập tay). Bật/tắt được, khôi phục lại lúc nào cũng được. */
   Store.merge = function () {
     window.TVS_ORDERS = SEED_ORDERS.concat(Store.local.ordersAdded);
-    window.TVS_RECEIPTS = applyReceiptEdits(SEED_RECEIPTS.concat(Store.local.receiptsAdded));
+    const base = Store.local.seedReceiptsOff ? [] : SEED_RECEIPTS;
+    window.TVS_RECEIPTS = applyReceiptEdits(base.concat(Store.local.receiptsAdded));
     window.TVS_SHIPMENTS = Store.local.shipments;
   };
   Store.merge();
+
+  /* ── Thông tin & điều khiển DỮ LIỆU GỐC nhập kho ── */
+  Store.seedReceiptInfo = () => ({
+    off: !!Store.local.seedReceiptsOff,
+    rows: SEED_RECEIPTS.length,
+    prs: SEED_RECEIPTS.reduce((a, r) => a + r.prs, 0),
+    groups: [...new Set(SEED_RECEIPTS.map(r => r.rdLabel + "||" + r.ord))].length,
+  });
+  /* Bỏ dùng / dùng lại dữ liệu nhập kho gốc (fix cứng trong data.js) */
+  Store.setSeedReceipts = function (on) {
+    if (!Store.guard()) return;
+    Store.local.seedReceiptsOff = !on;
+    commit();
+  };
+  /* Khôi phục toàn bộ dữ liệu nhập kho về gốc ban đầu:
+     bật lại seed, xoá dòng bổ sung & mọi chỉnh sửa/xoá đã ghi */
+  Store.resetReceiptsToSeed = function () {
+    if (!Store.guard()) return;
+    Store.local.seedReceiptsOff = false;
+    Store.local.receiptsAdded = [];
+    Store.local.receiptEdits = {};
+    commit();
+  };
+  /* Xoá sạch dữ liệu nhập kho hiện có (kể cả gốc) để nạp bộ dữ liệu mới */
+  Store.clearAllReceipts = function () {
+    if (!Store.guard()) return;
+    Store.local.seedReceiptsOff = true;
+    Store.local.receiptsAdded = [];
+    Store.local.receiptEdits = {};
+    commit();
+  };
 
   /* Sau mỗi thay đổi: lưu + gộp + tính lại + vẽ lại + xếp hàng đồng bộ GitHub */
   function commit() {
@@ -124,6 +159,7 @@
       shipments: data.shipments || [],
       seq: data.seq || 0,
       receiptEdits: data.receiptEdits || {},
+      seedReceiptsOff: !!data.seedReceiptsOff,
     });
     persist();
     Store.merge();
@@ -197,11 +233,33 @@
     Store.local.ordersAdded.push(...rows);
     commit();
   };
-  Store.addReceipts = function (rows, src) {
+  Store.addReceipts = function (rows, src, opts) {
     if (!Store.guard()) return;
+    opts = opts || {};
+    /* Chế độ THAY THẾ: xoá sạch dữ liệu nhập kho hiện có (kể cả gốc) trước khi nạp */
+    if (opts.replaceAll) {
+      Store.local.seedReceiptsOff = true;
+      Store.local.receiptsAdded = [];
+      Store.local.receiptEdits = {};
+    }
     rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
+    /* ⚠ QUAN TRỌNG: nếu nhóm (ngày + chỉ thị) từng bị XOÁ, phải gỡ cờ xoá —
+       nếu không dữ liệu vừa thêm/import sẽ bị lớp override ẩn đi (không thấy gì). */
+    const revived = [];
+    for (const gk of new Set(rows.map(r => r.rdLabel + "||" + r.ord))) {
+      const e = Store.local.receiptEdits[gk];
+      if (e && (e.deleted || e.sizes)) {
+        e.rev += 1; e.deleted = false; e.sizes = null;
+        e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+          reason: (src === "import" ? "Import dữ liệu mới" : "Nhập kho mới") + " — gỡ trạng thái đã xoá/đã sửa để nhận dữ liệu mới",
+          restored: true });
+        revived.push(gk.split("||").join(" · "));
+      }
+    }
     Store.local.receiptsAdded.push(...rows);
     commit();
+    if (revived.length && window.App && App.toast)
+      App.toast(`ℹ Đã bỏ trạng thái xoá/sửa cũ của ${revived.length} dòng để nhận dữ liệu mới: ${U.esc(revived.slice(0, 3).join("; "))}${revived.length > 3 ? "…" : ""}`, "warn");
   };
   Store.removeOrderRow = function (id) {
     if (!Store.guard()) return;

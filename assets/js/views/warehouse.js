@@ -25,13 +25,29 @@
 
       root.innerHTML = `
         <div class="card" style="margin-bottom:16px">
-          <div class="filters" style="background:#fafbfc">
+          <div class="filters" style="background:var(--soft)">
             <button class="btn primary need-edit" id="rAdd">${App.icon("plus", "ico")} Nhập kho mới</button>
             <button class="btn" id="rTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="rImp">${App.icon("upload", "ico")} Import từ file</button>
             <button class="btn" id="rExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
             <span class="f-chipcount">Chọn chỉ thị → hệ thống tự đối chiếu SL đặt & còn thiếu theo size</span>
           </div>
+          ${(() => {
+            const si = Store.seedReceiptInfo();
+            const c = Store.counts();
+            return `<div class="filters" style="border-bottom:0;gap:10px">
+              <span class="bdg ${si.off ? "warn" : "ok"}">Dữ liệu gốc: ${si.off ? "ĐANG TẮT" : "đang dùng"}</span>
+              <span class="note">Gốc fix cứng: <b>${si.groups} dòng ma trận · ${U.fmt(si.prs)} đôi</b> — sửa/xoá được, có nhật ký.
+                Dữ liệu nhập thêm: <b>${c.receipts} dòng</b>.</span>
+              <span style="margin-left:auto;display:flex;gap:8px">
+                ${si.off
+                  ? `<button class="btn small primary need-edit" id="rSeedOn">↺ Dùng lại dữ liệu gốc</button>`
+                  : `<button class="btn small need-edit" id="rSeedOff">Bỏ dùng dữ liệu gốc</button>`}
+                <button class="btn small need-edit" id="rResetSeed">↺ Khôi phục gốc ban đầu</button>
+                <button class="btn small danger need-edit" id="rClearAll">${App.icon("trash", "ico")} Xoá sạch nhập kho</button>
+              </span>
+            </div>`;
+          })()}
         </div>
         <div class="grid g-kpi">
           <div class="card kpi kpi-acc"><div class="k-lab">${App.icon("box")}<span>Tổng đã nhập kho</span></div>
@@ -199,6 +215,20 @@
           </table></div>
         </div>`;
 
+      const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+      bind("rSeedOff", () => {
+        if (confirm("Bỏ dùng dữ liệu nhập kho GỐC?\n\nSố liệu gốc sẽ được ẩn khỏi hệ thống (chỉ còn dữ liệu bạn nhập/import). Có thể bật lại bất cứ lúc nào."))
+        { Store.setSeedReceipts(false); App.toast("Đã bỏ dùng dữ liệu gốc — hệ thống chỉ dùng dữ liệu bạn nhập/import", "warn"); }
+      });
+      bind("rSeedOn", () => { Store.setSeedReceipts(true); App.toast("✓ Đã dùng lại dữ liệu nhập kho gốc", "ok"); });
+      bind("rResetSeed", () => {
+        if (confirm("Khôi phục dữ liệu nhập kho về GỐC BAN ĐẦU?\n\nSẽ xoá toàn bộ dòng bạn đã nhập/import và mọi chỉnh sửa/xoá đã ghi."))
+        { Store.resetReceiptsToSeed(); App.toast("✓ Đã khôi phục dữ liệu nhập kho gốc ban đầu", "ok"); }
+      });
+      bind("rClearAll", () => {
+        if (confirm("XOÁ SẠCH toàn bộ dữ liệu nhập kho (kể cả dữ liệu gốc)?\n\nDùng khi bạn muốn nạp lại một bộ dữ liệu mới hoàn toàn từ file. Có thể khôi phục gốc lại sau."))
+        { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
+      });
       document.getElementById("rAdd").onclick = openAddReceipt;
       document.getElementById("rTpl").onclick = () => { Store.templateReceipts(); App.toast("Đã tải file mẫu theo ngày (cột size 3→10). Hệ thống nhận cả file .xlsx gốc lẫn .csv theo mẫu này", "ok"); };
       document.getElementById("rImp").onclick = importReceipts;
@@ -330,15 +360,26 @@
           <td class="num">${U.fmt(r.prs)}</td><td class="num">${r.ctn}</td><td class="num">${U.fmt(r.ordered)}</td>
           <td class="num ${r.diff < 0 ? "neg" : "pos"}">${r.diff > 0 ? "+" : ""}${r.diff}</td>
           <td>${U.fmtDate(r.planExp)}</td><td class="note">${r.notProduced ? U.esc(r.notProduced) : ""}</td></tr>`).join("")}</tbody></table></div>
+        <div class="mt" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px">
+          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Cách nạp dữ liệu:</div>
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-bottom:6px">
+            <input type="radio" name="riMode" value="add" checked>
+            <span><b>Thêm vào</b> dữ liệu hiện có <span class="note">— cộng dồn với số liệu đang có trong kho</span></span></label>
+          <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px">
+            <input type="radio" name="riMode" value="replace">
+            <span><b>Thay thế toàn bộ</b> dữ liệu nhập kho <span class="note">— xoá sạch số liệu nhập kho hiện có (kể cả dữ liệu gốc &amp; các chỉnh sửa) rồi nạp file này làm dữ liệu duy nhất</span></span></label>
+        </div>
         <div class="mt" style="display:flex;gap:8px">
           <button class="btn primary" id="riApply">✓ Nhập ${rows.length} dòng vào kho</button>
           <button class="btn" onclick="App.closeModal()">Huỷ</button>
         </div></div>`;
       App.openModal(html, true);
       document.getElementById("riApply").onclick = () => {
-        Store.addReceipts(rows, "import");
+        const mode = (document.querySelector('input[name="riMode"]:checked') || {}).value || "add";
+        if (mode === "replace" && !confirm("Thay thế TOÀN BỘ dữ liệu nhập kho bằng file này?\n\nSố liệu nhập kho hiện có (kể cả dữ liệu gốc và các chỉnh sửa) sẽ bị xoá.")) return;
+        Store.addReceipts(rows, "import", { replaceAll: mode === "replace" });
         App.closeModal();
-        App.toast(`✓ Đã import ${rows.length} dòng nhập kho — PO/màu/SL đặt/đợt đã mapping tự động từ đơn hàng`, "ok");
+        App.toast(`✓ Đã import ${rows.length} dòng nhập kho (${mode === "replace" ? "thay thế toàn bộ" : "thêm vào"}) — PO/màu/SL đặt/đợt đã mapping tự động`, "ok");
       };
     });
   }
