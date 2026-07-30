@@ -301,20 +301,35 @@
               <input type="checkbox" id="wOnly" ${wiz.onlyAvail ? "checked" : ""}> Chỉ hiện chỉ thị có tồn khả dụng</label>
             <span class="note" style="margin-left:auto">Đã chọn: <b id="wCount">${s.orders.length}</b> chỉ thị</span>
           </div>
+          <div class="chkline chk-head">
+            <span style="width:15px"></span>
+            <b style="width:96px">Chỉ thị</b><span style="width:20px"></span>
+            <span style="width:128px">Quốc gia</span><span style="width:78px">Màu</span>
+            <span style="width:104px">Ngày xuất KD</span>
+            <span class="num-col">SL đặt hàng KD</span>
+            <span class="num-col">SL nhập kho SX</span>
+            <span class="num-col">SL thiếu/đủ</span>
+            <span class="num-col">Tồn KD</span>
+          </div>
           <div class="chk-list" id="wList">
             ${cands.map(o => {
               const avail = o.recvPrs - o.shipPrs;
+              const bal = o.recvPrs - o.prs;          /* nhập kho SX so với đặt hàng KD */
               return `<label class="chkline ${s.orders.includes(o.ord) ? "sel" : ""}">
                 <input type="checkbox" data-ord="${o.ord}" ${s.orders.includes(o.ord) ? "checked" : ""}>
                 <b style="width:96px">${o.ord}</b>
                 <span style="width:20px">${Store.hasPacking(o.ord) ? "📦" : ""}</span>
-                <span style="width:140px">${U.flag(o.ctry)} ${U.esc(o.ctry)}</span>
-                <span class="note" style="width:110px">${o.col}</span>
-                <span class="note" style="width:110px">KD ${U.fmtDate(o.d)}</span>
-                <span style="margin-left:auto" class="${avail > 0 ? "pos" : "note"}">tồn KD ${U.fmt(avail)} đôi</span>
+                <span style="width:128px">${U.flag(o.ctry)} ${U.esc(o.ctry)}</span>
+                <span class="note" style="width:78px">${o.col}</span>
+                <span class="note" style="width:104px">${U.fmtDate(o.d)}</span>
+                <span class="num-col">${U.fmt(o.prs)}</span>
+                <span class="num-col">${U.fmt(o.recvPrs)}</span>
+                <span class="num-col ${bal < 0 ? "neg" : "pos"}">${bal < 0 ? "thiếu " + U.fmt(-bal) : (bal === 0 ? "đủ" : "+" + U.fmt(bal))}</span>
+                <span class="num-col ${avail > 0 ? "pos" : "note"}">${U.fmt(avail)}</span>
               </label>`;
             }).join("") || `<div class="note" style="padding:14px">Không có chỉ thị phù hợp — hãy nhập kho trước hoặc bỏ lọc "tồn khả dụng".</div>`}
           </div>
+          <div class="note" style="margin-top:6px">Đơn vị: đôi · <b>SL thiếu/đủ</b> = SL nhập kho SX − SL đặt hàng KD · <b>Tồn KD</b> = đã nhập − đã xuất (số còn xuất được)</div>
 
           <div class="mt" style="display:flex;gap:8px;align-items:center">
             <button class="btn primary" id="wNext">Tải số lượng từ Nhập kho + Packing list →</button>
@@ -364,13 +379,20 @@
         <div class="tbl-wrap" style="max-height:46vh;overflow:auto"><table class="tbl" id="wTbl">
           <thead><tr>
             <th>Chỉ thị</th><th>Size / Quy cách</th><th>Thùng số</th>
-            <th class="num">Đôi/thùng</th><th class="num">SL theo PL</th><th class="num">Tồn KD</th>
+            <th class="num">Đôi/thùng</th><th class="num">SL theo PL</th>
+            <th class="num">SL đặt hàng KD</th><th class="num">SL nhập kho SX</th><th class="num">SL thiếu / đủ</th>
+            <th class="num">Tồn KD</th>
             <th class="num" style="min-width:100px">SL thực xuất</th><th class="num">Carton</th><th>Ghi chú</th>
           </tr></thead>
           <tbody>${[...groups].map(([ord, lines]) => lines.map((l, i) => {
             const o = U.orderByCode(ord);
             const idx = s.lines.indexOf(l);
             const availNow = l.kind === "run" ? U.avail(ord, l.sz) : null;
+            /* SL đặt hàng KD & SL nhập kho SX theo size của dòng (dòng MIX = tổng các size trong thùng) */
+            const szList = l.kind === "mix" ? Object.keys(l.sizes) : [l.sz];
+            const ordQty = U.sum(szList, sz => (o.sizes[sz] ? o.sizes[sz].ordered : 0));
+            const recvQty = U.sum(szList, sz => (o.sizes[sz] ? o.sizes[sz].received : 0));
+            const bal = recvQty - ordQty;
             return `<tr data-i="${idx}" class="${l.kind === "mix" ? "row-mix" : ""}">
               ${i === 0 ? `<td rowspan="${lines.length}" style="vertical-align:top"><b>${ord}</b> ${Store.hasPacking(ord) ? "📦" : ""}<br>
                 <span class="note">${U.flag(l.ctry)} ${U.esc(l.ctry)} · ${l.col}<br>KD ${U.fmtDate(o.d)}</span></td>` : ""}
@@ -378,6 +400,9 @@
               <td class="note">${l.from ? (l.from === l.to ? "#" + l.from : `#${l.from}–${l.to}`) : "—"}${l.box ? `<br>${l.box}` : ""}</td>
               <td class="num">${l.perCtn}</td>
               <td class="num">${U.fmt(l.groupPrs)}</td>
+              <td class="num">${U.fmt(ordQty)}</td>
+              <td class="num">${U.fmt(recvQty)}</td>
+              <td class="num ${bal < 0 ? "neg" : "pos"}" title="SL nhập kho SX − SL đặt hàng KD">${bal < 0 ? "−" + U.fmt(-bal) : (bal === 0 ? "đủ" : "+" + U.fmt(bal))}</td>
               <td class="num ${l.kind === "run" ? (availNow > 0 ? "pos" : "") : ""}">${l.kind === "run" ? U.fmt(availNow) : (l.qty > 0 || l.canShip ? `<span class="bdg ok plain">đủ mix</span>` : `<span class="bdg bad plain">thiếu size</span>`)}</td>
               <td class="num">${l.kind === "mix"
                 ? `<label style="display:flex;gap:6px;align-items:center;justify-content:flex-end;cursor:pointer">
@@ -389,10 +414,31 @@
             </tr>`;
           }).join("")).join("")}</tbody>
           <tfoot><tr>
-            <td colspan="6">TỔNG CỘNG</td>
+            ${(() => {
+              /* Tổng SL đặt / nhập tính theo từng (chỉ thị + size) DUY NHẤT — tránh
+                 đếm trùng khi 1 size nằm ở nhiều nhóm thùng (nguyên / lẻ / mix) */
+              const seen = new Set(); let tOrd = 0, tRecv = 0;
+              for (const l of s.lines) {
+                const o = U.orderByCode(l.ord);
+                for (const sz of (l.kind === "mix" ? Object.keys(l.sizes) : [l.sz])) {
+                  const k = l.ord + "|" + sz;
+                  if (seen.has(k) || !o.sizes[sz]) continue;
+                  seen.add(k); tOrd += o.sizes[sz].ordered; tRecv += o.sizes[sz].received;
+                }
+              }
+              const tBal = tRecv - tOrd;
+              return `<td colspan="5">TỔNG CỘNG <span class="note">(SL đặt/nhập tính theo size, không trùng lặp)</span></td>
+                <td class="num">${U.fmt(tOrd)}</td><td class="num">${U.fmt(tRecv)}</td>
+                <td class="num ${tBal < 0 ? "neg" : "pos"}">${tBal < 0 ? "−" + U.fmt(-tBal) : (tBal === 0 ? "đủ" : "+" + U.fmt(tBal))}</td>
+                <td></td>`;
+            })()}
             <td class="num" id="wSumQty">0</td><td class="num" id="wSumCtn">0</td><td></td>
           </tr></tfoot>
         </table></div>
+        <div class="note" style="margin-top:6px">
+          <b>SL đặt hàng KD</b> = số đôi khách đặt theo size · <b>SL nhập kho SX</b> = số đôi sản xuất đã nhập kho theo size ·
+          <b>SL thiếu / đủ</b> = nhập kho − đặt hàng (số âm = còn thiếu chưa sản xuất đủ) · <b>Tồn KD</b> = đã nhập − đã xuất (số còn xuất được)
+        </div>
 
         <div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn" id="wBack">← Quay lại</button>
