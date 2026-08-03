@@ -409,12 +409,21 @@
   };
 
   /* ── File mẫu ──────────────────────────────────────────────── */
+  /* Mẫu DẠNG NGANG — 1 dòng = 1 đơn, các cột size UK3…UK9 (giống form nhập tay).
+     Hệ thống tự chuyển (unpivot) sang dạng dọc khi import. */
   Store.templateOrders = function () {
-    Store.downloadCSV("MAU_IMPORT_DON_DAT_HANG.csv", [
+    Store.downloadCSV("MAU_IMPORT_DON_DAT_HANG_SIZE_NGANG.csv", [
+      ["Ngày xuất KD", "Quốc gia", "Đơn hàng", "PO", "Màu", "Tên màu tiếng việt", "Đợt đặt hàng", "3", "4", "5", "6", "7", "8", "9", "Tổng đôi"],
+      ["15/02/2027", "JAPAN", "AE2701001", "0903999999-1", "LC1783", "MÀU ĐEN", "3", "", "120", "240", "240", "180", "60", "", "840"],
+      ["15/02/2027", "GERMANY", "AE2701002", "0903999888-1", "LC1786", "MÀU NÂU", "3", "6", "60", "90", "90", "60", "30", "12", "348"],
+    ]);
+  };
+  /* Mẫu dạng DỌC (1 dòng = 1 size) — vẫn hỗ trợ để tương thích bản cũ */
+  Store.templateOrdersLong = function () {
+    Store.downloadCSV("MAU_IMPORT_DON_DAT_HANG_SIZE_DOC.csv", [
       ["Ngày xuất KD", "Quốc gia", "Đơn hàng", "PO", "Màu", "Size", "Số đôi", "Số thùng", "Đợt đặt hàng"],
       ["15/02/2027", "JAPAN", "AE2701001", "0903999999-1", "LC1783", "UK 4", "120", "", "3"],
       ["15/02/2027", "JAPAN", "AE2701001", "0903999999-1", "LC1783", "UK 5", "240", "", "3"],
-      ["15/02/2027", "JAPAN", "AE2701001", "0903999999-1", "LC1783", "UK 6", "240", "40", "3"],
     ]);
   };
   Store.templateReceipts = function () {
@@ -456,6 +465,88 @@
         prs, ctn: toInt(ctn0) || Math.ceil(prs / TVS_META.packing), bat });
     }
     return { rows: out, errs };
+  };
+
+  /* ── Import ĐƠN ĐẶT HÀNG dạng SIZE HÀNG NGANG → tự chuyển sang hàng dọc ──
+     1 dòng = 1 đơn với các cột size (3,4,5… hoặc UK 3, UK 4…).
+     Nhận mảng 2 chiều (từ .xlsx qua XlsxLite hoặc .csv qua parseCSV). */
+  Store.importOrdersWide = function (rows) {
+    const errs = [], out = [], pivot = [], warns = [];
+    /* 1. Tìm dòng tiêu đề (có "Đơn hàng"/"Chỉ thị" + ít nhất 1 cột size) */
+    let hi = -1;
+    for (let i = 0; i < Math.min(rows.length, 12); i++) {
+      const cs = (rows[i] || []).map(normTxt);
+      const hasOrd = cs.some(c => c.includes("don hang") || c.includes("chi thi"));
+      const hasSize = cs.some(c => /^(?:uk\s*)?([1-9]|10)$/.test(c));
+      if (hasOrd && hasSize) { hi = i; break; }
+    }
+    if (hi < 0) return { rows: [], errs: ["Không tìm thấy dòng tiêu đề — cần cột 'Đơn hàng' và các cột size (3, 4, 5… hoặc UK 3…)"], pivot, warns };
+    const H = (rows[hi] || []).map(normTxt);
+    const find = (...keys) => H.findIndex(c => keys.some(k => c.includes(k)));
+    const ix = {
+      d: find("ngay xuat", "ngay xk", "ngay"), ctry: find("quoc gia"),
+      ord: (find("don hang") >= 0 ? find("don hang") : find("chi thi")),
+      po: find("po"), col: find("mau") >= 0 && !H[find("mau")].includes("ten mau") ? find("mau") : H.findIndex(c => c === "mau"),
+      colVN: H.findIndex(c => c.includes("ten mau")), bat: find("dot"),
+    };
+    const sizeCols = [];
+    H.forEach((h, i) => { const m = h.match(/^(?:uk\s*)?([1-9]|10)$/); if (m) sizeCols.push({ idx: i, sz: "UK " + m[1] }); });
+
+    const seenOrd = new Set();
+    for (let i = hi + 1; i < rows.length; i++) {
+      const R = rows[i] || [], line = i + 1;
+      const ordRaw = String(R[ix.ord] ?? "").trim();
+      if (!ordRaw) continue;
+      const ord = ordRaw.toUpperCase();
+      const d = ix.d >= 0 ? readDateCell(R[ix.d]) : null;
+      if (!d) { errs.push(`Dòng ${line}: ngày xuất KD "${R[ix.d] ?? ""}" không hợp lệ (dd/mm/yyyy)`); continue; }
+      const ctry = String(R[ix.ctry] ?? "").split("\n").pop().replace(/^=>/, "").trim().toUpperCase();
+      if (!ctry) { errs.push(`Dòng ${line}: thiếu quốc gia`); continue; }
+      const po = String(R[ix.po] ?? "").split("\n").pop().replace(/^=>/, "").trim();
+      const col = String(R[ix.col] ?? "").trim().toUpperCase() || "LC1783";
+      const bat = parseInt(String(R[ix.bat] ?? "").trim(), 10) || 1;
+      if (U.orderByCode(ord)) warns.push(`${ord} đã tồn tại trong hệ thống — import sẽ THÊM dòng size mới (kiểm tra tránh trùng)`);
+      if (seenOrd.has(ord)) warns.push(`${ord} xuất hiện nhiều lần trong file`);
+      seenOrd.add(ord);
+
+      const pv = { d, dLabel: U.fmtDate(d), ctry, ord, po, col, colVN: ix.colVN >= 0 ? String(R[ix.colVN] ?? "").trim() : "", bat, sizes: {}, total: 0 };
+      let hadInput = false, dupAll = true;
+      for (const sc of sizeCols) {
+        const q = parseInt(String(R[sc.idx] ?? "").replace(/[.\s,]/g, ""), 10);
+        if (!q || q <= 0) continue;
+        hadInput = true;
+        if (TVS_ORDERS.some(x => x.ord === ord && x.sz === sc.sz)) { errs.push(`Dòng ${line}: ${ord} đã có size ${sc.sz} trong hệ thống`); continue; }
+        dupAll = false;
+        out.push({ d, ctry, ord, po, col, sz: sc.sz, prs: q, ctn: Math.ceil(q / PK), bat });
+        pv.sizes[sc.sz] = q; pv.total += q;
+      }
+      if (pv.total > 0) pivot.push(pv);
+      else if (!hadInput) errs.push(`Dòng ${line}: ${ord} không có size nào > 0`);
+      else if (dupAll) warns.push(`${ord}: tất cả size đã có sẵn trong hệ thống — dòng này bị bỏ qua`);
+    }
+    return { rows: out, errs, pivot, warns };
+  };
+
+  /* Đọc ô ngày: số serial Excel hoặc chuỗi dd/mm/yyyy */
+  function readDateCell(v) {
+    if (typeof v === "number" && window.XlsxLite) { const d = XlsxLite.serialToISO(v); if (d) return d; }
+    return Store.parseDate(v);
+  }
+
+  /* Tự nhận dạng file đơn hàng: NGANG (có cột size) hay DỌC (cột Size + Số đôi) */
+  Store.importOrdersAuto = function (rows) {
+    for (let i = 0; i < Math.min(rows.length, 12); i++) {
+      const cs = (rows[i] || []).map(normTxt);
+      if (cs.some(c => /^(?:uk\s*)?([1-9]|10)$/.test(c))) {
+        const r = Store.importOrdersWide(rows); r.format = "wide"; return r;
+      }
+      if (cs.some(c => c === "size") && cs.some(c => c.includes("so doi"))) break;
+    }
+    const csv = rows.map(r => (r || []).map(c => {
+      const s = String(c ?? ""); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(",")).join("\n");
+    const r = Store.importOrders(csv);
+    r.format = "long"; r.pivot = []; r.warns = []; return r;
   };
 
   /* ── Import NHẬP KHO (mapping tự động từ đơn đặt hàng) ─────── */

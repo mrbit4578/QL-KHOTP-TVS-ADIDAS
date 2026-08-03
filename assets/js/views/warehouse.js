@@ -146,7 +146,7 @@
                   <td class="clickable" onclick="Views._openOrder('${r0.ord}')"><b>${r0.ord}</b></td>
                   <td class="mono">${U.esc(r0.po)}</td>
                   <td class="mono">${r0.item}</td>
-                  <td><span class="color-dot" style="background:${U.colorHex(r0.col)}"></span>${r0.col}</td>
+                  <td>${U.colorCell(r0.col)}</td>
                   ${U.SIZES.map(s => `<td class="num">${bySz[s] ? U.fmt(bySz[s]) : ""}</td>`).join("")}
                   <td class="num"><b>${U.fmt(U.sum(rows, r => r.prs))}</b></td>
                   <td class="num">${U.fmt(U.sum(rows, r => r.ctn))}</td>
@@ -187,7 +187,7 @@
                 <td class="clickable" onclick="Views._openOrder('${r.ord}')"><b>${r.ord}</b></td>
                 <td class="mono">${U.esc(r.po)}</td>
                 <td class="mono">${r.item}</td>
-                <td><span class="color-dot" style="background:${U.colorHex(r.col)}"></span>${r.col}</td>
+                <td>${U.colorCell(r.col)}</td>
                 <td><b>${r.sz}</b></td>
                 <td class="num">${U.fmt(r.prs)}</td>
                 <td class="num">${U.fmt(r.ctn)}</td>

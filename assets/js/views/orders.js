@@ -51,7 +51,7 @@
         <div class="grid g-3">
           <div><div class="note">Quốc gia</div><b>${U.esc(o.ctry)} (${U.VN_COUNTRY[o.ctry] || ""})</b></div>
           <div><div class="note">PO khách hàng</div><b class="mono">${U.esc(o.po)}</b></div>
-          <div><div class="note">Mã màu</div><b><span class="color-dot" style="background:${U.colorHex(o.col.split(",")[0].trim())}"></span>${U.esc(o.col)}</b></div>
+          <div><div class="note">Mã màu</div><b>${U.colorCell(o.col)}</b></div>
           <div><div class="note">Ngày xuất KD</div><b>${U.fmtDate(o.d)}</b> <span class="note">(${o.daysLeft >= 0 ? "còn " + o.daysLeft + " ngày" : "đã qua " + (-o.daysLeft) + " ngày"})</span></div>
           <div><div class="note">Đợt đặt hàng</div><b>Đợt ${o.bat}</b></div>
           <div><div class="note">Tổng đặt</div><b>${U.fmt(o.prs)} đôi · ${U.fmt(o.ctn)} thùng</b></div>
@@ -82,10 +82,11 @@
         <div class="card">
           <div class="filters" style="background:#fafbfc">
             <button class="btn primary need-edit" id="oAdd">${App.icon("plus", "ico")} Thêm đơn hàng</button>
-            <button class="btn" id="oTpl">${App.icon("download", "ico")} File mẫu import</button>
+            <button class="btn" id="oTpl">${App.icon("download", "ico")} File mẫu (size hàng ngang)</button>
             <button class="btn need-edit" id="oImp">${App.icon("upload", "ico")} Import từ file</button>
             <button class="btn" id="oExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
-            <span class="f-chipcount">Nhập tay hoặc import CSV theo đúng định dạng file mẫu</span>
+            <span class="f-chipcount">Import file <b>size hàng ngang</b> (1 dòng = 1 đơn, cột UK 3→UK 9) — hệ thống tự chuyển sang dạng hàng dọc ·
+              <a id="oTplLong" style="cursor:pointer;color:var(--acc);font-weight:700">mẫu dạng dọc</a></span>
           </div>
           <div class="filters">
             <input class="f-input" id="fQ" placeholder="Tìm mã đơn / PO / quốc gia…" value="${U.esc(st.q)}">
@@ -122,7 +123,9 @@
       bind("mOrders", "click", () => { st.mode = "orders"; this.render(root, {}); });
       bind("mRows", "click", () => { st.mode = "rows"; st.page = 1; this.render(root, {}); });
       bind("oAdd", "click", openAddOrder);
-      bind("oTpl", "click", () => { Store.templateOrders(); App.toast("Đã tải file mẫu MAU_IMPORT_DON_DAT_HANG.csv — điền theo đúng cột rồi Import", "ok"); });
+      bind("oTpl", "click", () => { Store.templateOrders(); App.toast("Đã tải file mẫu <b>size hàng ngang</b> — 1 dòng = 1 đơn, điền số đôi vào cột UK 3…UK 9 rồi Import", "ok"); });
+      const tl = document.getElementById("oTplLong");
+      if (tl) tl.onclick = () => { Store.templateOrdersLong(); App.toast("Đã tải file mẫu dạng size hàng dọc (1 dòng = 1 size)", "ok"); };
       bind("oImp", "click", importOrders);
       bind("oExp", "click", () => {
         const rows = applyFilterRows();
@@ -205,18 +208,41 @@
     };
   }
 
-  /* ── IMPORT đơn hàng từ CSV ── */
+  /* ── IMPORT đơn hàng: nhận .xlsx/.csv, tự nhận dạng SIZE HÀNG NGANG hay HÀNG DỌC ──
+     Dạng ngang (1 dòng = 1 đơn, cột UK 3…UK 9) sẽ được tự chuyển sang dạng dọc. */
   function importOrders() {
-    App.pickFile(text => {
-      const { rows, errs } = Store.importOrders(text);
-      let html = `<div class="modal-h"><h3>Kết quả đọc file import đơn hàng</h3>
+    App.pickDataFile(({ rows: fileRows, name, kind }) => {
+      const { rows, errs, pivot, warns, format } = Store.importOrdersAuto(fileRows);
+      const wide = format === "wide";
+      let html = `<div class="modal-h"><h3>Import đơn đặt hàng — ${U.esc(name)}</h3>
+        <span class="bdg acc plain">${kind === "xlsx" ? "Excel .xlsx" : "CSV"} · ${wide ? "size HÀNG NGANG → tự chuyển dọc" : "size hàng dọc"}</span>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div><div class="modal-b">`;
       if (errs.length) html += `<div class="alert" style="margin-bottom:12px"><div class="a-t"><b>${errs.length} dòng lỗi (bị bỏ qua):</b><br>${errs.slice(0, 12).map(U.esc).join("<br>")}${errs.length > 12 ? "<br>…" : ""}</div></div>`;
-      if (!rows.length) { html += `<div class="note">Không có dòng hợp lệ. Kiểm tra lại theo file mẫu.</div></div>`; App.openModal(html, true); return; }
-      html += `<p style="font-size:13px">Hợp lệ <b>${rows.length} dòng</b> · ${U.fmt(U.sum(rows, r => r.prs))} đôi · ${U.uniq(rows, r => r.ord).length} đơn:</p>
-        <div class="tbl-wrap" style="max-height:38vh;overflow:auto"><table class="tbl">
-        <thead><tr><th>Ngày XKD</th><th>Quốc gia</th><th>Đơn</th><th>PO</th><th>Màu</th><th>Size</th><th class="num">Đôi</th><th class="num">Thùng</th><th>Đợt</th></tr></thead>
-        <tbody>${rows.map(r => `<tr><td>${U.fmtDate(r.d)}</td><td>${U.esc(r.ctry)}</td><td><b>${r.ord}</b></td><td class="mono">${U.esc(r.po)}</td><td>${r.col}</td><td>${r.sz}</td><td class="num">${U.fmt(r.prs)}</td><td class="num">${r.ctn}</td><td>${r.bat}</td></tr>`).join("")}</tbody></table></div>
+      if (warns && warns.length) html += `<div class="alert warn" style="margin-bottom:12px"><div class="a-t"><b>Lưu ý:</b><br>${[...new Set(warns)].slice(0, 8).map(U.esc).join("<br>")}</div></div>`;
+      if (!rows.length) { html += `<div class="note">Không có dòng hợp lệ. Bấm “File mẫu (size hàng ngang)” để xem đúng định dạng.</div></div>`; App.openModal(html, true); return; }
+
+      /* ① Bảng đọc được từ file — đúng dạng ngang như người dùng nhập */
+      if (wide && pivot.length) {
+        html += `<h4 style="font-size:13px;margin-bottom:6px">① File đọc được — <b>size hàng ngang</b> (${pivot.length} đơn):</h4>
+        <div class="tbl-wrap" style="max-height:24vh;overflow:auto;margin-bottom:14px"><table class="tbl">
+          <thead><tr><th>Ngày xuất KD</th><th>Quốc gia</th><th>Đơn hàng</th><th>PO</th><th>Màu</th><th>Tên màu</th><th>Đợt</th>
+            ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}<th class="num">Tổng đôi</th></tr></thead>
+          <tbody>${pivot.map(p => `<tr><td>${p.dLabel}</td><td>${U.flag(p.ctry)} ${U.esc(p.ctry)}</td><td><b>${p.ord}</b></td>
+            <td class="mono">${U.esc(p.po)}</td><td>${p.col}</td><td class="note">${U.esc(p.colVN || U.colorVN(p.col) || "—")}</td><td>Đợt ${p.bat}</td>
+            ${U.SIZES.map(s => `<td class="num">${p.sizes[s] ? U.fmt(p.sizes[s]) : ""}</td>`).join("")}
+            <td class="num"><b>${U.fmt(p.total)}</b></td></tr>`).join("")}</tbody></table></div>`;
+      }
+
+      /* ② Sau khi tự chuyển sang dạng dọc */
+      html += `<h4 style="font-size:13px;margin-bottom:6px">${wide ? "② Sau khi tự chuyển sang <b>size hàng dọc</b>" : "Dữ liệu đọc được"}
+        (${rows.length} dòng · ${U.fmt(U.sum(rows, r => r.prs))} đôi · ${U.uniq(rows, r => r.ord).length} đơn):</h4>
+        <div class="tbl-wrap" style="max-height:30vh;overflow:auto"><table class="tbl">
+        <thead><tr><th>Ngày XKD</th><th>Quốc gia</th><th>Đơn</th><th>PO</th><th>Màu</th><th>Tên màu</th><th>Size</th><th class="num">Đôi</th><th class="num">Thùng</th><th>Đợt</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td>${U.fmtDate(r.d)}</td><td>${U.esc(r.ctry)}</td><td><b>${r.ord}</b></td><td class="mono">${U.esc(r.po)}</td>
+          <td>${r.col}</td><td class="note">${U.esc(U.colorVN(r.col) || "—")}</td><td><b>${r.sz}</b></td>
+          <td class="num">${U.fmt(r.prs)}</td><td class="num">${r.ctn}</td><td>Đợt ${r.bat}</td></tr>`).join("")}</tbody>
+        <tfoot><tr><td colspan="7">TỔNG</td><td class="num">${U.fmt(U.sum(rows, r => r.prs))}</td><td class="num">${U.fmt(U.sum(rows, r => r.ctn))}</td><td></td></tr></tfoot>
+        </table></div>
         <div class="mt" style="display:flex;gap:8px">
           <button class="btn primary" id="oiApply">✓ Nhập ${rows.length} dòng vào hệ thống</button>
           <button class="btn" onclick="App.closeModal()">Huỷ</button>
@@ -225,7 +251,7 @@
       document.getElementById("oiApply").onclick = () => {
         Store.addOrders(rows, "import");
         App.closeModal();
-        App.toast(`✓ Đã import ${rows.length} dòng đơn hàng từ file`, "ok");
+        App.toast(`✓ Đã import ${U.uniq(rows, r => r.ord).length} đơn = ${rows.length} dòng size${wide ? " (tự chuyển từ hàng ngang sang hàng dọc)" : ""}`, "ok");
       };
     });
   }
@@ -237,7 +263,7 @@
         `${U.fmt(list.length)} đơn · ${U.fmt(U.sum(list, o => o.prs))} đôi · ${U.fmt(U.sum(list, o => o.ctn))} thùng`;
       area.innerHTML = `<div class="tbl-wrap"><table class="tbl">
         <thead><tr>
-          <th>Mã đơn</th><th>Quốc gia</th><th>PO</th><th>Màu</th><th>Size</th>
+          <th>Mã đơn</th><th>Quốc gia</th><th>PO</th><th>Màu</th><th>Tên màu</th><th>Size</th>
           <th class="num">Số đôi</th><th class="num">Số thùng</th>
           <th>Ngày xuất KD</th><th>Đợt</th><th class="num">Đã nhập</th><th>Trạng thái</th>
         </tr></thead>
@@ -247,13 +273,14 @@
             <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
             <td class="mono">${U.esc(o.po)}</td>
             <td><span class="color-dot" style="background:${U.colorHex(o.col.split(",")[0].trim())}"></span>${U.esc(o.col)}</td>
+            <td class="note">${U.esc(U.colorVN(o.col.split(",")[0].trim()) || "—")}</td>
             <td class="note">${U.SIZES.filter(s => o.sizes[s]).length} size</td>
             <td class="num">${U.fmt(o.prs)}</td><td class="num">${U.fmt(o.ctn)}</td>
             <td>${U.fmtDate(o.d)}</td><td>Đợt ${o.bat}</td>
             <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "—"}</td>
             <td>${statusBdg(o)}</td>
           </tr>`).join("")}</tbody>
-        <tfoot><tr><td colspan="5">TỔNG (${U.fmt(list.length)} đơn)</td>
+        <tfoot><tr><td colspan="6">TỔNG (${U.fmt(list.length)} đơn)</td>
           <td class="num">${U.fmt(U.sum(list, o => o.prs))}</td>
           <td class="num">${U.fmt(U.sum(list, o => o.ctn))}</td><td colspan="2"></td>
           <td class="num">${U.fmt(U.sum(list, o => o.recvPrs))}</td><td></td></tr></tfoot>
@@ -275,7 +302,7 @@
             <td>${U.fmtDate(r.d)}</td>
             <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
             <td><b>${r.ord}</b></td><td class="mono">${U.esc(r.po)}</td>
-            <td><span class="color-dot" style="background:${U.colorHex(r.col)}"></span>${r.col}</td>
+            <td>${U.colorCell(r.col)}</td>
             <td>${r.sz}</td><td class="num">${U.fmt(r.prs)}</td>
             <td class="num">${U.fmt(r.ctn)}</td><td>Đợt ${r.bat}</td>
             <td>${r._id

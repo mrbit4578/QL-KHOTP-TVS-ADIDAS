@@ -39,6 +39,15 @@
     LC1786: "#37507c", LC1787: "#7a1f28",
   };
   U.colorHex = c => U.COLOR_HEX[c] || "#667085";
+  /* Tên màu tiếng Việt (từ file cập nhật của phòng KD) */
+  U.colorVN = c => ((TVS_META.colorVN || {})[String(c || "").trim()] || "");
+  /* Ô hiển thị: chấm màu + mã + tên tiếng Việt */
+  U.colorCell = c => {
+    const code = String(c || "").split(",")[0].trim();
+    const vn = U.colorVN(code);
+    return `<span class="color-dot" style="background:${U.colorHex(code)}"></span>${U.esc(c)}` +
+           (vn ? `<span class="col-vn">${U.esc(vn)}</span>` : "");
+  };
 
   /* Cờ quốc gia (emoji) */
   U.FLAGS = {

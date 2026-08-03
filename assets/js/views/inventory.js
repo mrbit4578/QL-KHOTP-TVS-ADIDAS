@@ -97,7 +97,7 @@
               return `<tr class="clickable" onclick="Views._openOrder('${o.ord}')">
                 <td><b>${o.ord}</b></td>
                 <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
-                <td><span class="color-dot" style="background:${U.colorHex(o.col.split(",")[0].trim())}"></span>${o.col}</td>
+                <td>${U.colorCell(o.col)}</td>
                 <td>${U.fmtDate(o.d)}</td>
                 <td class="num">${U.fmt(o.prs)}</td>
                 <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "0"}</td>
