@@ -4768,13 +4768,13 @@
   },
   {
    "id": "Lmspzbk18o54w",
-   "code": "PXK-ADI-2026-0011",
-   "lgh": "TVS-ADI-2026-0011",
-   "pkl": "TVS-PKL-2026-0011",
+   "code": "PXK-ADI-2026-0012",
+   "lgh": "TVS-ADI-2026-0012",
+   "pkl": "TVS-PKL-2026-0012",
    "qcNo": "",
    "date": "2026-08-12",
-   "actualDate": null,
-   "status": "draft",
+   "actualDate": "2026-07-20",
+   "status": "shipped",
    "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
    "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
    "warehouse": "Tại Kho thành phẩm CTY",
@@ -5227,7 +5227,7 @@
  },
  "seedReceiptsOff": false,
  "meta": {
-  "updatedAt": "2026-08-12T11:02:17.184Z",
+  "updatedAt": "2026-08-12T11:02:39.223Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
