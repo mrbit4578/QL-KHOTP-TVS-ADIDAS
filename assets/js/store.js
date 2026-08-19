@@ -16,7 +16,7 @@
 
   function blank() {
     return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0, receiptEdits: {},
-             seedReceiptsOff: false };
+             orderEdits: {}, seedReceiptsOff: false };
   }
   const SIZES6 = ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8", "UK 9"];
   const PK = (window.TVS_META && TVS_META.packing) || 6;
@@ -89,11 +89,55 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     ÁP OVERRIDE SỬA / XOÁ ĐƠN ĐẶT HÀNG (v4.8) — khoá theo MÃ ĐƠN
+     Hoạt động cho cả đơn Excel gốc lẫn đơn nhập tay/import.
+     Không bao giờ ghi đè mảng seed gốc (luôn tạo bản sao dòng).
+       edit = { rev, deleted, head:{d,ctry,po,col,bat}, sizes:{"UK 4":120,…}, log:[] }
+     ══════════════════════════════════════════════════════════════ */
+  function applyOrderEdits(rows) {
+    const edits = Store.local.orderEdits || {};
+    if (!Object.keys(edits).length) return rows;
+    const out = [], handled = new Set();
+    const byOrd = {};
+    rows.forEach(r => { (byOrd[r.ord] = byOrd[r.ord] || []).push(r); });
+
+    for (const r of rows) {
+      const e = edits[r.ord];
+      if (!e) { out.push(r); continue; }
+      if (e.deleted) continue;                       // đơn đã xoá → bỏ toàn bộ dòng
+      if (!e.sizes) { out.push(headed(r, e)); continue; }  // chỉ sửa thông tin chung
+      if (handled.has(r.ord)) continue;              // ma trận size đã dựng lại 1 lần
+      handled.add(r.ord);
+      const base = byOrd[r.ord], tmpl = base[0];
+      SIZES6.forEach(sz => {
+        const q = parseInt(e.sizes[sz], 10) || 0;
+        if (q <= 0) return;
+        const src = base.find(x => x.sz === sz) || tmpl;
+        out.push(headed(Object.assign({}, src, {
+          sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev,
+        }), e));
+      });
+    }
+    return out;
+  }
+  /* Ghi đè thông tin chung (ngày xuất KD / quốc gia / PO / màu / đợt) lên 1 dòng */
+  function headed(r, e) {
+    if (!e || !e.head) return r;
+    const h = e.head, patch = { _edited: true, _rev: e.rev };
+    if (h.d) patch.d = h.d;
+    if (h.ctry) patch.ctry = h.ctry;
+    if (h.po !== undefined && h.po !== null) patch.po = h.po;
+    if (h.col) patch.col = h.col;
+    if (h.bat) patch.bat = +h.bat;
+    return Object.assign({}, r, patch);
+  }
+
   /* Gộp gốc + overlay vào biến toàn cục cho utils.js dùng.
      seedReceiptsOff = true → KHÔNG dùng dữ liệu nhập kho gốc (đã thay thế bằng
      dữ liệu import/nhập tay). Bật/tắt được, khôi phục lại lúc nào cũng được. */
   Store.merge = function () {
-    window.TVS_ORDERS = SEED_ORDERS.concat(Store.local.ordersAdded);
+    window.TVS_ORDERS = applyOrderEdits(SEED_ORDERS.concat(Store.local.ordersAdded));
     const base = Store.local.seedReceiptsOff ? [] : SEED_RECEIPTS;
     window.TVS_RECEIPTS = applyReceiptEdits(base.concat(Store.local.receiptsAdded));
     window.TVS_SHIPMENTS = Store.local.shipments;
@@ -159,6 +203,7 @@
       shipments: data.shipments || [],
       seq: data.seq || 0,
       receiptEdits: data.receiptEdits || {},
+      orderEdits: data.orderEdits || {},
       seedReceiptsOff: !!data.seedReceiptsOff,
     });
     persist();
@@ -219,6 +264,142 @@
     return { ok: true };
   };
 
+  /* ═══════════════════════════════════════════════════════════════
+     SỬA / XOÁ ĐƠN ĐẶT HÀNG NGAY TRÊN MÀN HÌNH OMS (v4.8)
+     Sửa được cả đơn Excel gốc lẫn đơn nhập tay — mọi thao tác đều ghi
+     nhật ký (ai sửa · lúc nào · lý do · trước/sau) và khôi phục được.
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* Ma trận size hiện hành của 1 đơn: { "UK 4": 120, … } */
+  Store.orderSizes = function (ord) {
+    const sizes = {};
+    (window.TVS_ORDERS || []).forEach(r => {
+      if (r.ord === ord) sizes[r.sz] = (sizes[r.sz] || 0) + r.prs;
+    });
+    return sizes;
+  };
+  /* Thông tin chung hiện hành của 1 đơn */
+  Store.orderHead = function (ord) {
+    const rows = (window.TVS_ORDERS || []).filter(r => r.ord === ord);
+    if (!rows.length) return null;
+    const r = rows[0];
+    return { d: r.d, ctry: r.ctry, po: r.po || "", col: r.col, bat: r.bat };
+  };
+  Store.orderEditInfo = ord => (Store.local.orderEdits || {})[ord] || null;
+  /* Đơn ĐANG bị thay đổi so với gốc (khác với đơn chỉ còn nhật ký sau khi khôi phục) */
+  Store.isOrderOverridden = function (ord) {
+    const e = (Store.local.orderEdits || {})[ord];
+    return !!(e && (e.deleted || e.sizes || e.head));
+  };
+  Store.orderEditCount = () =>
+    Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length;
+  /* Số đơn có nhật ký chỉnh sửa (kể cả đã khôi phục về gốc) */
+  Store.orderEditLogCount = () => Object.keys(Store.local.orderEdits || {}).length;
+  Store.isOrderSeed = ord => SEED_ORDERS.some(r => r.ord === ord);
+
+  /* Cảnh báo nghiệp vụ khi giảm SL đặt xuống dưới SL đã nhập kho / đã xuất kho.
+     Trả về { blocks:[…], warns:[…] } — blocks làm hỏng N-X-T nên chặn lưu. */
+  Store.checkOrderSizes = function (ord, newSizes) {
+    const blocks = [], warns = [];
+    const cur = Store.orderSizes(ord);
+    SIZES6.forEach(sz => {
+      const q = parseInt((newSizes || {})[sz], 10) || 0;
+      const recv = (window.U && U._recvByOrdSize) ? (U._recvByOrdSize[ord + "|" + sz] || 0) : 0;
+      const shipped = (window.U && U._shipByOrdSize) ? (U._shipByOrdSize[ord + "|" + sz] || 0) : 0;
+      if (shipped > 0 && q < shipped)
+        blocks.push(`${sz}: đã XUẤT KHO ${shipped} đôi — không thể hạ SL đặt xuống ${q}`);
+      else if (recv > 0 && q < recv)
+        warns.push(`${sz}: đã nhập kho ${recv} đôi > SL đặt mới ${q} → sẽ thành nhập dư`);
+      if (q <= 0 && (cur[sz] || 0) > 0 && (recv > 0 || shipped > 0))
+        warns.push(`${sz}: bỏ size này nhưng kho đã có phát sinh (nhập ${recv} · xuất ${shipped})`);
+    });
+    return { blocks, warns };
+  };
+
+  /* Sửa 1 đơn hàng: head = thông tin chung (có thể bỏ trống), sizes = ma trận size */
+  Store.editOrder = function (ord, head, newSizes, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do sửa" };
+    if (!U.orderByCode(ord)) return { ok: false, msg: `Không tìm thấy đơn ${ord}` };
+
+    const beforeSizes = Store.orderSizes(ord), beforeHead = Store.orderHead(ord);
+    let after = null;
+    if (newSizes) {
+      after = {};
+      SIZES6.forEach(sz => { const q = parseInt(newSizes[sz], 10) || 0; if (q > 0) after[sz] = q; });
+      if (!Object.keys(after).length)
+        return { ok: false, msg: "Phải còn ít nhất 1 size > 0 (muốn bỏ hẳn đơn hãy dùng Xoá đơn)" };
+      const chk = Store.checkOrderSizes(ord, after);
+      if (chk.blocks.length) return { ok: false, msg: chk.blocks.join(" · ") };
+    }
+    const nh = {};
+    if (head) {
+      if (head.d) nh.d = head.d;
+      if (head.ctry) nh.ctry = String(head.ctry).trim().toUpperCase();
+      if (head.po !== undefined) nh.po = String(head.po).trim();
+      if (head.col) nh.col = String(head.col).trim().toUpperCase();
+      if (head.bat) nh.bat = parseInt(head.bat, 10) || 1;
+    }
+
+    const e = Store.local.orderEdits[ord] || { rev: 0, log: [] };
+    e.rev += 1; e.deleted = false;
+    if (Object.keys(nh).length) e.head = Object.assign({}, e.head, nh);
+    if (after) e.sizes = after;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(),
+      before: beforeSizes, after: after || beforeSizes,
+      beforeHead, afterHead: Object.keys(nh).length ? Object.assign({}, beforeHead, nh) : null });
+    Store.local.orderEdits[ord] = e;
+    commit();
+    return { ok: true, rev: e.rev };
+  };
+
+  /* Sửa nhanh SL 1 size ngay trên bảng (chế độ “Chi tiết từng dòng size”) */
+  Store.editOrderSize = function (ord, sz, qty, reason) {
+    const cur = Store.orderSizes(ord);
+    if (!cur[sz] && cur[sz] !== 0) return { ok: false, msg: `Đơn ${ord} không có size ${sz}` };
+    const next = Object.assign({}, cur);
+    next[sz] = parseInt(qty, 10) || 0;
+    return Store.editOrder(ord, null, next, reason);
+  };
+
+  /* Xoá cả đơn hàng (ẩn khỏi hệ thống, khôi phục được) */
+  Store.deleteOrder = function (ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do xoá" };
+    const o = U.orderByCode(ord);
+    if (!o) return { ok: false, msg: `Không tìm thấy đơn ${ord}` };
+    if (o.shipPrs > 0)
+      return { ok: false, msg: `Đơn ${ord} đã xuất kho ${o.shipPrs} đôi — huỷ phiếu xuất kho trước khi xoá đơn` };
+    const e = Store.local.orderEdits[ord] || { rev: 0, log: [] };
+    e.rev += 1; e.deleted = true;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(),
+      before: Store.orderSizes(ord), after: null, beforeHead: Store.orderHead(ord), afterHead: null });
+    Store.local.orderEdits[ord] = e;
+    commit();
+    return { ok: true };
+  };
+
+  /* Khôi phục 1 đơn về đúng dữ liệu gốc (giữ nguyên nhật ký) */
+  Store.restoreOrder = function (ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const e = Store.local.orderEdits[ord];
+    if (!e) return { ok: false, msg: "Đơn này chưa có chỉnh sửa" };
+    e.rev += 1; e.deleted = false; e.sizes = null; e.head = null;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+      reason: (reason || "Khôi phục về gốc").trim(), restored: true });
+    commit();
+    return { ok: true };
+  };
+
+  /* Khôi phục TOÀN BỘ đơn hàng về gốc — xoá sạch mọi override & nhật ký sửa đơn */
+  Store.restoreAllOrders = function () {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const n = Object.keys(Store.local.orderEdits || {}).length;
+    Store.local.orderEdits = {};
+    commit();
+    return { ok: true, n };
+  };
+
   /* ── Số phiếu tự tăng theo mẫu PXK-ADI-2026-0001 ───────────── */
   Store.nextSeq = function () {
     const n = Store.local.seq + 1;
@@ -230,8 +411,23 @@
   Store.addOrders = function (rows, src) {
     if (!Store.guard()) return;
     rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
+    /* ⚠ Nếu mã đơn từng bị XOÁ / SỬA ma trận size, phải gỡ override — nếu không
+       dòng vừa thêm sẽ bị lớp overlay ẩn đi (tưởng như không thêm được). */
+    const revived = [];
+    for (const ord of new Set(rows.map(r => r.ord))) {
+      const e = (Store.local.orderEdits || {})[ord];
+      if (e && (e.deleted || e.sizes)) {
+        e.rev += 1; e.deleted = false; e.sizes = null;
+        e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), restored: true,
+          reason: (src === "import" ? "Import đơn hàng mới" : "Thêm đơn hàng") +
+            " — gỡ trạng thái đã xoá/đã sửa để nhận dữ liệu mới" });
+        revived.push(ord);
+      }
+    }
     Store.local.ordersAdded.push(...rows);
     commit();
+    if (revived.length && window.App && App.toast)
+      App.toast(`ℹ Đã gỡ trạng thái xoá/sửa cũ của đơn ${U.esc(revived.slice(0, 3).join(", "))}${revived.length > 3 ? "…" : ""} để nhận dữ liệu mới`, "warn");
   };
   Store.addReceipts = function (rows, src, opts) {
     if (!Store.guard()) return;
@@ -345,6 +541,7 @@
     orders: Store.local.ordersAdded.length,
     receipts: Store.local.receiptsAdded.length,
     shipments: Store.local.shipments.length,
+    orderEdits: Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length,
   });
   Store.resetAll = function () {
     if (!Store.guard()) return;

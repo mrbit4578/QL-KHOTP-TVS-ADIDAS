@@ -67,10 +67,11 @@
     const el = document.getElementById("localInfo");
     if (!el || !window.Store) return;
     const c = Store.counts();
-    const total = c.orders + c.receipts + c.shipments;
+    const total = c.orders + c.receipts + c.shipments + (c.orderEdits || 0);
+    const edTxt = c.orderEdits ? ` · <b>${c.orderEdits}</b> đơn đã sửa` : "";
     const demo = Store.persistent ? "" : `<div style="color:#f2a20c;margin-top:3px">⚠ Chế độ demo: trình duyệt nhúng chặn lưu trữ — dữ liệu nhập sẽ mất khi tải lại trang. Bản .zip chạy máy thật lưu bình thường.</div>`;
     el.innerHTML = (total
-      ? `Dữ liệu nhập thêm: <b>${c.orders}</b> dòng đơn · <b>${c.receipts}</b> dòng NK · <b>${c.shipments}</b> phiếu XK
+      ? `Dữ liệu nhập thêm: <b>${c.orders}</b> dòng đơn · <b>${c.receipts}</b> dòng NK · <b>${c.shipments}</b> phiếu XK${edTxt}
          <a id="btnResetLocal" style="color:#ff8d80;cursor:pointer;font-weight:700"> ↺ Khôi phục gốc</a>`
       : `Chưa có dữ liệu nhập thêm (100% từ Excel gốc)`) + demo;
     const rst = el.querySelector("#btnResetLocal");
