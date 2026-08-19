@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- BẢN GỘP 1 FILE — sinh tự động từ index.html + assets/ (v4.8) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
-
 <meta name="theme-color" content="#0c0e12">
 <!-- Font nội dung Roboto + dự phòng tiêu đề Be Vietnam Pro (đủ dấu tiếng Việt) — dùng khi chạy online -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -516,6 +516,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 .col-vn{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;color:var(--txt-2);
   background:var(--neu-bg);border-radius:4px;padding:1px 6px;white-space:nowrap}
 
+/* ── v4.8: Sửa đơn đặt hàng ngay trên màn hình OMS ─────────────── */
+.act-cell{white-space:nowrap}
+.act-cell .btn{margin-right:4px}
+.act-cell .btn:last-child{margin-right:0}
+.tbl tbody tr.row-editing{background:var(--acc-soft)}
+.tbl tbody tr.row-editing td{vertical-align:middle}
+.tbl tbody tr.row-editing:hover{background:var(--acc-soft)}
 </style>
 </head>
 <body>
@@ -542,7 +549,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 
     <div class="sidebar-foot">
       <div class="foot-line">Công ty TNHH Giày Tuấn Việt</div>
-      <div class="foot-line dim">Kho thành phẩm adidas · v2.0</div>
+      <div class="foot-line dim">Kho thành phẩm adidas · v4.8</div>
       <div class="foot-line dim" id="localInfo" style="margin-top:6px"></div>
     </div>
   </aside>
@@ -1528,14 +1535,12 @@ window.TVS_RECEIPTS = [
   "notProduced": null
  }
 ];
-
 </script>
 <script>
 /* ===== PACKING LIST (CLP) — trích từ file 260720_ADIDAS RAINBOOT ĐỢT 1 =====
    Nguồn thật: sheet CLP — dùng để tính số thùng & gộp mix size trên PXK */
 
 window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry": "GERMANY", "name": "ADIDAS RAINBOOT W", "cust": "0308112491", "wh": "516333-SI516333ADIRAIN", "gender": "Women", "totalPrs": 375, "totalCtn": 65, "groups": [{"sizes": {"UK 4": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 1, "to": 6, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 90}, "prs": 90, "perCtn": 6, "ctn": 15, "from": 7, "to": 21, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 114}, "prs": 114, "perCtn": 6, "ctn": 19, "from": 22, "to": 40, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 72}, "prs": 72, "perCtn": 6, "ctn": 12, "from": 41, "to": 52, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 53, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 59, "to": 60, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 61, "to": 61, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 62, "to": 62, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 63, "to": 63, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 64, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 65, "to": 65, "box": "NNS72", "mix": false}]}, "AE2607589": {"po": "0903077020-1", "col": "LC1787", "ctry": "GERMANY", "name": "ADIDAS RAINBOOT W", "cust": "0308106033", "wh": "516342-SI516342ADIRAIN", "gender": "Women", "totalPrs": 677, "totalCtn": 116, "groups": [{"sizes": {"UK 4": 84}, "prs": 84, "perCtn": 6, "ctn": 14, "from": 1, "to": 14, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 156}, "prs": 156, "perCtn": 6, "ctn": 26, "from": 15, "to": 40, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 180}, "prs": 180, "perCtn": 6, "ctn": 30, "from": 41, "to": 70, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 132}, "prs": 132, "perCtn": 6, "ctn": 22, "from": 71, "to": 92, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 84}, "prs": 84, "perCtn": 6, "ctn": 14, "from": 93, "to": 106, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 107, "to": 110, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 111, "to": 111, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 112, "to": 112, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 113, "to": 113, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 114, "to": 114, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 115, "to": 115, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 116, "to": 116, "box": "NNS72", "mix": false}]}, "AE2607510": {"po": "0903083087-1", "col": "LC1783", "ctry": "GERMANY", "name": "ADIDAS RAINBOOT W", "cust": "0308113961", "wh": "516403-SI516403ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 54}, "prs": 54, "perCtn": 6, "ctn": 9, "from": 5, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 14, "to": 24, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 25, "to": 34, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 35, "to": 42, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 30}, "prs": 30, "perCtn": 6, "ctn": 5, "from": 43, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 48, "to": 48, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 49, "to": 49, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607627": {"po": "0903081073-1", "col": "LC1786", "ctry": "GERMANY", "name": "ADIDAS RAINBOOT W", "cust": "0308113588", "wh": "516403-SI516403ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 54}, "prs": 54, "perCtn": 6, "ctn": 9, "from": 5, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 14, "to": 24, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 25, "to": 34, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 35, "to": 42, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 30}, "prs": 30, "perCtn": 6, "ctn": 5, "from": 43, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 48, "to": 48, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 49, "to": 49, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607628": {"po": "0903081080-1", "col": "LC1787", "ctry": "GERMANY", "name": "ADIDAS RAINBOOT W", "cust": "0308113589", "wh": "516403-SI516403ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 54}, "prs": 54, "perCtn": 6, "ctn": 9, "from": 5, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 14, "to": 24, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 25, "to": 34, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 35, "to": 42, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 30}, "prs": 30, "perCtn": 6, "ctn": 5, "from": 43, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 48, "to": 48, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 49, "to": 49, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607131": {"po": "0903080022-1", "col": "LC1783", "ctry": "ITALY", "name": "ADIDAS RAINBOOT W", "cust": "0308064134", "wh": "516443-SI516443ADIRAIN", "gender": "Women", "totalPrs": 310, "totalCtn": 54, "groups": [{"sizes": {"UK 4": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 1, "to": 10, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 11, "to": 20, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 21, "to": 30, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 54}, "prs": 54, "perCtn": 6, "ctn": 9, "from": 31, "to": 39, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 40, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 48, "to": 49, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 53, "to": 53, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 54, "to": 54, "box": "NNS72", "mix": false}]}, "AE2607244": {"po": "0903079827-1", "col": "LC1783", "ctry": "ITALY", "name": "ADIDAS RAINBOOT W", "cust": "0308064044", "wh": "516443-SI516443ADIRAIN", "gender": "Women", "totalPrs": 520, "totalCtn": 90, "groups": [{"sizes": {"UK 4": 90}, "prs": 90, "perCtn": 6, "ctn": 15, "from": 1, "to": 15, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 150}, "prs": 150, "perCtn": 6, "ctn": 25, "from": 16, "to": 40, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 144}, "prs": 144, "perCtn": 6, "ctn": 24, "from": 41, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 84}, "prs": 84, "perCtn": 6, "ctn": 14, "from": 65, "to": 78, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 79, "to": 82, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 83, "to": 85, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 86, "to": 86, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 87, "to": 87, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 88, "to": 88, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 89, "to": 89, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 90, "to": 90, "box": "NNS72", "mix": false}]}, "AE2607245": {"po": "0903079858-1", "col": "LC1786", "ctry": "ITALY", "name": "ADIDAS RAINBOOT W", "cust": "0308064047", "wh": "516443-SI516443ADIRAIN", "gender": "Women", "totalPrs": 465, "totalCtn": 80, "groups": [{"sizes": {"UK 4": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 1, "to": 10, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 126}, "prs": 126, "perCtn": 6, "ctn": 21, "from": 11, "to": 31, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 132}, "prs": 132, "perCtn": 6, "ctn": 22, "from": 32, "to": 53, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 54, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 42}, "prs": 42, "perCtn": 6, "ctn": 7, "from": 67, "to": 73, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 74, "to": 74, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 75, "to": 75, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 76, "to": 76, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 77, "to": 77, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 78, "to": 78, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 79, "to": 79, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 80, "to": 80, "box": "NNS72", "mix": false}]}, "AE2607246": {"po": "0903080851-1", "col": "LC1787", "ctry": "ITALY", "name": "ADIDAS RAINBOOT W", "cust": "0308063863", "wh": "516443-SI516443ADIRAIN", "gender": "Women", "totalPrs": 155, "totalCtn": 29, "groups": [{"sizes": {"UK 4": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 1, "to": 3, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 4, "to": 11, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 12, "to": 19, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 20, "to": 23, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 24, "to": 24, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 25, "to": 25, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 26, "to": 26, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 27, "to": 27, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 28, "to": 28, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 29, "to": 29, "box": "NNS72", "mix": false}]}, "AE2607207": {"po": "0903084204-1", "col": "LC1783", "ctry": "UNITED STATES", "name": "ADIDAS RAINBOOT W", "cust": "0308076102", "wh": "600000-SI600000ADIRAIN", "gender": "Women", "totalPrs": 572, "totalCtn": 97, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 102}, "prs": 102, "perCtn": 6, "ctn": 17, "from": 5, "to": 21, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 162}, "prs": 162, "perCtn": 6, "ctn": 27, "from": 22, "to": 48, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 150}, "prs": 150, "perCtn": 6, "ctn": 25, "from": 49, "to": 73, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 102}, "prs": 102, "perCtn": 6, "ctn": 17, "from": 74, "to": 90, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 91, "to": 94, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 95, "to": 95, "box": "NNS88", "mix": false}, {"sizes": {"UK 8": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 96, "to": 96, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 97, "to": 97, "box": "NNS72", "mix": false}]}, "AE2607208": {"po": "0903082138-1", "col": "LC1783", "ctry": "UNITED STATES", "name": "ADIDAS RAINBOOT W", "cust": "0308027742", "wh": "608005-SIBWPADIRAIN", "gender": "Women", "totalPrs": 400, "totalCtn": 69, "groups": [{"sizes": {"UK 5": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 1, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 14, "to": 31, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 96}, "prs": 96, "perCtn": 6, "ctn": 16, "from": 32, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 48, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 59, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 65, "to": 65, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 66, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 67, "to": 67, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 68, "to": 68, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 69, "to": 69, "box": "NNS72", "mix": false}]}, "AE2607211": {"po": "0903082128-1", "col": "LC1786", "ctry": "UNITED STATES", "name": "ADIDAS RAINBOOT W", "cust": "0308027731", "wh": "608005-SIBWPADIRAIN", "gender": "Women", "totalPrs": 400, "totalCtn": 69, "groups": [{"sizes": {"UK 5": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 1, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 14, "to": 31, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 96}, "prs": 96, "perCtn": 6, "ctn": 16, "from": 32, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 48, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 59, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 65, "to": 65, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 66, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 67, "to": 67, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 68, "to": 68, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 69, "to": 69, "box": "NNS72", "mix": false}]}, "AE2607215": {"po": "0903082122-1", "col": "LC1787", "ctry": "UNITED STATES", "name": "ADIDAS RAINBOOT W", "cust": "0308027720", "wh": "608005-SIBWPADIRAIN", "gender": "Women", "totalPrs": 400, "totalCtn": 69, "groups": [{"sizes": {"UK 5": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 1, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 14, "to": 31, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 96}, "prs": 96, "perCtn": 6, "ctn": 16, "from": 32, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 48, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 59, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 65, "to": 65, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 66, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 67, "to": 67, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 68, "to": 68, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 69, "to": 69, "box": "NNS72", "mix": false}]}, "AE2607171": {"po": "0903083861-1", "col": "LC1783", "ctry": "CANADA", "name": "ADIDAS RAINBOOT W", "cust": "0308019356", "wh": "630001-SI630001ADIRAIN", "gender": "Women", "totalPrs": 402, "totalCtn": 69, "groups": [{"sizes": {"UK 4": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 1, "to": 3, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 4, "to": 14, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 114}, "prs": 114, "perCtn": 6, "ctn": 19, "from": 15, "to": 33, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 34, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 52, "to": 61, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 62, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 65, "to": 65, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 66, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 67, "to": 67, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 68, "to": 68, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 69, "to": 69, "box": "NNS72", "mix": false}]}, "AE2607172": {"po": "0903082676-1", "col": "LC1783", "ctry": "ARGENTINA", "name": "ADIDAS RAINBOOT W", "cust": "0307871626", "wh": "678002-SI678002ADIRAIN", "gender": "Women", "totalPrs": 405, "totalCtn": 68, "groups": [{"sizes": {"UK 4": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 1, "to": 8, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 102}, "prs": 102, "perCtn": 6, "ctn": 17, "from": 9, "to": 25, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 26, "to": 43, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 44, "to": 56, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 42}, "prs": 42, "perCtn": 6, "ctn": 7, "from": 57, "to": 63, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 64, "to": 64, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 65, "to": 65, "box": "NNS72", "mix": false}, {"sizes": {"UK 3": 4, "UK 5": 1, "UK 6": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 66, "to": 66, "box": "NNS88", "mix": true}, {"sizes": {"UK 6": 3, "UK 7": 3}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 67, "to": 67, "box": "NNS72", "mix": true}, {"sizes": {"UK 8": 4, "UK 9": 2}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 68, "to": 68, "box": "NNS72", "mix": true}]}, "AE2607173": {"po": "0903082520-1", "col": "LC1783", "ctry": "TURKIYE", "name": "ADIDAS RAINBOOT W", "cust": "0308032434", "wh": "826010-SI826010ADIRAIN", "gender": "Women", "totalPrs": 494, "totalCtn": 83, "groups": [{"sizes": {"UK 4": 90}, "prs": 90, "perCtn": 6, "ctn": 15, "from": 1, "to": 15, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 156}, "prs": 156, "perCtn": 6, "ctn": 26, "from": 16, "to": 41, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 150}, "prs": 150, "perCtn": 6, "ctn": 25, "from": 42, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 84}, "prs": 84, "perCtn": 6, "ctn": 14, "from": 67, "to": 80, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4, "UK 5": 2}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 81, "to": 81, "box": "NNS88", "mix": true}, {"sizes": {"UK 5": 3, "UK 6": 3}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 82, "to": 82, "box": "NNS72", "mix": true}, {"sizes": {"UK 8": 1, "UK 9": 1}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 83, "to": 83, "box": "NNS72", "mix": true}]}, "AE2607174": {"po": "0903082666-1", "col": "LC1786", "ctry": "ARGENTINA", "name": "ADIDAS RAINBOOT W", "cust": "0307871627", "wh": "678002-SI678002ADIRAIN", "gender": "Women", "totalPrs": 420, "totalCtn": 70, "groups": [{"sizes": {"UK 4": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 1, "to": 8, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 102}, "prs": 102, "perCtn": 6, "ctn": 17, "from": 9, "to": 25, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 114}, "prs": 114, "perCtn": 6, "ctn": 19, "from": 26, "to": 44, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 84}, "prs": 84, "perCtn": 6, "ctn": 14, "from": 45, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 59, "to": 66, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 67, "to": 67, "box": "NNS72", "mix": false}, {"sizes": {"UK 3": 4, "UK 4": 2}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 68, "to": 68, "box": "NNS88", "mix": true}, {"sizes": {"UK 5": 5, "UK 6": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 69, "to": 69, "box": "NNS72", "mix": true}, {"sizes": {"UK 6": 1, "UK 9": 5}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 70, "to": 70, "box": "NNS72", "mix": true}]}, "AE2607175": {"po": "0903081731-1", "col": "LC1786", "ctry": "CHILE", "name": "ADIDAS RAINBOOT W", "cust": "0308010224", "wh": "680015-SI680015ADIRAIN", "gender": "Women", "totalPrs": 10, "totalCtn": 5, "groups": [{"sizes": {"UK 4": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 1, "to": 1, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 2, "to": 2, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 3, "to": 3, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 4, "to": 4, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 5, "to": 5, "box": "NNS72", "mix": false}]}, "AE2607176": {"po": "0903082512-1", "col": "LC1786", "ctry": "TURKIYE", "name": "ADIDAS RAINBOOT W", "cust": "0308032435", "wh": "826010-SI826010ADIRAIN", "gender": "Women", "totalPrs": 325, "totalCtn": 55, "groups": [{"sizes": {"UK 4": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 1, "to": 11, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 102}, "prs": 102, "perCtn": 6, "ctn": 17, "from": 12, "to": 28, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 96}, "prs": 96, "perCtn": 6, "ctn": 16, "from": 29, "to": 44, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 45, "to": 52, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 53, "to": 53, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 5, "UK 6": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 54, "to": 54, "box": "NNS72", "mix": true}, {"sizes": {"UK 6": 2, "UK 7": 3, "UK 8": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 55, "to": 55, "box": "NNS72", "mix": true}]}, "AE2607206": {"po": "0903082863-1", "col": "LC1783", "ctry": "UNITED KINGDOM", "name": "ADIDAS RAINBOOT W", "cust": "0308113876", "wh": "516404-SIJD000003ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 1, "to": 6, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 7, "to": 19, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 20, "to": 37, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 38, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 48, "to": 48, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 49, "to": 49, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607209": {"po": "0903081539-1", "col": "LC1786", "ctry": "UNITED KINGDOM", "name": "ADIDAS RAINBOOT W", "cust": "0308114135", "wh": "516404-SIJD000003ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 1, "to": 6, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 7, "to": 19, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 108}, "prs": 108, "perCtn": 6, "ctn": 18, "from": 20, "to": 37, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 60}, "prs": 60, "perCtn": 6, "ctn": 10, "from": 38, "to": 47, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 48, "to": 48, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 49, "to": 49, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607212": {"po": "0903082757-1", "col": "LC1786", "ctry": "CANADA", "name": "ADIDAS RAINBOOT W", "cust": "0308018211", "wh": "630001-SI630001ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 54}, "prs": 54, "perCtn": 6, "ctn": 9, "from": 5, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 14, "to": 26, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 27, "to": 37, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 42}, "prs": 42, "perCtn": 6, "ctn": 7, "from": 38, "to": 44, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 45, "to": 48, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 49, "to": 49, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607214": {"po": "0903082600-1", "col": "LC1787", "ctry": "UNITED KINGDOM", "name": "ADIDAS RAINBOOT W", "cust": "0308113833", "wh": "516406-SIASOSFAH01ADIRAIN", "gender": "Women", "totalPrs": 360, "totalCtn": 182, "groups": [{"sizes": {"UK 4": 38}, "prs": 38, "perCtn": 2, "ctn": 19, "from": 1, "to": 19, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 80}, "prs": 80, "perCtn": 2, "ctn": 40, "from": 20, "to": 59, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 116}, "prs": 116, "perCtn": 2, "ctn": 58, "from": 60, "to": 117, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 62}, "prs": 62, "perCtn": 2, "ctn": 31, "from": 118, "to": 148, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 36}, "prs": 36, "perCtn": 2, "ctn": 18, "from": 149, "to": 166, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 2, "ctn": 12, "from": 167, "to": 178, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 179, "to": 179, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 180, "to": 180, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 181, "to": 181, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 182, "to": 182, "box": "NNS72", "mix": false}]}, "AE2607216": {"po": "0903082773-1", "col": "LC1787", "ctry": "CANADA", "name": "ADIDAS RAINBOOT W", "cust": "0308018212", "wh": "630001-SI630001ADIRAIN", "gender": "Women", "totalPrs": 300, "totalCtn": 52, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 54}, "prs": 54, "perCtn": 6, "ctn": 9, "from": 5, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 14, "to": 26, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 27, "to": 37, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 42}, "prs": 42, "perCtn": 6, "ctn": 7, "from": 38, "to": 44, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 45, "to": 48, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 49, "to": 49, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 50, "to": 50, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 51, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 52, "to": 52, "box": "NNS72", "mix": false}]}, "AE2607351": {"po": "0903082772-1", "col": "LC1783", "ctry": "UNITED ARAB EMIRATES", "name": "ADIDAS RAINBOOT W", "cust": "0308037578", "wh": "512107-SI512107ADIRAIN", "gender": "Women", "totalPrs": 123, "totalCtn": 23, "groups": [{"sizes": {"UK 3": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 1, "to": 1, "box": "NNS88", "mix": false}, {"sizes": {"UK 4": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 2, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 5, "to": 8, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 30}, "prs": 30, "perCtn": 6, "ctn": 5, "from": 9, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 14, "to": 16, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 17, "to": 18, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 19, "to": 19, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 20, "to": 20, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 21, "to": 21, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 22, "to": 22, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 23, "to": 23, "box": "NNS72", "mix": false}]}, "AE2607352": {"po": "0903082755-1", "col": "LC1786", "ctry": "UNITED ARAB EMIRATES", "name": "ADIDAS RAINBOOT W", "cust": "0308037579", "wh": "512107-SI512107ADIRAIN", "gender": "Women", "totalPrs": 100, "totalCtn": 19, "groups": [{"sizes": {"UK 3": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 1, "to": 1, "box": "NNS88", "mix": false}, {"sizes": {"UK 4": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 2, "to": 3, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 4, "to": 6, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 7, "to": 10, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 11, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 14, "to": 14, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 15, "to": 15, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 16, "to": 16, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 17, "to": 17, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 18, "to": 18, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 19, "to": 19, "box": "NNS72", "mix": false}]}, "AE2607353": {"po": "0903082783-1", "col": "LC1787", "ctry": "UNITED ARAB EMIRATES", "name": "ADIDAS RAINBOOT W", "cust": "0308037580", "wh": "512107-SI512107ADIRAIN", "gender": "Women", "totalPrs": 100, "totalCtn": 19, "groups": [{"sizes": {"UK 3": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 1, "to": 1, "box": "NNS88", "mix": false}, {"sizes": {"UK 4": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 2, "to": 3, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 4, "to": 6, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 7, "to": 10, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 11, "to": 13, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 14, "to": 14, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 15, "to": 15, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 16, "to": 16, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 17, "to": 17, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 18, "to": 18, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 19, "to": 19, "box": "NNS72", "mix": false}]}, "AE2607383": {"po": "0903082787-1", "col": "LC1783", "ctry": "CANADA", "name": "ADIDAS RAINBOOT W", "cust": "0308018653", "wh": "630001-SI630001ADIRAIN", "gender": "Women", "totalPrs": 341, "totalCtn": 60, "groups": [{"sizes": {"UK 4": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 1, "to": 4, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 5, "to": 15, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 90}, "prs": 90, "perCtn": 6, "ctn": 15, "from": 16, "to": 30, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 84}, "prs": 84, "perCtn": 6, "ctn": 14, "from": 31, "to": 44, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 42}, "prs": 42, "perCtn": 6, "ctn": 7, "from": 45, "to": 51, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 52, "to": 55, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 56, "to": 56, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 57, "to": 57, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 58, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 3}, "prs": 3, "perCtn": 3, "ctn": 1, "from": 59, "to": 59, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 60, "to": 60, "box": "NNS72", "mix": false}]}, "AE2607426": {"po": "0903083862-1", "col": "LC1783", "ctry": "CANADA", "name": "ADIDAS RAINBOOT W", "cust": "0308019471", "wh": "630001-SI630001ADIRAIN", "gender": "Women", "totalPrs": 350, "totalCtn": 60, "groups": [{"sizes": {"UK 4": 30}, "prs": 30, "perCtn": 6, "ctn": 5, "from": 1, "to": 5, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 66}, "prs": 66, "perCtn": 6, "ctn": 11, "from": 6, "to": 16, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 90}, "prs": 90, "perCtn": 6, "ctn": 15, "from": 17, "to": 31, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 78}, "prs": 78, "perCtn": 6, "ctn": 13, "from": 32, "to": 44, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 48}, "prs": 48, "perCtn": 6, "ctn": 8, "from": 45, "to": 52, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 53, "to": 55, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 56, "to": 56, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 57, "to": 57, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 58, "to": 58, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 59, "to": 59, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 60, "to": 60, "box": "NNS72", "mix": false}]}, "AE2607210": {"po": "0903082594-1", "col": "LC1786", "ctry": "UNITED KINGDOM", "name": "ADIDAS RAINBOOT W", "cust": "0308113831", "wh": "516406-SIASOSFAH01ADIRAIN", "gender": "Women", "totalPrs": 360, "totalCtn": 182, "groups": [{"sizes": {"UK 4": 38}, "prs": 38, "perCtn": 2, "ctn": 19, "from": 1, "to": 19, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 80}, "prs": 80, "perCtn": 2, "ctn": 40, "from": 20, "to": 59, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 116}, "prs": 116, "perCtn": 2, "ctn": 58, "from": 60, "to": 117, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 62}, "prs": 62, "perCtn": 2, "ctn": 31, "from": 118, "to": 148, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 36}, "prs": 36, "perCtn": 2, "ctn": 18, "from": 149, "to": 166, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 24}, "prs": 24, "perCtn": 2, "ctn": 12, "from": 167, "to": 178, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 179, "to": 179, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 180, "to": 180, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 181, "to": 181, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 182, "to": 182, "box": "NNS72", "mix": false}]}, "AE2607563": {"po": "0903078126-1", "col": "LC1783", "ctry": "ISRAEL", "name": "ADIDAS RAINBOOT W", "cust": "0308030849", "wh": "834012-SI834010ADIRAIN", "gender": "Women", "totalPrs": 844, "totalCtn": 141, "groups": [{"sizes": {"UK 3": 6}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 1, "to": 1, "box": "NNS88", "mix": false}, {"sizes": {"UK 4": 126}, "prs": 126, "perCtn": 6, "ctn": 21, "from": 2, "to": 22, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 270}, "prs": 270, "perCtn": 6, "ctn": 45, "from": 23, "to": 67, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 282}, "prs": 282, "perCtn": 6, "ctn": 47, "from": 68, "to": 114, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 120}, "prs": 120, "perCtn": 6, "ctn": 20, "from": 115, "to": 134, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 135, "to": 137, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 138, "to": 138, "box": "NNS72", "mix": false}, {"sizes": {"UK 3": 5, "UK 4": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 139, "to": 139, "box": "NNS88", "mix": true}, {"sizes": {"UK 5": 5, "UK 6": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 140, "to": 140, "box": "NNS72", "mix": true}, {"sizes": {"UK 6": 1, "UK 7": 2, "UK 8": 3}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 141, "to": 141, "box": "NNS72", "mix": true}]}, "AE2607564": {"po": "0903078135-1", "col": "LC1786", "ctry": "ISRAEL", "name": "ADIDAS RAINBOOT W", "cust": "0308030850", "wh": "834012-SI834010ADIRAIN", "gender": "Women", "totalPrs": 773, "totalCtn": 129, "groups": [{"sizes": {"UK 3": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 1, "to": 2, "box": "NNS88", "mix": false}, {"sizes": {"UK 4": 114}, "prs": 114, "perCtn": 6, "ctn": 19, "from": 3, "to": 21, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 234}, "prs": 234, "perCtn": 6, "ctn": 39, "from": 22, "to": 60, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 252}, "prs": 252, "perCtn": 6, "ctn": 42, "from": 61, "to": 102, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 114}, "prs": 114, "perCtn": 6, "ctn": 19, "from": 103, "to": 121, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 122, "to": 125, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 5}, "prs": 5, "perCtn": 5, "ctn": 1, "from": 126, "to": 126, "box": "NNS72", "mix": false}, {"sizes": {"UK 3": 1, "UK 4": 4, "UK 5": 1}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 127, "to": 127, "box": "NNS88", "mix": true}, {"sizes": {"UK 5": 3, "UK 6": 3}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 128, "to": 128, "box": "NNS72", "mix": true}, {"sizes": {"UK 6": 2, "UK 7": 1, "UK 8": 3}, "prs": 6, "perCtn": 6, "ctn": 1, "from": 129, "to": 129, "box": "NNS72", "mix": true}]}, "AE2607588": {"po": "0903081117-1", "col": "LC1783", "ctry": "UNITED KINGDOM", "name": "ADIDAS RAINBOOT W", "cust": "0308113619", "wh": "516406-SIASOSFAH01ADIRAIN", "gender": "Women", "totalPrs": 720, "totalCtn": 361, "groups": [{"sizes": {"UK 4": 76}, "prs": 76, "perCtn": 2, "ctn": 38, "from": 1, "to": 38, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 162}, "prs": 162, "perCtn": 2, "ctn": 81, "from": 39, "to": 119, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 232}, "prs": 232, "perCtn": 2, "ctn": 116, "from": 120, "to": 235, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 124}, "prs": 124, "perCtn": 2, "ctn": 62, "from": 236, "to": 297, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 74}, "prs": 74, "perCtn": 2, "ctn": 37, "from": 298, "to": 334, "box": "NNS72", "mix": false}, {"sizes": {"UK 9": 50}, "prs": 50, "perCtn": 2, "ctn": 25, "from": 335, "to": 359, "box": "NNS72", "mix": false}, {"sizes": {"UK 4": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 360, "to": 360, "box": "NNS88", "mix": false}, {"sizes": {"UK 6": 1}, "prs": 1, "perCtn": 1, "ctn": 1, "from": 361, "to": 361, "box": "NNS72", "mix": false}]}, "AE2607205": {"po": "0903082430-1 => 0903203968-1", "col": "LC1783", "ctry": "UNITED KINGDOM =>GERMANY", "name": "ADIDAS RAINBOOT W", "cust": "0308112592", "wh": "516343-SI516343ADIRAIN =>516333-SI516333", "gender": "Women", "totalPrs": 100, "totalCtn": 18, "groups": [{"sizes": {"UK 4": 12}, "prs": 12, "perCtn": 6, "ctn": 2, "from": 1, "to": 2, "box": "NNS88", "mix": false}, {"sizes": {"UK 5": 24}, "prs": 24, "perCtn": 6, "ctn": 4, "from": 3, "to": 6, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 36}, "prs": 36, "perCtn": 6, "ctn": 6, "from": 7, "to": 12, "box": "NNS72", "mix": false}, {"sizes": {"UK 7": 18}, "prs": 18, "perCtn": 6, "ctn": 3, "from": 13, "to": 15, "box": "NNS72", "mix": false}, {"sizes": {"UK 5": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 16, "to": 16, "box": "NNS72", "mix": false}, {"sizes": {"UK 6": 2}, "prs": 2, "perCtn": 2, "ctn": 1, "from": 17, "to": 17, "box": "NNS72", "mix": false}, {"sizes": {"UK 8": 4}, "prs": 4, "perCtn": 4, "ctn": 1, "from": 18, "to": 18, "box": "NNS72", "mix": false}]}};
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -1686,7 +1691,6 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
 
   window.XlsxLite = X;
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -1707,7 +1711,7 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
 
   function blank() {
     return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0, receiptEdits: {},
-             seedReceiptsOff: false };
+             orderEdits: {}, seedReceiptsOff: false };
   }
   const SIZES6 = ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8", "UK 9"];
   const PK = (window.TVS_META && TVS_META.packing) || 6;
@@ -1780,11 +1784,55 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     ÁP OVERRIDE SỬA / XOÁ ĐƠN ĐẶT HÀNG (v4.8) — khoá theo MÃ ĐƠN
+     Hoạt động cho cả đơn Excel gốc lẫn đơn nhập tay/import.
+     Không bao giờ ghi đè mảng seed gốc (luôn tạo bản sao dòng).
+       edit = { rev, deleted, head:{d,ctry,po,col,bat}, sizes:{"UK 4":120,…}, log:[] }
+     ══════════════════════════════════════════════════════════════ */
+  function applyOrderEdits(rows) {
+    const edits = Store.local.orderEdits || {};
+    if (!Object.keys(edits).length) return rows;
+    const out = [], handled = new Set();
+    const byOrd = {};
+    rows.forEach(r => { (byOrd[r.ord] = byOrd[r.ord] || []).push(r); });
+
+    for (const r of rows) {
+      const e = edits[r.ord];
+      if (!e) { out.push(r); continue; }
+      if (e.deleted) continue;                       // đơn đã xoá → bỏ toàn bộ dòng
+      if (!e.sizes) { out.push(headed(r, e)); continue; }  // chỉ sửa thông tin chung
+      if (handled.has(r.ord)) continue;              // ma trận size đã dựng lại 1 lần
+      handled.add(r.ord);
+      const base = byOrd[r.ord], tmpl = base[0];
+      SIZES6.forEach(sz => {
+        const q = parseInt(e.sizes[sz], 10) || 0;
+        if (q <= 0) return;
+        const src = base.find(x => x.sz === sz) || tmpl;
+        out.push(headed(Object.assign({}, src, {
+          sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev,
+        }), e));
+      });
+    }
+    return out;
+  }
+  /* Ghi đè thông tin chung (ngày xuất KD / quốc gia / PO / màu / đợt) lên 1 dòng */
+  function headed(r, e) {
+    if (!e || !e.head) return r;
+    const h = e.head, patch = { _edited: true, _rev: e.rev };
+    if (h.d) patch.d = h.d;
+    if (h.ctry) patch.ctry = h.ctry;
+    if (h.po !== undefined && h.po !== null) patch.po = h.po;
+    if (h.col) patch.col = h.col;
+    if (h.bat) patch.bat = +h.bat;
+    return Object.assign({}, r, patch);
+  }
+
   /* Gộp gốc + overlay vào biến toàn cục cho utils.js dùng.
      seedReceiptsOff = true → KHÔNG dùng dữ liệu nhập kho gốc (đã thay thế bằng
      dữ liệu import/nhập tay). Bật/tắt được, khôi phục lại lúc nào cũng được. */
   Store.merge = function () {
-    window.TVS_ORDERS = SEED_ORDERS.concat(Store.local.ordersAdded);
+    window.TVS_ORDERS = applyOrderEdits(SEED_ORDERS.concat(Store.local.ordersAdded));
     const base = Store.local.seedReceiptsOff ? [] : SEED_RECEIPTS;
     window.TVS_RECEIPTS = applyReceiptEdits(base.concat(Store.local.receiptsAdded));
     window.TVS_SHIPMENTS = Store.local.shipments;
@@ -1850,6 +1898,7 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
       shipments: data.shipments || [],
       seq: data.seq || 0,
       receiptEdits: data.receiptEdits || {},
+      orderEdits: data.orderEdits || {},
       seedReceiptsOff: !!data.seedReceiptsOff,
     });
     persist();
@@ -1910,6 +1959,142 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
     return { ok: true };
   };
 
+  /* ═══════════════════════════════════════════════════════════════
+     SỬA / XOÁ ĐƠN ĐẶT HÀNG NGAY TRÊN MÀN HÌNH OMS (v4.8)
+     Sửa được cả đơn Excel gốc lẫn đơn nhập tay — mọi thao tác đều ghi
+     nhật ký (ai sửa · lúc nào · lý do · trước/sau) và khôi phục được.
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* Ma trận size hiện hành của 1 đơn: { "UK 4": 120, … } */
+  Store.orderSizes = function (ord) {
+    const sizes = {};
+    (window.TVS_ORDERS || []).forEach(r => {
+      if (r.ord === ord) sizes[r.sz] = (sizes[r.sz] || 0) + r.prs;
+    });
+    return sizes;
+  };
+  /* Thông tin chung hiện hành của 1 đơn */
+  Store.orderHead = function (ord) {
+    const rows = (window.TVS_ORDERS || []).filter(r => r.ord === ord);
+    if (!rows.length) return null;
+    const r = rows[0];
+    return { d: r.d, ctry: r.ctry, po: r.po || "", col: r.col, bat: r.bat };
+  };
+  Store.orderEditInfo = ord => (Store.local.orderEdits || {})[ord] || null;
+  /* Đơn ĐANG bị thay đổi so với gốc (khác với đơn chỉ còn nhật ký sau khi khôi phục) */
+  Store.isOrderOverridden = function (ord) {
+    const e = (Store.local.orderEdits || {})[ord];
+    return !!(e && (e.deleted || e.sizes || e.head));
+  };
+  Store.orderEditCount = () =>
+    Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length;
+  /* Số đơn có nhật ký chỉnh sửa (kể cả đã khôi phục về gốc) */
+  Store.orderEditLogCount = () => Object.keys(Store.local.orderEdits || {}).length;
+  Store.isOrderSeed = ord => SEED_ORDERS.some(r => r.ord === ord);
+
+  /* Cảnh báo nghiệp vụ khi giảm SL đặt xuống dưới SL đã nhập kho / đã xuất kho.
+     Trả về { blocks:[…], warns:[…] } — blocks làm hỏng N-X-T nên chặn lưu. */
+  Store.checkOrderSizes = function (ord, newSizes) {
+    const blocks = [], warns = [];
+    const cur = Store.orderSizes(ord);
+    SIZES6.forEach(sz => {
+      const q = parseInt((newSizes || {})[sz], 10) || 0;
+      const recv = (window.U && U._recvByOrdSize) ? (U._recvByOrdSize[ord + "|" + sz] || 0) : 0;
+      const shipped = (window.U && U._shipByOrdSize) ? (U._shipByOrdSize[ord + "|" + sz] || 0) : 0;
+      if (shipped > 0 && q < shipped)
+        blocks.push(`${sz}: đã XUẤT KHO ${shipped} đôi — không thể hạ SL đặt xuống ${q}`);
+      else if (recv > 0 && q < recv)
+        warns.push(`${sz}: đã nhập kho ${recv} đôi > SL đặt mới ${q} → sẽ thành nhập dư`);
+      if (q <= 0 && (cur[sz] || 0) > 0 && (recv > 0 || shipped > 0))
+        warns.push(`${sz}: bỏ size này nhưng kho đã có phát sinh (nhập ${recv} · xuất ${shipped})`);
+    });
+    return { blocks, warns };
+  };
+
+  /* Sửa 1 đơn hàng: head = thông tin chung (có thể bỏ trống), sizes = ma trận size */
+  Store.editOrder = function (ord, head, newSizes, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do sửa" };
+    if (!U.orderByCode(ord)) return { ok: false, msg: `Không tìm thấy đơn ${ord}` };
+
+    const beforeSizes = Store.orderSizes(ord), beforeHead = Store.orderHead(ord);
+    let after = null;
+    if (newSizes) {
+      after = {};
+      SIZES6.forEach(sz => { const q = parseInt(newSizes[sz], 10) || 0; if (q > 0) after[sz] = q; });
+      if (!Object.keys(after).length)
+        return { ok: false, msg: "Phải còn ít nhất 1 size > 0 (muốn bỏ hẳn đơn hãy dùng Xoá đơn)" };
+      const chk = Store.checkOrderSizes(ord, after);
+      if (chk.blocks.length) return { ok: false, msg: chk.blocks.join(" · ") };
+    }
+    const nh = {};
+    if (head) {
+      if (head.d) nh.d = head.d;
+      if (head.ctry) nh.ctry = String(head.ctry).trim().toUpperCase();
+      if (head.po !== undefined) nh.po = String(head.po).trim();
+      if (head.col) nh.col = String(head.col).trim().toUpperCase();
+      if (head.bat) nh.bat = parseInt(head.bat, 10) || 1;
+    }
+
+    const e = Store.local.orderEdits[ord] || { rev: 0, log: [] };
+    e.rev += 1; e.deleted = false;
+    if (Object.keys(nh).length) e.head = Object.assign({}, e.head, nh);
+    if (after) e.sizes = after;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(),
+      before: beforeSizes, after: after || beforeSizes,
+      beforeHead, afterHead: Object.keys(nh).length ? Object.assign({}, beforeHead, nh) : null });
+    Store.local.orderEdits[ord] = e;
+    commit();
+    return { ok: true, rev: e.rev };
+  };
+
+  /* Sửa nhanh SL 1 size ngay trên bảng (chế độ “Chi tiết từng dòng size”) */
+  Store.editOrderSize = function (ord, sz, qty, reason) {
+    const cur = Store.orderSizes(ord);
+    if (!cur[sz] && cur[sz] !== 0) return { ok: false, msg: `Đơn ${ord} không có size ${sz}` };
+    const next = Object.assign({}, cur);
+    next[sz] = parseInt(qty, 10) || 0;
+    return Store.editOrder(ord, null, next, reason);
+  };
+
+  /* Xoá cả đơn hàng (ẩn khỏi hệ thống, khôi phục được) */
+  Store.deleteOrder = function (ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do xoá" };
+    const o = U.orderByCode(ord);
+    if (!o) return { ok: false, msg: `Không tìm thấy đơn ${ord}` };
+    if (o.shipPrs > 0)
+      return { ok: false, msg: `Đơn ${ord} đã xuất kho ${o.shipPrs} đôi — huỷ phiếu xuất kho trước khi xoá đơn` };
+    const e = Store.local.orderEdits[ord] || { rev: 0, log: [] };
+    e.rev += 1; e.deleted = true;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(),
+      before: Store.orderSizes(ord), after: null, beforeHead: Store.orderHead(ord), afterHead: null });
+    Store.local.orderEdits[ord] = e;
+    commit();
+    return { ok: true };
+  };
+
+  /* Khôi phục 1 đơn về đúng dữ liệu gốc (giữ nguyên nhật ký) */
+  Store.restoreOrder = function (ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const e = Store.local.orderEdits[ord];
+    if (!e) return { ok: false, msg: "Đơn này chưa có chỉnh sửa" };
+    e.rev += 1; e.deleted = false; e.sizes = null; e.head = null;
+    e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+      reason: (reason || "Khôi phục về gốc").trim(), restored: true });
+    commit();
+    return { ok: true };
+  };
+
+  /* Khôi phục TOÀN BỘ đơn hàng về gốc — xoá sạch mọi override & nhật ký sửa đơn */
+  Store.restoreAllOrders = function () {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const n = Object.keys(Store.local.orderEdits || {}).length;
+    Store.local.orderEdits = {};
+    commit();
+    return { ok: true, n };
+  };
+
   /* ── Số phiếu tự tăng theo mẫu PXK-ADI-2026-0001 ───────────── */
   Store.nextSeq = function () {
     const n = Store.local.seq + 1;
@@ -1921,8 +2106,23 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
   Store.addOrders = function (rows, src) {
     if (!Store.guard()) return;
     rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
+    /* ⚠ Nếu mã đơn từng bị XOÁ / SỬA ma trận size, phải gỡ override — nếu không
+       dòng vừa thêm sẽ bị lớp overlay ẩn đi (tưởng như không thêm được). */
+    const revived = [];
+    for (const ord of new Set(rows.map(r => r.ord))) {
+      const e = (Store.local.orderEdits || {})[ord];
+      if (e && (e.deleted || e.sizes)) {
+        e.rev += 1; e.deleted = false; e.sizes = null;
+        e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), restored: true,
+          reason: (src === "import" ? "Import đơn hàng mới" : "Thêm đơn hàng") +
+            " — gỡ trạng thái đã xoá/đã sửa để nhận dữ liệu mới" });
+        revived.push(ord);
+      }
+    }
     Store.local.ordersAdded.push(...rows);
     commit();
+    if (revived.length && window.App && App.toast)
+      App.toast(`ℹ Đã gỡ trạng thái xoá/sửa cũ của đơn ${U.esc(revived.slice(0, 3).join(", "))}${revived.length > 3 ? "…" : ""} để nhận dữ liệu mới`, "warn");
   };
   Store.addReceipts = function (rows, src, opts) {
     if (!Store.guard()) return;
@@ -2036,6 +2236,7 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
     orders: Store.local.ordersAdded.length,
     receipts: Store.local.receiptsAdded.length,
     shipments: Store.local.shipments.length,
+    orderEdits: Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length,
   });
   Store.resetAll = function () {
     if (!Store.guard()) return;
@@ -2392,7 +2593,6 @@ window.TVS_PACKING = {"AE2607213": {"po": "0903082418-1", "col": "LC1787", "ctry
 
   window.Store = Store;
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -2422,7 +2622,6 @@ window.TVS_GH = {
   branch: "main",
   dataPath: "data/tvs-data.json",
 };
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -2571,7 +2770,6 @@ window.TVS_GH = {
 
   window.Auth = Auth;
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -2700,7 +2898,6 @@ window.TVS_GH = {
 
   window.Sync = Sync;
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -2935,7 +3132,6 @@ window.TVS_GH = {
   U.rebuild();
   window.U = U;
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -3087,7 +3283,6 @@ window.TVS_GH = {
   C.PALETTE = PALETTE;
   window.Charts = C;
 })();
-
 </script>
 <!-- Các module giao diện (Dashboard / OMS / WMS / PXK / N-X-T / TMS / Kiến trúc / AI) -->
 <script>
@@ -3238,7 +3433,6 @@ window.TVS_GH = {
     }
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -3249,12 +3443,21 @@ window.TVS_GH = {
   "use strict";
   window.Views = window.Views || {};
 
-  const st = { q: "", ctry: "", col: "", bat: "", d: "", mode: "orders", page: 1, per: 60 };
+  const st = { q: "", ctry: "", col: "", bat: "", d: "", mode: "orders", page: 1, per: 60,
+               editRow: null };   /* editRow = "MÃ ĐƠN|UK 5" → dòng đang sửa nhanh tại chỗ */
 
   function statusBdg(o) {
     if (o.status === "full") return `<span class="bdg ok">đủ hàng</span>`;
     if (o.status === "partial") return `<span class="bdg warn">đang SX · thiếu ${U.fmt(o.short)}</span>`;
     return `<span class="bdg neu">chưa nhập kho</span>`;
+  }
+  /* Nhãn “đã sửa n lần” cho đơn có chỉnh sửa */
+  function editBdg(ord) {
+    const e = Store.orderEditInfo(ord);
+    if (!e) return "";
+    return Store.isOrderOverridden(ord)
+      ? `<span class="bdg acc plain" title="Đơn đang khác dữ liệu gốc — bấm ⟲ để xem nhật ký">đã sửa ${e.rev}×</span>`
+      : `<span class="bdg neu plain" title="Đơn đã được khôi phục về đúng dữ liệu gốc — vẫn giữ nhật ký">đã khôi phục gốc</span>`;
   }
 
   function applyFilterRows() {
@@ -3287,7 +3490,7 @@ window.TVS_GH = {
     App.openModal(`
       <div class="modal-h">
         <h3>${U.flag(o.ctry)} Đơn hàng ${o.ord}</h3>
-        ${statusBdg(o)}
+        ${statusBdg(o)} ${editBdg(o.ord)}
         <button class="modal-x" onclick="App.closeModal()">✕</button>
       </div>
       <div class="modal-b">
@@ -3309,6 +3512,11 @@ window.TVS_GH = {
           </div>
           <div class="note mt">→ Xem dòng nhập kho tại mục <a href="#/warehouse" onclick="App.closeModal()">Nhập kho (ChitietNK)</a>.</div>`
         : `<div class="note mt">Đơn chưa có thành phẩm nhập kho — nguồn: sheet Data (đơn đặt hàng gốc).</div>`}
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
+          <button class="btn primary need-edit" onclick="Views._ordEdit('${o.ord}')">${App.icon("clip", "ico")} Sửa đơn hàng</button>
+          <button class="btn need-edit" onclick="Views._ordHistory('${o.ord}')">⟲ Nhật ký chỉnh sửa</button>
+          <button class="btn danger need-edit" style="margin-left:auto" onclick="Views._ordDelete('${o.ord}')">${App.icon("trash", "ico")} Xoá đơn</button>
+        </div>
       </div>`);
   }
   window.Views._openOrder = openOrder;
@@ -3320,6 +3528,9 @@ window.TVS_GH = {
       const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
       const cols = U.uniq(TVS_ORDERS, r => r.col).sort();
       const dates = U.uniq(TVS_ORDERS, r => r.d).sort();
+      const edN = Store.orderEditCount();          /* đơn đang khác gốc */
+      const edLog = Store.orderEditLogCount();     /* đơn có nhật ký (kể cả đã khôi phục) */
+      st.editRow = null;
 
       root.innerHTML = `
         <div class="card">
@@ -3330,6 +3541,15 @@ window.TVS_GH = {
             <button class="btn" id="oExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
             <span class="f-chipcount">Import file <b>size hàng ngang</b> (1 dòng = 1 đơn, cột UK 3→UK 9) — hệ thống tự chuyển sang dạng hàng dọc ·
               <a id="oTplLong" style="cursor:pointer;color:var(--acc);font-weight:700">mẫu dạng dọc</a></span>
+          </div>
+          <div class="filters" style="gap:10px">
+            <span class="bdg ${edN ? "acc" : "neu"} plain">${edN
+              ? `Đang có ${edN} đơn khác dữ liệu gốc`
+              : (edLog ? `Tất cả đơn đúng dữ liệu gốc (${edLog} đơn có nhật ký sửa)` : "Chưa chỉnh sửa đơn nào")}</span>
+            <span class="note">Sửa được <b>mọi đơn</b> (kể cả đơn Excel gốc) ngay trên bảng — bấm
+              <b>${App.icon("clip", "ico")} Sửa</b> ở cột Thao tác, hoặc bấm <b>✎</b> ở chế độ
+              <b>Chi tiết từng dòng size</b> để sửa nhanh số đôi tại chỗ. Mọi thay đổi đều ghi nhật ký người sửa &amp; lý do.</span>
+            ${edLog ? `<button class="btn small need-edit" id="oRestoreAll" style="margin-left:auto">↺ Khôi phục toàn bộ đơn về gốc${edN ? "" : " (xoá nhật ký)"}</button>` : ""}
           </div>
           <div class="filters">
             <input class="f-input" id="fQ" placeholder="Tìm mã đơn / PO / quốc gia…" value="${U.esc(st.q)}">
@@ -3370,6 +3590,13 @@ window.TVS_GH = {
       const tl = document.getElementById("oTplLong");
       if (tl) tl.onclick = () => { Store.templateOrdersLong(); App.toast("Đã tải file mẫu dạng size hàng dọc (1 dòng = 1 size)", "ok"); };
       bind("oImp", "click", importOrders);
+      const ra = document.getElementById("oRestoreAll");
+      if (ra) ra.onclick = () => {
+        if (!confirm(`Khôi phục TOÀN BỘ đơn hàng về đúng dữ liệu gốc?\n\n• ${edN} đơn đang khác gốc sẽ được hoàn tác (số lượng / thông tin / đơn đã xoá)\n• Nhật ký chỉnh sửa của ${edLog} đơn sẽ bị xoá sạch`)) return;
+        const r = Store.restoreAllOrders();
+        if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+        App.toast(`✓ Đã khôi phục toàn bộ đơn hàng về dữ liệu gốc (${r.n} đơn có chỉnh sửa)`, "ok");
+      };
       bind("oExp", "click", () => {
         const rows = applyFilterRows();
         Store.downloadCSV("DON_DAT_HANG_TVS.csv", [
@@ -3509,10 +3736,11 @@ window.TVS_GH = {
           <th>Mã đơn</th><th>Quốc gia</th><th>PO</th><th>Màu</th><th>Tên màu</th><th>Size</th>
           <th class="num">Số đôi</th><th class="num">Số thùng</th>
           <th>Ngày xuất KD</th><th>Đợt</th><th class="num">Đã nhập</th><th>Trạng thái</th>
+          <th class="need-edit">Thao tác</th>
         </tr></thead>
         <tbody>${list.map(o => `
           <tr class="clickable" onclick="Views._openOrder('${o.ord}')">
-            <td><b>${o.ord}</b></td>
+            <td><b>${o.ord}</b> ${editBdg(o.ord)}</td>
             <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
             <td class="mono">${U.esc(o.po)}</td>
             <td><span class="color-dot" style="background:${U.colorHex(o.col.split(",")[0].trim())}"></span>${U.esc(o.col)}</td>
@@ -3522,13 +3750,22 @@ window.TVS_GH = {
             <td>${U.fmtDate(o.d)}</td><td>Đợt ${o.bat}</td>
             <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "—"}</td>
             <td>${statusBdg(o)}</td>
+            <td class="act-cell need-edit" onclick="event.stopPropagation()">
+              <button class="btn small primary need-edit" title="Sửa đơn hàng này ngay tại đây"
+                onclick="Views._ordEdit('${o.ord}')">${App.icon("clip", "ico")} Sửa</button>
+              ${Store.orderEditInfo(o.ord)
+                ? `<button class="btn small need-edit" title="Xem nhật ký chỉnh sửa" onclick="Views._ordHistory('${o.ord}')">⟲</button>` : ""}
+              <button class="btn small danger need-edit" title="Xoá đơn hàng này"
+                onclick="Views._ordDelete('${o.ord}')">✕</button>
+            </td>
           </tr>`).join("")}</tbody>
         <tfoot><tr><td colspan="6">TỔNG (${U.fmt(list.length)} đơn)</td>
           <td class="num">${U.fmt(U.sum(list, o => o.prs))}</td>
           <td class="num">${U.fmt(U.sum(list, o => o.ctn))}</td><td colspan="2"></td>
-          <td class="num">${U.fmt(U.sum(list, o => o.recvPrs))}</td><td></td></tr></tfoot>
+          <td class="num">${U.fmt(U.sum(list, o => o.recvPrs))}</td><td colspan="2"></td></tr></tfoot>
       </table></div>
-      <div class="note" style="padding:10px 18px">Bấm vào từng dòng để xem ma trận size & đối chiếu nhập kho.</div>`;
+      <div class="note" style="padding:10px 18px">Bấm vào từng dòng để xem ma trận size &amp; đối chiếu nhập kho · cột
+        <b>Thao tác</b> để sửa / xoá / xem nhật ký ngay tại màn hình này (chỉ hiện với tài khoản nhập liệu).</div>`;
     } else {
       const rows = applyFilterRows();
       document.getElementById("fCount").textContent =
@@ -3538,13 +3775,38 @@ window.TVS_GH = {
       const view = rows.slice((st.page - 1) * st.per, st.page * st.per);
       area.innerHTML = `<div class="tbl-wrap"><table class="tbl">
         <thead><tr><th>#</th><th>Ngày xuất KD</th><th>Quốc gia</th><th>Đơn hàng</th><th>PO</th>
-          <th>Màu</th><th>Size</th><th class="num">Số đôi</th><th class="num">Số thùng</th><th>Đợt</th><th>Nguồn</th></tr></thead>
-        <tbody>${view.map((r, i) => `
-          <tr class="clickable" onclick="Views._openOrder('${r.ord}')">
+          <th>Màu</th><th>Size</th><th class="num">Số đôi</th><th class="num">Số thùng</th><th>Đợt</th><th>Nguồn</th>
+          <th class="need-edit">Sửa nhanh</th></tr></thead>
+        <tbody>${view.map((r, i) => {
+          const key = r.ord + "|" + r.sz;
+          const editing = st.editRow === key;
+          if (editing) return `
+          <tr class="row-editing">
             <td class="note">${(st.page - 1) * st.per + i + 1}</td>
             <td>${U.fmtDate(r.d)}</td>
             <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
             <td><b>${r.ord}</b></td><td class="mono">${U.esc(r.po)}</td>
+            <td>${U.colorCell(r.col)}</td>
+            <td><b>${r.sz}</b></td>
+            <td class="num"><input class="cell-in" id="qeQty" type="number" min="0" value="${r.prs}" style="width:86px"></td>
+            <td class="num note" id="qeCtn">${U.fmt(r.ctn)}</td>
+            <td>Đợt ${r.bat}</td>
+            <td colspan="2">
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input class="cell-in note-in" id="qeReason" placeholder="Lý do sửa *" style="width:190px">
+                <button class="btn small primary" id="qeSave">✓ Lưu</button>
+                <button class="btn small" id="qeCancel">✕ Huỷ</button>
+                <span class="note" id="qeErr"></span>
+              </div>
+            </td>
+          </tr>`;
+          return `
+          <tr class="clickable" onclick="Views._openOrder('${r.ord}')">
+            <td class="note">${(st.page - 1) * st.per + i + 1}</td>
+            <td>${U.fmtDate(r.d)}</td>
+            <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
+            <td><b>${r.ord}</b> ${r._edited ? `<span class="bdg acc plain" title="Dòng đã được chỉnh sửa">đã sửa</span>` : ""}</td>
+            <td class="mono">${U.esc(r.po)}</td>
             <td>${U.colorCell(r.col)}</td>
             <td>${r.sz}</td><td class="num">${U.fmt(r.prs)}</td>
             <td class="num">${U.fmt(r.ctn)}</td><td>Đợt ${r.bat}</td>
@@ -3552,7 +3814,13 @@ window.TVS_GH = {
               ? `<span class="bdg acc plain">${r._src === "import" ? "import" : "nhập tay"}</span>
                  <button class="btn small danger need-edit" title="Xoá dòng bổ sung" onclick="event.stopPropagation();if(confirm('Xoá dòng ${r.ord} ${r.sz}?')){Store.removeOrderRow('${r._id}');App.toast('Đã xoá dòng bổ sung','warn')}">✕</button>`
               : `<span class="note">Excel gốc</span>`}</td>
-          </tr>`).join("")}</tbody></table></div>
+            <td class="act-cell need-edit" onclick="event.stopPropagation()">
+              <button class="btn small primary" title="Sửa ngay số đôi của dòng này"
+                onclick="Views._rowQuickEdit('${r.ord}','${r.sz}')">✎</button>
+              <button class="btn small" title="Sửa cả đơn (thông tin + ma trận size)"
+                onclick="Views._ordEdit('${r.ord}')">${App.icon("clip", "ico")}</button>
+            </td>
+          </tr>`; }).join("")}</tbody></table></div>
         <div class="pager">
           <button class="btn" id="pgPrev" ${st.page <= 1 ? "disabled" : ""}>← Trước</button>
           <button class="btn" id="pgNext" ${st.page >= pages ? "disabled" : ""}>Sau →</button>
@@ -3561,10 +3829,236 @@ window.TVS_GH = {
       const pv = document.getElementById("pgPrev"), nx = document.getElementById("pgNext");
       if (pv) pv.onclick = () => { st.page--; renderTable(area); };
       if (nx) nx.onclick = () => { st.page++; renderTable(area); };
+      bindQuickEdit(area);
     }
   }
-})();
 
+  /* ═══════ SỬA NHANH SỐ ĐÔI NGAY TRÊN DÒNG (chế độ chi tiết size) ═══════ */
+  Views._rowQuickEdit = function (ord, sz) {
+    if (!Store.guard()) return;
+    st.editRow = ord + "|" + sz;
+    renderTable(document.getElementById("tblArea"));
+  };
+
+  function bindQuickEdit(area) {
+    if (!st.editRow) return;
+    const [ord, sz] = st.editRow.split("|");
+    const qty = document.getElementById("qeQty");
+    if (!qty) return;
+    const ctnCell = document.getElementById("qeCtn");
+    const err = document.getElementById("qeErr");
+    const showErr = m => { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(m)}</span>`; };
+    const recalc = () => {
+      const q = parseInt(qty.value || "0", 10) || 0;
+      ctnCell.textContent = U.fmt(q ? Math.ceil(q / TVS_META.packing) : 0);
+    };
+    qty.addEventListener("input", recalc);
+    qty.focus(); qty.select();
+
+    const save = () => {
+      const q = parseInt(qty.value || "0", 10) || 0;
+      const reason = document.getElementById("qeReason").value;
+      if (q < 0) return showErr("Số đôi không được âm");
+      const r = Store.editOrderSize(ord, sz, q, reason);
+      if (!r.ok) return showErr(r.msg);
+      st.editRow = null;
+      App.toast(`✓ Đã sửa <b>${ord}</b> · ${sz} → <b>${U.fmt(q)} đôi</b> (lần sửa ${r.rev}) — đã ghi nhật ký`, "ok");
+    };
+    document.getElementById("qeSave").onclick = save;
+    document.getElementById("qeCancel").onclick = () => { st.editRow = null; renderTable(area); };
+    [qty, document.getElementById("qeReason")].forEach(el => el.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); save(); }
+      if (e.key === "Escape") { e.preventDefault(); st.editRow = null; renderTable(area); }
+    }));
+  }
+
+  /* ═══════════ SỬA TOÀN BỘ 1 ĐƠN HÀNG (thông tin + ma trận size) ═══════════ */
+  Views._ordEdit = function (ord) {
+    if (!Store.guard()) return;
+    const o = U.orderByCode(ord);
+    if (!o) { App.toast("Không tìm thấy đơn " + U.esc(ord), "warn"); return; }
+    const cur = Store.orderSizes(ord), head = Store.orderHead(ord);
+    const info = Store.orderEditInfo(ord);
+    const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
+    const colors = U.uniq(TVS_ORDERS, r => r.col.split(",")[0].trim())
+      .concat(Object.keys(U.COLOR_HEX)).filter((c, i, a) => c && a.indexOf(c) === i).sort();
+    const headCol = head.col.split(",")[0].trim();
+
+    App.openModal(`
+      <div class="modal-h"><h3>${App.icon("clip", "ico")} Sửa đơn hàng ${ord}</h3>
+        ${info ? `<span class="bdg acc plain">đã sửa ${info.rev} lần</span>` : ""}
+        ${Store.isOrderSeed(ord) ? `<span class="bdg neu plain">đơn Excel gốc</span>` : `<span class="bdg acc plain">đơn nhập thêm</span>`}
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b">
+        <h4 style="font-size:13px;margin:0 0 8px">① Thông tin chung</h4>
+        <div class="frm grid g-3" style="gap:10px">
+          <label>Ngày xuất KD *<input id="eD" type="date" value="${head.d}"></label>
+          <label>Quốc gia *<input id="eCtry" list="eCtryList" value="${U.esc(head.ctry)}" style="text-transform:uppercase">
+            <datalist id="eCtryList">${ctries.map(c => `<option value="${U.esc(c)}">`).join("")}</datalist></label>
+          <label>PO khách hàng<input id="ePo" value="${U.esc(head.po)}"></label>
+          <label>Mã màu *<select id="eCol">${colors.map(c => `<option ${c === headCol ? "selected" : ""}>${U.esc(c)}</option>`).join("")}</select></label>
+          <label>Đợt đặt hàng<select id="eBat">${[1, 2, 3].map(b => `<option ${head.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
+          <label>Mã đơn<input value="${U.esc(ord)}" disabled title="Mã đơn là khoá dữ liệu — không sửa được"></label>
+        </div>
+
+        <h4 style="font-size:13px;margin:16px 0 8px">② Ma trận size — số đôi đặt hàng
+          <span class="note">(thùng = ROUNDUP(đôi ÷ ${TVS_META.packing}) · để 0 nếu bỏ size)</span></h4>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Size</th><th class="num">SL đặt hiện tại</th><th class="num">Đã nhập kho</th><th class="num">Đã xuất kho</th>
+            <th class="num" style="min-width:120px">SL đặt sửa thành</th><th class="num">Thùng</th></tr></thead>
+          <tbody>${U.SIZES.map(s => {
+            const recv = U._recvByOrdSize[ord + "|" + s] || 0, shipd = U._shipByOrdSize[ord + "|" + s] || 0;
+            return `<tr>
+              <td><b>${s}</b></td>
+              <td class="num">${cur[s] ? U.fmt(cur[s]) : "—"}</td>
+              <td class="num ${recv ? "" : "note"}">${recv ? U.fmt(recv) : "—"}</td>
+              <td class="num ${shipd ? "" : "note"}">${shipd ? U.fmt(shipd) : "—"}</td>
+              <td class="num"><input class="cell-in" type="number" min="0" value="${cur[s] || 0}" data-esz="${s}"></td>
+              <td class="num note" data-ectn="${s}">${cur[s] ? U.fmt(Math.ceil(cur[s] / TVS_META.packing)) : 0}</td>
+            </tr>`; }).join("")}</tbody>
+          <tfoot><tr><td colspan="4">TỔNG</td><td class="num" id="eSumPrs">0</td><td class="num" id="eSumCtn">0</td></tr></tfoot>
+        </table></div>
+        <div id="eWarn" class="mt"></div>
+
+        <div class="frm mt"><label>Lý do sửa <span style="color:var(--bad)">*</span>
+          <input id="eReason" placeholder="VD: khách đổi số lượng, sửa sai sót nhập liệu, dời ngày xuất KD…"></label></div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn primary" id="eSave">Lưu thay đổi &amp; ghi nhật ký</button>
+          <button class="btn" onclick="App.closeModal()">Huỷ</button>
+          ${info ? `<button class="btn" id="eHist">⟲ Xem nhật ký (${info.rev})</button>
+                    <button class="btn" id="eRestore">↺ Khôi phục đơn về gốc</button>` : ""}
+          <span class="note" id="eErr" style="margin-left:auto"></span>
+        </div>
+      </div>`, true);
+
+    const inputs = [...document.querySelectorAll("#modalBack input[data-esz]")];
+    const recalc = () => {
+      let p = 0, c = 0;
+      const warns = [];
+      inputs.forEach(i => {
+        const sz = i.dataset.esz, q = parseInt(i.value || "0", 10) || 0;
+        const ct = q ? Math.ceil(q / TVS_META.packing) : 0;
+        document.querySelector(`[data-ectn="${sz}"]`).textContent = U.fmt(ct);
+        p += q; c += ct;
+      });
+      document.getElementById("eSumPrs").innerHTML = `<b>${U.fmt(p)}</b> đôi`;
+      document.getElementById("eSumCtn").innerHTML = `<b>${U.fmt(c)}</b> thùng`;
+      const sizes = {}; inputs.forEach(i => sizes[i.dataset.esz] = parseInt(i.value || "0", 10) || 0);
+      const chk = Store.checkOrderSizes(ord, sizes);
+      const w = document.getElementById("eWarn");
+      w.innerHTML = (chk.blocks.length || chk.warns.length)
+        ? `<div class="alert ${chk.blocks.length ? "" : "warn"}"><div class="a-t">
+             ${chk.blocks.length ? `<b>⛔ Không lưu được:</b><br>${chk.blocks.map(U.esc).join("<br>")}<br>` : ""}
+             ${chk.warns.length ? `<b>⚠ Lưu ý:</b><br>${chk.warns.map(U.esc).join("<br>")}` : ""}
+           </div></div>` : "";
+    };
+    inputs.forEach(i => i.addEventListener("input", recalc)); recalc();
+
+    document.getElementById("eSave").onclick = () => {
+      const err = document.getElementById("eErr");
+      const sizes = {}; inputs.forEach(i => sizes[i.dataset.esz] = parseInt(i.value || "0", 10) || 0);
+      const newHead = {
+        d: document.getElementById("eD").value,
+        ctry: document.getElementById("eCtry").value,
+        po: document.getElementById("ePo").value,
+        col: document.getElementById("eCol").value,
+        bat: document.getElementById("eBat").value,
+      };
+      if (!newHead.d) { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ Chọn ngày xuất KD</span>`; return; }
+      if (!newHead.ctry.trim()) { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ Nhập quốc gia</span>`; return; }
+      const r = Store.editOrder(ord, newHead, sizes, document.getElementById("eReason").value);
+      if (!r.ok) { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
+      App.closeModal();
+      App.toast(`✓ Đã sửa đơn <b>${ord}</b> — lần sửa thứ ${r.rev}, đã ghi nhật ký`, "ok");
+    };
+    const hb = document.getElementById("eHist");
+    if (hb) hb.onclick = () => Views._ordHistory(ord);
+    const rb = document.getElementById("eRestore");
+    if (rb) rb.onclick = () => {
+      if (!confirm(`Khôi phục đơn ${ord} về đúng dữ liệu gốc?`)) return;
+      const r = Store.restoreOrder(ord, "Khôi phục về gốc từ màn hình sửa đơn");
+      if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+      App.closeModal();
+      App.toast(`✓ Đã khôi phục đơn <b>${ord}</b> về dữ liệu gốc`, "ok");
+    };
+  };
+
+  /* ═══════════ XOÁ 1 ĐƠN HÀNG (khôi phục được) ═══════════ */
+  Views._ordDelete = function (ord) {
+    if (!Store.guard()) return;
+    const o = U.orderByCode(ord);
+    if (!o) { App.toast("Không tìm thấy đơn " + U.esc(ord), "warn"); return; }
+    App.openModal(`
+      <div class="modal-h"><h3>Xoá đơn hàng ${ord}</h3>
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b" style="max-width:560px">
+        <div class="alert" style="margin-bottom:12px"><div class="a-t">
+          Xoá toàn bộ đơn <b>${ord}</b> — ${U.flag(o.ctry)} ${U.esc(o.ctry)} ·
+          <b>${U.fmt(o.prs)} đôi</b> / ${U.fmt(o.ctn)} thùng · ${U.SIZES.filter(s => o.sizes[s]).length} size ·
+          xuất KD ${U.fmtDate(o.d)}.<br>
+          Số liệu N-X-T, kế hoạch xuất và bảng điều khiển sẽ tính lại ngay. Thao tác được ghi nhật ký và
+          <b>khôi phục được</b> bất cứ lúc nào.
+          ${o.recvPrs > 0 ? `<br><b>⚠ Đơn này đã nhập kho ${U.fmt(o.recvPrs)} đôi</b> — số nhập kho sẽ thành hàng không có đơn đặt.` : ""}
+          ${o.shipPrs > 0 ? `<br><b>⛔ Đơn đã xuất kho ${U.fmt(o.shipPrs)} đôi</b> — phải huỷ phiếu xuất kho trước.` : ""}
+        </div></div>
+        <div class="frm"><label>Lý do xoá <span style="color:var(--bad)">*</span>
+          <input id="odReason" placeholder="VD: khách huỷ đơn, tạo trùng, nhập nhầm chỉ thị…"></label></div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center">
+          <button class="btn danger" id="odGo">Xoá đơn &amp; ghi nhật ký</button>
+          <button class="btn" onclick="App.closeModal()">Huỷ</button>
+          <span class="note" id="odErr" style="margin-left:auto"></span>
+        </div>
+      </div>`);
+    document.getElementById("odGo").onclick = () => {
+      const r = Store.deleteOrder(ord, document.getElementById("odReason").value);
+      if (!r.ok) { document.getElementById("odErr").innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
+      App.closeModal();
+      App.toast(`✓ Đã xoá đơn <b>${ord}</b> — đã ghi nhật ký, khôi phục được`, "warn");
+    };
+  };
+
+  /* ═══════════ NHẬT KÝ CHỈNH SỬA 1 ĐƠN ═══════════ */
+  Views._ordHistory = function (ord) {
+    const info = Store.orderEditInfo(ord);
+    if (!info) { App.toast("Đơn này chưa có chỉnh sửa", "warn"); return; }
+    const szTxt = m => m ? (U.SIZES.filter(s => m[s]).map(s => `${s.replace("UK ", "")}×${U.fmt(m[s])}`).join(" · ") || "—") : "(đã xoá)";
+    const hdTxt = h => h ? `${U.fmtDate(h.d)} · ${U.esc(h.ctry)} · ${U.esc(h.po || "—")} · ${U.esc(h.col)} · Đợt ${h.bat}` : "—";
+    const rows = info.log.slice().reverse().map(l => `
+      <tr>
+        <td class="num"><b>${l.rev}</b></td>
+        <td>${new Date(l.at).toLocaleString("vi-VN")}</td>
+        <td><b>${U.esc(l.by)}</b></td>
+        <td>${l.restored ? '<span class="bdg neu plain">khôi phục gốc</span>'
+              : (l.after === null ? '<span class="bdg bad plain">xoá đơn</span>' : '<span class="bdg acc plain">sửa đơn</span>')}</td>
+        <td class="note">${l.restored ? "—" : szTxt(l.before)}</td>
+        <td class="note">${l.restored ? "về gốc" : szTxt(l.after)}</td>
+        <td class="note">${l.restored || !l.afterHead ? "—" : hdTxt(l.afterHead)}</td>
+        <td>${U.esc(l.reason || "")}</td>
+      </tr>`).join("");
+    App.openModal(`
+      <div class="modal-h"><h3>Nhật ký chỉnh sửa đơn — ${ord}</h3>
+        <span class="bdg acc plain">${info.rev} lần sửa</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b">
+        <div class="note" style="margin-bottom:10px">Mã đơn <b>${ord}</b>${info.deleted ? ' · <span class="bdg bad plain">đang ở trạng thái ĐÃ XOÁ</span>' : ""}</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Lần</th><th>Thời điểm</th><th>Người sửa</th><th>Loại</th><th>Size trước</th><th>Size sau</th><th>Thông tin chung sau</th><th>Lý do</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <div class="mt" style="display:flex;gap:8px">
+          <button class="btn need-edit" id="ohRestore">↺ Khôi phục đơn về gốc</button>
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+    const rb = document.getElementById("ohRestore");
+    if (rb) rb.onclick = () => {
+      const r = Store.restoreOrder(ord, "Khôi phục về gốc từ nhật ký");
+      if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+      App.closeModal();
+      App.toast(`✓ Đã khôi phục đơn <b>${ord}</b> về dữ liệu gốc`, "ok");
+    };
+  };
+})();
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -4068,7 +4562,6 @@ window.TVS_GH = {
     };
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -4854,7 +5347,6 @@ window.TVS_GH = {
       <div class="modal-b phieu-wrap">${pagesHTML}</div>`, true);
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -4983,7 +5475,6 @@ window.TVS_GH = {
     }
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -5069,7 +5560,6 @@ window.TVS_GH = {
     }
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -5200,7 +5690,6 @@ window.TVS_GH = {
     }
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -5458,7 +5947,6 @@ window.TVS_GH = {
     }
   };
 })();
-
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
@@ -5530,10 +6018,11 @@ window.TVS_GH = {
     const el = document.getElementById("localInfo");
     if (!el || !window.Store) return;
     const c = Store.counts();
-    const total = c.orders + c.receipts + c.shipments;
+    const total = c.orders + c.receipts + c.shipments + (c.orderEdits || 0);
+    const edTxt = c.orderEdits ? ` · <b>${c.orderEdits}</b> đơn đã sửa` : "";
     const demo = Store.persistent ? "" : `<div style="color:#f2a20c;margin-top:3px">⚠ Chế độ demo: trình duyệt nhúng chặn lưu trữ — dữ liệu nhập sẽ mất khi tải lại trang. Bản .zip chạy máy thật lưu bình thường.</div>`;
     el.innerHTML = (total
-      ? `Dữ liệu nhập thêm: <b>${c.orders}</b> dòng đơn · <b>${c.receipts}</b> dòng NK · <b>${c.shipments}</b> phiếu XK
+      ? `Dữ liệu nhập thêm: <b>${c.orders}</b> dòng đơn · <b>${c.receipts}</b> dòng NK · <b>${c.shipments}</b> phiếu XK${edTxt}
          <a id="btnResetLocal" style="color:#ff8d80;cursor:pointer;font-weight:700"> ↺ Khôi phục gốc</a>`
       : `Chưa có dữ liệu nhập thêm (100% từ Excel gốc)`) + demo;
     const rst = el.querySelector("#btnResetLocal");
@@ -5830,7 +6319,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     navigate();
   });
 })();
-
 </script>
 </body>
 </html>

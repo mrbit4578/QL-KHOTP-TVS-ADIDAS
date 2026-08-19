@@ -73,7 +73,7 @@ python3 -m http.server 8080
 | Phân hệ | Trang | Vai trò |
 |---|---|---|
 | Analytics & Dashboard | **Bảng điều khiển** | KPI, cảnh báo đơn sắp đến hạn còn thiếu hàng, 5 biểu đồ tổng quan |
-| OMS | **Đơn đặt hàng** | Tra cứu 95 đơn / 549 dòng, lọc đa chiều, ma trận size từng đơn + ➕ nhập liệu / import / export |
+| OMS | **Đơn đặt hàng** | Tra cứu 95 đơn / 549 dòng, lọc đa chiều, ma trận size từng đơn + ➕ nhập liệu / import / export + ✏️ **sửa / xoá / khôi phục đơn ngay tại màn hình (v4.8)** |
 | WMS | **Nhập kho** | Nhật ký nhập kho từng ngày, đủ 17 cột gốc, quy cách đóng thùng, trạng thái QC + ➕ nhập liệu / import / export |
 | **PXK** | **Lệnh giao hàng** | Phiếu xuất kho kiêm lệnh giao hàng (Mẫu 03/XKNB) — chọn nhiều chỉ thị, tải SL từ Nhập kho, ghi ngày thực xuất, **% xuất đúng hạn**, in phiếu |
 | Inventory Tracking | **Tồn kho N-X-T** | Luồng ①Đặt → ②Nhập → ③Xuất → ④Tồn → ⑤Còn SX, danh sách thiếu hụt |
@@ -91,7 +91,7 @@ python3 -m http.server 8080
 ## ✍️ Nhập liệu · Import · Export (v2.0)
 
 **Màn hình nhập liệu** trên cả 3 màn hình dữ liệu:
-- **Đơn đặt hàng**: nút *Thêm đơn hàng* — nhập mã chỉ thị, PO, quốc gia, màu, đợt, số đôi theo 7 size (thùng tự tính ROUNDUP ÷ 6)
+- **Đơn đặt hàng**: nút *Thêm đơn hàng* — nhập mã chỉ thị, PO, quốc gia, màu, đợt, số đôi theo 7 size (thùng tự tính ROUNDUP ÷ 6); **sửa / xoá đơn ngay trên bảng** (xem mục *Sửa đơn đặt hàng ngay trên màn hình OMS*)
 - **Nhập kho**: nút *Nhập kho mới* — chọn chỉ thị → hệ thống tự đối chiếu SL đặt / đã nhập / còn thiếu theo size → nhập số lượng lần này
 - **Lệnh giao hàng**: nút *Tạo lệnh giao hàng* (xem bên dưới)
 
@@ -101,6 +101,35 @@ python3 -m http.server 8080
 - `MAU_IMPORT_PHIEU_XUAT_KHO.csv` — Số phiếu, Ngày, Chỉ thị, Size, SL thực xuất
 - Import có **kiểm tra lỗi từng dòng** (sai size, chỉ thị không tồn tại, vượt tồn khả dụng…) và **xem trước** trước khi áp dụng
 - Export dữ liệu hiện tại ra CSV ở từng màn hình
+
+## ✏️ SỬA ĐƠN ĐẶT HÀNG NGAY TRÊN MÀN HÌNH OMS (v4.8 — MỚI)
+
+Trước đây màn hình **Đơn đặt hàng · OMS** chỉ *thêm / import / xoá dòng bổ sung*; dữ liệu 95 đơn gốc từ Excel không sửa được.
+Từ v4.8, **mọi đơn hàng đều sửa được ngay tại màn hình OMS** — kể cả đơn Excel gốc — và mọi thay đổi đều có nhật ký, khôi phục được.
+
+### 3 cách sửa
+| Cách | Ở đâu | Sửa được gì |
+|---|---|---|
+| **✎ Sửa nhanh tại chỗ** | Tab *Chi tiết từng dòng size* → cột **Sửa nhanh** | Số đôi của đúng 1 size — ô nhập hiện ngay trên dòng, số thùng tự tính lại, gõ lý do rồi **Enter** là xong (Esc để huỷ) |
+| **📋 Sửa cả đơn** | Tab *Theo đơn hàng* → cột **Thao tác** → nút **Sửa** | ① Thông tin chung: ngày xuất KD, quốc gia, PO, mã màu, đợt · ② Toàn bộ ma trận size UK 3–UK 9 (bảng đối chiếu SL đặt / đã nhập kho / đã xuất kho từng size) |
+| **Trong modal chi tiết đơn** | Bấm vào 1 dòng đơn hàng | Nút *Sửa đơn hàng · Nhật ký chỉnh sửa · Xoá đơn* |
+
+### Ràng buộc nghiệp vụ (bảo vệ số liệu N-X-T)
+- ⛔ **Chặn** hạ SL đặt xuống thấp hơn **SL đã xuất kho** của size đó → phải huỷ phiếu xuất kho trước
+- ⛔ **Chặn** xoá đơn đã có phát sinh xuất kho
+- ⚠ **Cảnh báo** (vẫn cho lưu) khi SL đặt mới thấp hơn SL đã nhập kho → hiển thị ngay trong modal khi đang gõ
+- ⚠ **Bắt buộc nhập lý do** cho mọi thao tác sửa / xoá
+- Mã đơn hàng là **khoá dữ liệu** → không sửa được (muốn đổi mã: xoá đơn cũ + thêm đơn mới)
+
+### Nhật ký & khôi phục
+- Mỗi đơn có nhật ký đầy đủ: **lần sửa · thời điểm · người sửa · loại thao tác · ma trận size trước/sau · thông tin chung sau · lý do**
+- **↺ Khôi phục đơn về gốc** (từng đơn) hoặc **↺ Khôi phục toàn bộ đơn về gốc** (nút trên thanh công cụ OMS)
+- Nhãn **“đã sửa n×”** hiện ngay cạnh mã đơn để biết đơn nào đã bị thay đổi
+- Đơn đã xoá chỉ bị **ẩn** (không mất) — khôi phục lại bất cứ lúc nào; nếu import/thêm lại đúng mã đơn đã xoá, hệ thống **tự gỡ trạng thái xoá** và báo rõ
+- Toàn bộ chỉnh sửa lưu tại khoá `orderEdits` trong `data/tvs-data.json` → **đồng bộ GitHub** như mọi dữ liệu khác, xem lại lịch sử trong tab *Commits*
+- Người **chỉ xem** không thấy cột Thao tác / Sửa nhanh (ẩn hoàn toàn qua lớp `need-edit`)
+
+Số liệu N-X-T, tồn kho, kế hoạch xuất TMS, bảng điều khiển và trợ lý AI **tự tính lại tức thì** sau mỗi lần sửa.
 
 ## 🚚 Lệnh giao hàng / Phiếu xuất kho (Mẫu 03/XKNB) — v3.0
 
@@ -161,7 +190,7 @@ TVS-ADIDAS-WebSystem/
         ├── app.js              # Router #/, icon, modal, toast, chọn file, in phiếu
         └── views/
             ├── dashboard.js    # Bảng điều khiển
-            ├── orders.js       # OMS — Đơn đặt hàng + nhập liệu/import/export
+            ├── orders.js       # OMS — Đơn đặt hàng + nhập liệu/import/export + SỬA/XOÁ/NHẬT KÝ (v4.8)
             ├── warehouse.js    # WMS — Nhập kho + nhập liệu/import/export
             ├── delivery.js     # ★ PXK — Lệnh giao hàng, phiếu 03/XKNB, % đúng hạn
             ├── inventory.js    # N-X-T — Tồn kho (xuất thực từ phiếu XK)
