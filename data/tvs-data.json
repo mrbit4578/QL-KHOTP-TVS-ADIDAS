@@ -8814,11 +8814,68 @@
     "UK 8": 34,
     "UK 9": 13
    }
+  },
+  "AE2608055": {
+   "rev": 1,
+   "log": [
+    {
+     "rev": 1,
+     "at": "2026-08-19T06:16:25.103Z",
+     "by": "thukho",
+     "reason": "thay đổi ngày xuất - 18-08-2026",
+     "before": {
+      "UK 4": 64,
+      "UK 5": 111,
+      "UK 6": 119,
+      "UK 7": 76,
+      "UK 8": 41,
+      "UK 9": 8
+     },
+     "after": {
+      "UK 4": 64,
+      "UK 5": 111,
+      "UK 6": 119,
+      "UK 7": 76,
+      "UK 8": 41,
+      "UK 9": 8
+     },
+     "beforeHead": {
+      "d": "2026-11-24",
+      "ctry": "ARGENTINA",
+      "po": "0903181623-1",
+      "col": "LC1785",
+      "bat": 2
+     },
+     "afterHead": {
+      "d": "2026-10-14",
+      "ctry": "ARGENTINA",
+      "po": "0903181623-1",
+      "col": "LC1785",
+      "bat": 2
+     }
+    }
+   ],
+   "deleted": false,
+   "head": {
+    "d": "2026-10-14",
+    "ctry": "ARGENTINA",
+    "po": "0903181623-1",
+    "col": "LC1785",
+    "bat": 2
+   },
+   "sizes": {
+    "UK 4": 64,
+    "UK 5": 111,
+    "UK 6": 119,
+    "UK 7": 76,
+    "UK 8": 41,
+    "UK 9": 8
+   }
   }
  },
  "seedReceiptsOff": false,
  "meta": {
-  "updatedAt": "2026-08-19T06:15:54.791Z",
+  "updatedAt": "2026-08-19T06:16:26.711Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
