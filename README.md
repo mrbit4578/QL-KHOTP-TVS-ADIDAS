@@ -164,6 +164,17 @@ Ngay tại màn hình **Tồn kho · N-X-T** (cuối trang) có khối **“Báo
 Tên file tự đặt: `BAO_CAO_N-X-T_20260716_20260722_SIZE-NGANG.xlsx`.
 Bộ ghi Excel nằm tại `assets/js/xlsx-write.js` — **thuần JavaScript, không thư viện ngoài, không CDN**, nên vẫn chạy offline đúng tinh thần hệ thống.
 
+## 🧩 SỔ XUỐNG / THU GỌN CÁC KHỐI (v4.10 — MỚI)
+
+Để màn hình không bị rối khi vừa truy cập:
+- **Vào màn hình nào cũng chỉ thấy thanh tiêu đề từng khối + KPI tổng quan + thanh công cụ.** Nội dung chi tiết (bảng, biểu đồ, timeline) được **thu gọn sẵn**.
+- Bấm vào **tiêu đề khối** (hoặc mũi tên ▾) để **xổ nội dung** ra; bấm lại để thu gọn.
+- Nút **“Mở tất cả / Thu gọn tất cả”** trên thanh tiêu đề (topbar) mở/gập toàn bộ khối của màn hình hiện tại.
+- Trạng thái mở/gập của **từng khối trên từng màn hình được ghi nhớ** cho lần mở sau.
+- Áp dụng cho mọi màn hình (Bảng điều khiển, Nhập kho, Tồn kho, Lệnh giao hàng, Kế hoạch xuất, Kiến trúc, Trợ lý AI). Các khối KPI tổng quan và thanh nút công cụ luôn hiện, không bị gập.
+
+Cơ chế nằm ở `assets/js/collapsible.js` — tự nhận diện mọi khối có tiêu đề, không phải sửa từng màn hình.
+
 ## 🚚 Lệnh giao hàng / Phiếu xuất kho (Mẫu 03/XKNB) — v3.0
 
 Theo đúng file mẫu `PHIEU XUAT KHO THANH PHAM.xlsx`:
@@ -218,6 +229,7 @@ TVS-ADIDAS-WebSystem/
     └── js/
         ├── xlsx-write.js       # ★ Ghi file .xlsx thuần JS (v4.9) — dùng cho báo cáo N-X-T
         ├── nxt-report.js       # ★ Báo cáo N-X-T theo kỳ + export Excel (v4.9)
+        ├── collapsible.js      # ★ Sổ xuống / thu gọn khối trên mọi màn hình (v4.10)
         ├── data.js             # ★ DỮ LIỆU THẬT trích từ Excel (549 + 11 dòng) — bất biến
         ├── store.js            # ★ Lớp dữ liệu động: localStorage, CSV mẫu/import/export, phiếu XK
         ├── utils.js            # Lõi nghiệp vụ: N-X-T, tồn khả dụng, % xuất đúng hạn (U.rebuild)
