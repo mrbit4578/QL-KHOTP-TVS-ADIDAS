@@ -68,21 +68,61 @@
       const saved = store[keyOf(card)];
       applyState(card, saved === undefined ? DEFAULT_COLLAPSED : saved);
     }
+    enhanceTableArea();
     updateGlobalBtn();
     if (observer) observer.observe(document.getElementById("view"), { childList: true, subtree: true });
+  }
+
+  /* ── OMS · Đơn đặt hàng: bảng kết quả không có .card-h ──
+     Giữ nguyên thanh công cụ + bộ lọc + tab; chỉ thu gọn phần BẢNG (#tblArea).
+     Nút ▾ chèn vào thanh "Nguồn: … · N đơn" ngay trên bảng. */
+  function enhanceTableArea() {
+    const tbl = document.getElementById("tblArea");
+    if (!tbl) return;
+    const bar = tbl.previousElementSibling;     // thanh chứa .seg + "Nguồn…"
+    if (!bar) return;
+    const key = routeId() + " ‖ #tblArea";
+    if (!bar.hasAttribute("data-clp")) {
+      bar.setAttribute("data-clp", "1");
+      bar.classList.add("clp-bar");
+      const chev = document.createElement("button");
+      chev.type = "button"; chev.className = "clp-chev";
+      chev.title = "Sổ xuống / Thu gọn bảng";
+      chev.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      bar.insertBefore(chev, bar.firstChild);
+      bar.addEventListener("click", e => {
+        if (e.target.closest("button:not(.clp-chev), a, input, select, .seg")) return;
+        const now = !tbl.classList.contains("clp-hidden");
+        store[key] = now; save(); applyTbl(bar, tbl, now);
+      });
+    }
+    const saved = store[key];
+    applyTbl(bar, tbl, saved === undefined ? DEFAULT_COLLAPSED : saved);
+  }
+  function applyTbl(bar, tbl, collapsed) {
+    tbl.classList.toggle("clp-hidden", collapsed);
+    bar.classList.toggle("collapsed", collapsed);
   }
 
   /* ── Nút "Mở tất cả / Thu gọn tất cả" trên topbar ── */
   function setAll(collapsed) {
     for (const card of collapsibleCards()) { store[keyOf(card)] = collapsed; applyState(card, collapsed); }
+    const tbl = document.getElementById("tblArea");
+    if (tbl && tbl.previousElementSibling) {
+      store[routeId() + " ‖ #tblArea"] = collapsed;
+      applyTbl(tbl.previousElementSibling, tbl, collapsed);
+    }
     save(); updateGlobalBtn();
   }
   function updateGlobalBtn() {
     const btn = document.getElementById("clpAllBtn");
     if (!btn) return;
     const cards = collapsibleCards();
-    btn.style.display = cards.length ? "" : "none";
-    const anyOpen = cards.some(c => !c.classList.contains("collapsed"));
+    const tbl = document.getElementById("tblArea");
+    const hasAny = cards.length || tbl;
+    btn.style.display = hasAny ? "" : "none";
+    const anyOpen = cards.some(c => !c.classList.contains("collapsed"))
+      || (tbl && !tbl.classList.contains("clp-hidden"));
     btn.dataset.mode = anyOpen ? "collapse" : "expand";
     btn.title = anyOpen ? "Thu gọn tất cả khối" : "Mở tất cả khối";
     btn.innerHTML = anyOpen
