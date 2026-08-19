@@ -6,12 +6,21 @@
   "use strict";
   window.Views = window.Views || {};
 
-  const st = { q: "", ctry: "", col: "", bat: "", d: "", mode: "orders", page: 1, per: 60 };
+  const st = { q: "", ctry: "", col: "", bat: "", d: "", mode: "orders", page: 1, per: 60,
+               editRow: null };   /* editRow = "MÃ ĐƠN|UK 5" → dòng đang sửa nhanh tại chỗ */
 
   function statusBdg(o) {
     if (o.status === "full") return `<span class="bdg ok">đủ hàng</span>`;
     if (o.status === "partial") return `<span class="bdg warn">đang SX · thiếu ${U.fmt(o.short)}</span>`;
     return `<span class="bdg neu">chưa nhập kho</span>`;
+  }
+  /* Nhãn “đã sửa n lần” cho đơn có chỉnh sửa */
+  function editBdg(ord) {
+    const e = Store.orderEditInfo(ord);
+    if (!e) return "";
+    return Store.isOrderOverridden(ord)
+      ? `<span class="bdg acc plain" title="Đơn đang khác dữ liệu gốc — bấm ⟲ để xem nhật ký">đã sửa ${e.rev}×</span>`
+      : `<span class="bdg neu plain" title="Đơn đã được khôi phục về đúng dữ liệu gốc — vẫn giữ nhật ký">đã khôi phục gốc</span>`;
   }
 
   function applyFilterRows() {
@@ -44,7 +53,7 @@
     App.openModal(`
       <div class="modal-h">
         <h3>${U.flag(o.ctry)} Đơn hàng ${o.ord}</h3>
-        ${statusBdg(o)}
+        ${statusBdg(o)} ${editBdg(o.ord)}
         <button class="modal-x" onclick="App.closeModal()">✕</button>
       </div>
       <div class="modal-b">
@@ -66,6 +75,11 @@
           </div>
           <div class="note mt">→ Xem dòng nhập kho tại mục <a href="#/warehouse" onclick="App.closeModal()">Nhập kho (ChitietNK)</a>.</div>`
         : `<div class="note mt">Đơn chưa có thành phẩm nhập kho — nguồn: sheet Data (đơn đặt hàng gốc).</div>`}
+        <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px">
+          <button class="btn primary need-edit" onclick="Views._ordEdit('${o.ord}')">${App.icon("clip", "ico")} Sửa đơn hàng</button>
+          <button class="btn need-edit" onclick="Views._ordHistory('${o.ord}')">⟲ Nhật ký chỉnh sửa</button>
+          <button class="btn danger need-edit" style="margin-left:auto" onclick="Views._ordDelete('${o.ord}')">${App.icon("trash", "ico")} Xoá đơn</button>
+        </div>
       </div>`);
   }
   window.Views._openOrder = openOrder;
@@ -77,6 +91,9 @@
       const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
       const cols = U.uniq(TVS_ORDERS, r => r.col).sort();
       const dates = U.uniq(TVS_ORDERS, r => r.d).sort();
+      const edN = Store.orderEditCount();          /* đơn đang khác gốc */
+      const edLog = Store.orderEditLogCount();     /* đơn có nhật ký (kể cả đã khôi phục) */
+      st.editRow = null;
 
       root.innerHTML = `
         <div class="card">
@@ -87,6 +104,15 @@
             <button class="btn" id="oExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
             <span class="f-chipcount">Import file <b>size hàng ngang</b> (1 dòng = 1 đơn, cột UK 3→UK 9) — hệ thống tự chuyển sang dạng hàng dọc ·
               <a id="oTplLong" style="cursor:pointer;color:var(--acc);font-weight:700">mẫu dạng dọc</a></span>
+          </div>
+          <div class="filters" style="gap:10px">
+            <span class="bdg ${edN ? "acc" : "neu"} plain">${edN
+              ? `Đang có ${edN} đơn khác dữ liệu gốc`
+              : (edLog ? `Tất cả đơn đúng dữ liệu gốc (${edLog} đơn có nhật ký sửa)` : "Chưa chỉnh sửa đơn nào")}</span>
+            <span class="note">Sửa được <b>mọi đơn</b> (kể cả đơn Excel gốc) ngay trên bảng — bấm
+              <b>${App.icon("clip", "ico")} Sửa</b> ở cột Thao tác, hoặc bấm <b>✎</b> ở chế độ
+              <b>Chi tiết từng dòng size</b> để sửa nhanh số đôi tại chỗ. Mọi thay đổi đều ghi nhật ký người sửa &amp; lý do.</span>
+            ${edLog ? `<button class="btn small need-edit" id="oRestoreAll" style="margin-left:auto">↺ Khôi phục toàn bộ đơn về gốc${edN ? "" : " (xoá nhật ký)"}</button>` : ""}
           </div>
           <div class="filters">
             <input class="f-input" id="fQ" placeholder="Tìm mã đơn / PO / quốc gia…" value="${U.esc(st.q)}">
@@ -127,6 +153,13 @@
       const tl = document.getElementById("oTplLong");
       if (tl) tl.onclick = () => { Store.templateOrdersLong(); App.toast("Đã tải file mẫu dạng size hàng dọc (1 dòng = 1 size)", "ok"); };
       bind("oImp", "click", importOrders);
+      const ra = document.getElementById("oRestoreAll");
+      if (ra) ra.onclick = () => {
+        if (!confirm(`Khôi phục TOÀN BỘ đơn hàng về đúng dữ liệu gốc?\n\n• ${edN} đơn đang khác gốc sẽ được hoàn tác (số lượng / thông tin / đơn đã xoá)\n• Nhật ký chỉnh sửa của ${edLog} đơn sẽ bị xoá sạch`)) return;
+        const r = Store.restoreAllOrders();
+        if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+        App.toast(`✓ Đã khôi phục toàn bộ đơn hàng về dữ liệu gốc (${r.n} đơn có chỉnh sửa)`, "ok");
+      };
       bind("oExp", "click", () => {
         const rows = applyFilterRows();
         Store.downloadCSV("DON_DAT_HANG_TVS.csv", [
@@ -266,10 +299,11 @@
           <th>Mã đơn</th><th>Quốc gia</th><th>PO</th><th>Màu</th><th>Tên màu</th><th>Size</th>
           <th class="num">Số đôi</th><th class="num">Số thùng</th>
           <th>Ngày xuất KD</th><th>Đợt</th><th class="num">Đã nhập</th><th>Trạng thái</th>
+          <th class="need-edit">Thao tác</th>
         </tr></thead>
         <tbody>${list.map(o => `
           <tr class="clickable" onclick="Views._openOrder('${o.ord}')">
-            <td><b>${o.ord}</b></td>
+            <td><b>${o.ord}</b> ${editBdg(o.ord)}</td>
             <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
             <td class="mono">${U.esc(o.po)}</td>
             <td><span class="color-dot" style="background:${U.colorHex(o.col.split(",")[0].trim())}"></span>${U.esc(o.col)}</td>
@@ -279,13 +313,22 @@
             <td>${U.fmtDate(o.d)}</td><td>Đợt ${o.bat}</td>
             <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "—"}</td>
             <td>${statusBdg(o)}</td>
+            <td class="act-cell need-edit" onclick="event.stopPropagation()">
+              <button class="btn small primary need-edit" title="Sửa đơn hàng này ngay tại đây"
+                onclick="Views._ordEdit('${o.ord}')">${App.icon("clip", "ico")} Sửa</button>
+              ${Store.orderEditInfo(o.ord)
+                ? `<button class="btn small need-edit" title="Xem nhật ký chỉnh sửa" onclick="Views._ordHistory('${o.ord}')">⟲</button>` : ""}
+              <button class="btn small danger need-edit" title="Xoá đơn hàng này"
+                onclick="Views._ordDelete('${o.ord}')">✕</button>
+            </td>
           </tr>`).join("")}</tbody>
         <tfoot><tr><td colspan="6">TỔNG (${U.fmt(list.length)} đơn)</td>
           <td class="num">${U.fmt(U.sum(list, o => o.prs))}</td>
           <td class="num">${U.fmt(U.sum(list, o => o.ctn))}</td><td colspan="2"></td>
-          <td class="num">${U.fmt(U.sum(list, o => o.recvPrs))}</td><td></td></tr></tfoot>
+          <td class="num">${U.fmt(U.sum(list, o => o.recvPrs))}</td><td colspan="2"></td></tr></tfoot>
       </table></div>
-      <div class="note" style="padding:10px 18px">Bấm vào từng dòng để xem ma trận size & đối chiếu nhập kho.</div>`;
+      <div class="note" style="padding:10px 18px">Bấm vào từng dòng để xem ma trận size &amp; đối chiếu nhập kho · cột
+        <b>Thao tác</b> để sửa / xoá / xem nhật ký ngay tại màn hình này (chỉ hiện với tài khoản nhập liệu).</div>`;
     } else {
       const rows = applyFilterRows();
       document.getElementById("fCount").textContent =
@@ -295,13 +338,38 @@
       const view = rows.slice((st.page - 1) * st.per, st.page * st.per);
       area.innerHTML = `<div class="tbl-wrap"><table class="tbl">
         <thead><tr><th>#</th><th>Ngày xuất KD</th><th>Quốc gia</th><th>Đơn hàng</th><th>PO</th>
-          <th>Màu</th><th>Size</th><th class="num">Số đôi</th><th class="num">Số thùng</th><th>Đợt</th><th>Nguồn</th></tr></thead>
-        <tbody>${view.map((r, i) => `
-          <tr class="clickable" onclick="Views._openOrder('${r.ord}')">
+          <th>Màu</th><th>Size</th><th class="num">Số đôi</th><th class="num">Số thùng</th><th>Đợt</th><th>Nguồn</th>
+          <th class="need-edit">Sửa nhanh</th></tr></thead>
+        <tbody>${view.map((r, i) => {
+          const key = r.ord + "|" + r.sz;
+          const editing = st.editRow === key;
+          if (editing) return `
+          <tr class="row-editing">
             <td class="note">${(st.page - 1) * st.per + i + 1}</td>
             <td>${U.fmtDate(r.d)}</td>
             <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
             <td><b>${r.ord}</b></td><td class="mono">${U.esc(r.po)}</td>
+            <td>${U.colorCell(r.col)}</td>
+            <td><b>${r.sz}</b></td>
+            <td class="num"><input class="cell-in" id="qeQty" type="number" min="0" value="${r.prs}" style="width:86px"></td>
+            <td class="num note" id="qeCtn">${U.fmt(r.ctn)}</td>
+            <td>Đợt ${r.bat}</td>
+            <td colspan="2">
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input class="cell-in note-in" id="qeReason" placeholder="Lý do sửa *" style="width:190px">
+                <button class="btn small primary" id="qeSave">✓ Lưu</button>
+                <button class="btn small" id="qeCancel">✕ Huỷ</button>
+                <span class="note" id="qeErr"></span>
+              </div>
+            </td>
+          </tr>`;
+          return `
+          <tr class="clickable" onclick="Views._openOrder('${r.ord}')">
+            <td class="note">${(st.page - 1) * st.per + i + 1}</td>
+            <td>${U.fmtDate(r.d)}</td>
+            <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
+            <td><b>${r.ord}</b> ${r._edited ? `<span class="bdg acc plain" title="Dòng đã được chỉnh sửa">đã sửa</span>` : ""}</td>
+            <td class="mono">${U.esc(r.po)}</td>
             <td>${U.colorCell(r.col)}</td>
             <td>${r.sz}</td><td class="num">${U.fmt(r.prs)}</td>
             <td class="num">${U.fmt(r.ctn)}</td><td>Đợt ${r.bat}</td>
@@ -309,7 +377,13 @@
               ? `<span class="bdg acc plain">${r._src === "import" ? "import" : "nhập tay"}</span>
                  <button class="btn small danger need-edit" title="Xoá dòng bổ sung" onclick="event.stopPropagation();if(confirm('Xoá dòng ${r.ord} ${r.sz}?')){Store.removeOrderRow('${r._id}');App.toast('Đã xoá dòng bổ sung','warn')}">✕</button>`
               : `<span class="note">Excel gốc</span>`}</td>
-          </tr>`).join("")}</tbody></table></div>
+            <td class="act-cell need-edit" onclick="event.stopPropagation()">
+              <button class="btn small primary" title="Sửa ngay số đôi của dòng này"
+                onclick="Views._rowQuickEdit('${r.ord}','${r.sz}')">✎</button>
+              <button class="btn small" title="Sửa cả đơn (thông tin + ma trận size)"
+                onclick="Views._ordEdit('${r.ord}')">${App.icon("clip", "ico")}</button>
+            </td>
+          </tr>`; }).join("")}</tbody></table></div>
         <div class="pager">
           <button class="btn" id="pgPrev" ${st.page <= 1 ? "disabled" : ""}>← Trước</button>
           <button class="btn" id="pgNext" ${st.page >= pages ? "disabled" : ""}>Sau →</button>
@@ -318,6 +392,233 @@
       const pv = document.getElementById("pgPrev"), nx = document.getElementById("pgNext");
       if (pv) pv.onclick = () => { st.page--; renderTable(area); };
       if (nx) nx.onclick = () => { st.page++; renderTable(area); };
+      bindQuickEdit(area);
     }
   }
+
+  /* ═══════ SỬA NHANH SỐ ĐÔI NGAY TRÊN DÒNG (chế độ chi tiết size) ═══════ */
+  Views._rowQuickEdit = function (ord, sz) {
+    if (!Store.guard()) return;
+    st.editRow = ord + "|" + sz;
+    renderTable(document.getElementById("tblArea"));
+  };
+
+  function bindQuickEdit(area) {
+    if (!st.editRow) return;
+    const [ord, sz] = st.editRow.split("|");
+    const qty = document.getElementById("qeQty");
+    if (!qty) return;
+    const ctnCell = document.getElementById("qeCtn");
+    const err = document.getElementById("qeErr");
+    const showErr = m => { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(m)}</span>`; };
+    const recalc = () => {
+      const q = parseInt(qty.value || "0", 10) || 0;
+      ctnCell.textContent = U.fmt(q ? Math.ceil(q / TVS_META.packing) : 0);
+    };
+    qty.addEventListener("input", recalc);
+    qty.focus(); qty.select();
+
+    const save = () => {
+      const q = parseInt(qty.value || "0", 10) || 0;
+      const reason = document.getElementById("qeReason").value;
+      if (q < 0) return showErr("Số đôi không được âm");
+      const r = Store.editOrderSize(ord, sz, q, reason);
+      if (!r.ok) return showErr(r.msg);
+      st.editRow = null;
+      App.toast(`✓ Đã sửa <b>${ord}</b> · ${sz} → <b>${U.fmt(q)} đôi</b> (lần sửa ${r.rev}) — đã ghi nhật ký`, "ok");
+    };
+    document.getElementById("qeSave").onclick = save;
+    document.getElementById("qeCancel").onclick = () => { st.editRow = null; renderTable(area); };
+    [qty, document.getElementById("qeReason")].forEach(el => el.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); save(); }
+      if (e.key === "Escape") { e.preventDefault(); st.editRow = null; renderTable(area); }
+    }));
+  }
+
+  /* ═══════════ SỬA TOÀN BỘ 1 ĐƠN HÀNG (thông tin + ma trận size) ═══════════ */
+  Views._ordEdit = function (ord) {
+    if (!Store.guard()) return;
+    const o = U.orderByCode(ord);
+    if (!o) { App.toast("Không tìm thấy đơn " + U.esc(ord), "warn"); return; }
+    const cur = Store.orderSizes(ord), head = Store.orderHead(ord);
+    const info = Store.orderEditInfo(ord);
+    const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
+    const colors = U.uniq(TVS_ORDERS, r => r.col.split(",")[0].trim())
+      .concat(Object.keys(U.COLOR_HEX)).filter((c, i, a) => c && a.indexOf(c) === i).sort();
+    const headCol = head.col.split(",")[0].trim();
+
+    App.openModal(`
+      <div class="modal-h"><h3>${App.icon("clip", "ico")} Sửa đơn hàng ${ord}</h3>
+        ${info ? `<span class="bdg acc plain">đã sửa ${info.rev} lần</span>` : ""}
+        ${Store.isOrderSeed(ord) ? `<span class="bdg neu plain">đơn Excel gốc</span>` : `<span class="bdg acc plain">đơn nhập thêm</span>`}
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b">
+        <h4 style="font-size:13px;margin:0 0 8px">① Thông tin chung</h4>
+        <div class="frm grid g-3" style="gap:10px">
+          <label>Ngày xuất KD *<input id="eD" type="date" value="${head.d}"></label>
+          <label>Quốc gia *<input id="eCtry" list="eCtryList" value="${U.esc(head.ctry)}" style="text-transform:uppercase">
+            <datalist id="eCtryList">${ctries.map(c => `<option value="${U.esc(c)}">`).join("")}</datalist></label>
+          <label>PO khách hàng<input id="ePo" value="${U.esc(head.po)}"></label>
+          <label>Mã màu *<select id="eCol">${colors.map(c => `<option ${c === headCol ? "selected" : ""}>${U.esc(c)}</option>`).join("")}</select></label>
+          <label>Đợt đặt hàng<select id="eBat">${[1, 2, 3].map(b => `<option ${head.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
+          <label>Mã đơn<input value="${U.esc(ord)}" disabled title="Mã đơn là khoá dữ liệu — không sửa được"></label>
+        </div>
+
+        <h4 style="font-size:13px;margin:16px 0 8px">② Ma trận size — số đôi đặt hàng
+          <span class="note">(thùng = ROUNDUP(đôi ÷ ${TVS_META.packing}) · để 0 nếu bỏ size)</span></h4>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Size</th><th class="num">SL đặt hiện tại</th><th class="num">Đã nhập kho</th><th class="num">Đã xuất kho</th>
+            <th class="num" style="min-width:120px">SL đặt sửa thành</th><th class="num">Thùng</th></tr></thead>
+          <tbody>${U.SIZES.map(s => {
+            const recv = U._recvByOrdSize[ord + "|" + s] || 0, shipd = U._shipByOrdSize[ord + "|" + s] || 0;
+            return `<tr>
+              <td><b>${s}</b></td>
+              <td class="num">${cur[s] ? U.fmt(cur[s]) : "—"}</td>
+              <td class="num ${recv ? "" : "note"}">${recv ? U.fmt(recv) : "—"}</td>
+              <td class="num ${shipd ? "" : "note"}">${shipd ? U.fmt(shipd) : "—"}</td>
+              <td class="num"><input class="cell-in" type="number" min="0" value="${cur[s] || 0}" data-esz="${s}"></td>
+              <td class="num note" data-ectn="${s}">${cur[s] ? U.fmt(Math.ceil(cur[s] / TVS_META.packing)) : 0}</td>
+            </tr>`; }).join("")}</tbody>
+          <tfoot><tr><td colspan="4">TỔNG</td><td class="num" id="eSumPrs">0</td><td class="num" id="eSumCtn">0</td></tr></tfoot>
+        </table></div>
+        <div id="eWarn" class="mt"></div>
+
+        <div class="frm mt"><label>Lý do sửa <span style="color:var(--bad)">*</span>
+          <input id="eReason" placeholder="VD: khách đổi số lượng, sửa sai sót nhập liệu, dời ngày xuất KD…"></label></div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn primary" id="eSave">Lưu thay đổi &amp; ghi nhật ký</button>
+          <button class="btn" onclick="App.closeModal()">Huỷ</button>
+          ${info ? `<button class="btn" id="eHist">⟲ Xem nhật ký (${info.rev})</button>
+                    <button class="btn" id="eRestore">↺ Khôi phục đơn về gốc</button>` : ""}
+          <span class="note" id="eErr" style="margin-left:auto"></span>
+        </div>
+      </div>`, true);
+
+    const inputs = [...document.querySelectorAll("#modalBack input[data-esz]")];
+    const recalc = () => {
+      let p = 0, c = 0;
+      const warns = [];
+      inputs.forEach(i => {
+        const sz = i.dataset.esz, q = parseInt(i.value || "0", 10) || 0;
+        const ct = q ? Math.ceil(q / TVS_META.packing) : 0;
+        document.querySelector(`[data-ectn="${sz}"]`).textContent = U.fmt(ct);
+        p += q; c += ct;
+      });
+      document.getElementById("eSumPrs").innerHTML = `<b>${U.fmt(p)}</b> đôi`;
+      document.getElementById("eSumCtn").innerHTML = `<b>${U.fmt(c)}</b> thùng`;
+      const sizes = {}; inputs.forEach(i => sizes[i.dataset.esz] = parseInt(i.value || "0", 10) || 0);
+      const chk = Store.checkOrderSizes(ord, sizes);
+      const w = document.getElementById("eWarn");
+      w.innerHTML = (chk.blocks.length || chk.warns.length)
+        ? `<div class="alert ${chk.blocks.length ? "" : "warn"}"><div class="a-t">
+             ${chk.blocks.length ? `<b>⛔ Không lưu được:</b><br>${chk.blocks.map(U.esc).join("<br>")}<br>` : ""}
+             ${chk.warns.length ? `<b>⚠ Lưu ý:</b><br>${chk.warns.map(U.esc).join("<br>")}` : ""}
+           </div></div>` : "";
+    };
+    inputs.forEach(i => i.addEventListener("input", recalc)); recalc();
+
+    document.getElementById("eSave").onclick = () => {
+      const err = document.getElementById("eErr");
+      const sizes = {}; inputs.forEach(i => sizes[i.dataset.esz] = parseInt(i.value || "0", 10) || 0);
+      const newHead = {
+        d: document.getElementById("eD").value,
+        ctry: document.getElementById("eCtry").value,
+        po: document.getElementById("ePo").value,
+        col: document.getElementById("eCol").value,
+        bat: document.getElementById("eBat").value,
+      };
+      if (!newHead.d) { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ Chọn ngày xuất KD</span>`; return; }
+      if (!newHead.ctry.trim()) { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ Nhập quốc gia</span>`; return; }
+      const r = Store.editOrder(ord, newHead, sizes, document.getElementById("eReason").value);
+      if (!r.ok) { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
+      App.closeModal();
+      App.toast(`✓ Đã sửa đơn <b>${ord}</b> — lần sửa thứ ${r.rev}, đã ghi nhật ký`, "ok");
+    };
+    const hb = document.getElementById("eHist");
+    if (hb) hb.onclick = () => Views._ordHistory(ord);
+    const rb = document.getElementById("eRestore");
+    if (rb) rb.onclick = () => {
+      if (!confirm(`Khôi phục đơn ${ord} về đúng dữ liệu gốc?`)) return;
+      const r = Store.restoreOrder(ord, "Khôi phục về gốc từ màn hình sửa đơn");
+      if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+      App.closeModal();
+      App.toast(`✓ Đã khôi phục đơn <b>${ord}</b> về dữ liệu gốc`, "ok");
+    };
+  };
+
+  /* ═══════════ XOÁ 1 ĐƠN HÀNG (khôi phục được) ═══════════ */
+  Views._ordDelete = function (ord) {
+    if (!Store.guard()) return;
+    const o = U.orderByCode(ord);
+    if (!o) { App.toast("Không tìm thấy đơn " + U.esc(ord), "warn"); return; }
+    App.openModal(`
+      <div class="modal-h"><h3>Xoá đơn hàng ${ord}</h3>
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b" style="max-width:560px">
+        <div class="alert" style="margin-bottom:12px"><div class="a-t">
+          Xoá toàn bộ đơn <b>${ord}</b> — ${U.flag(o.ctry)} ${U.esc(o.ctry)} ·
+          <b>${U.fmt(o.prs)} đôi</b> / ${U.fmt(o.ctn)} thùng · ${U.SIZES.filter(s => o.sizes[s]).length} size ·
+          xuất KD ${U.fmtDate(o.d)}.<br>
+          Số liệu N-X-T, kế hoạch xuất và bảng điều khiển sẽ tính lại ngay. Thao tác được ghi nhật ký và
+          <b>khôi phục được</b> bất cứ lúc nào.
+          ${o.recvPrs > 0 ? `<br><b>⚠ Đơn này đã nhập kho ${U.fmt(o.recvPrs)} đôi</b> — số nhập kho sẽ thành hàng không có đơn đặt.` : ""}
+          ${o.shipPrs > 0 ? `<br><b>⛔ Đơn đã xuất kho ${U.fmt(o.shipPrs)} đôi</b> — phải huỷ phiếu xuất kho trước.` : ""}
+        </div></div>
+        <div class="frm"><label>Lý do xoá <span style="color:var(--bad)">*</span>
+          <input id="odReason" placeholder="VD: khách huỷ đơn, tạo trùng, nhập nhầm chỉ thị…"></label></div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center">
+          <button class="btn danger" id="odGo">Xoá đơn &amp; ghi nhật ký</button>
+          <button class="btn" onclick="App.closeModal()">Huỷ</button>
+          <span class="note" id="odErr" style="margin-left:auto"></span>
+        </div>
+      </div>`);
+    document.getElementById("odGo").onclick = () => {
+      const r = Store.deleteOrder(ord, document.getElementById("odReason").value);
+      if (!r.ok) { document.getElementById("odErr").innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
+      App.closeModal();
+      App.toast(`✓ Đã xoá đơn <b>${ord}</b> — đã ghi nhật ký, khôi phục được`, "warn");
+    };
+  };
+
+  /* ═══════════ NHẬT KÝ CHỈNH SỬA 1 ĐƠN ═══════════ */
+  Views._ordHistory = function (ord) {
+    const info = Store.orderEditInfo(ord);
+    if (!info) { App.toast("Đơn này chưa có chỉnh sửa", "warn"); return; }
+    const szTxt = m => m ? (U.SIZES.filter(s => m[s]).map(s => `${s.replace("UK ", "")}×${U.fmt(m[s])}`).join(" · ") || "—") : "(đã xoá)";
+    const hdTxt = h => h ? `${U.fmtDate(h.d)} · ${U.esc(h.ctry)} · ${U.esc(h.po || "—")} · ${U.esc(h.col)} · Đợt ${h.bat}` : "—";
+    const rows = info.log.slice().reverse().map(l => `
+      <tr>
+        <td class="num"><b>${l.rev}</b></td>
+        <td>${new Date(l.at).toLocaleString("vi-VN")}</td>
+        <td><b>${U.esc(l.by)}</b></td>
+        <td>${l.restored ? '<span class="bdg neu plain">khôi phục gốc</span>'
+              : (l.after === null ? '<span class="bdg bad plain">xoá đơn</span>' : '<span class="bdg acc plain">sửa đơn</span>')}</td>
+        <td class="note">${l.restored ? "—" : szTxt(l.before)}</td>
+        <td class="note">${l.restored ? "về gốc" : szTxt(l.after)}</td>
+        <td class="note">${l.restored || !l.afterHead ? "—" : hdTxt(l.afterHead)}</td>
+        <td>${U.esc(l.reason || "")}</td>
+      </tr>`).join("");
+    App.openModal(`
+      <div class="modal-h"><h3>Nhật ký chỉnh sửa đơn — ${ord}</h3>
+        <span class="bdg acc plain">${info.rev} lần sửa</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button></div>
+      <div class="modal-b">
+        <div class="note" style="margin-bottom:10px">Mã đơn <b>${ord}</b>${info.deleted ? ' · <span class="bdg bad plain">đang ở trạng thái ĐÃ XOÁ</span>' : ""}</div>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Lần</th><th>Thời điểm</th><th>Người sửa</th><th>Loại</th><th>Size trước</th><th>Size sau</th><th>Thông tin chung sau</th><th>Lý do</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+        <div class="mt" style="display:flex;gap:8px">
+          <button class="btn need-edit" id="ohRestore">↺ Khôi phục đơn về gốc</button>
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+    const rb = document.getElementById("ohRestore");
+    if (rb) rb.onclick = () => {
+      const r = Store.restoreOrder(ord, "Khôi phục về gốc từ nhật ký");
+      if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+      App.closeModal();
+      App.toast(`✓ Đã khôi phục đơn <b>${ord}</b> về dữ liệu gốc`, "ok");
+    };
+  };
 })();
