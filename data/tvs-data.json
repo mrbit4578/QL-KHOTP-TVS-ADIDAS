@@ -8754,9 +8754,10 @@
    "sizes": null
   }
  },
+ "orderEdits": {},
  "seedReceiptsOff": false,
  "meta": {
-  "updatedAt": "2026-08-19T03:24:15.415Z",
+  "updatedAt": "2026-08-19T03:42:17.144Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
