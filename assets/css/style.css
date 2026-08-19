@@ -516,3 +516,28 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 .tbl th.rp-sum,.tbl td.rp-sum{background:var(--neu-bg)}
 .tbl.rp-wide th,.tbl.rp-wide td{white-space:nowrap}
 .tbl.rp-wide thead tr:first-child th{position:relative}
+
+/* ── v4.10: Sổ xuống / thu gọn khối trên mọi màn hình ─────────── */
+.card.clp > .card-h{cursor:pointer;user-select:none;transition:padding .15s}
+.clp-chev{flex:0 0 auto;width:24px;height:24px;padding:0;margin:-2px 2px -2px -4px;border:0;border-radius:6px;
+  background:transparent;color:var(--txt-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;align-self:center}
+.clp-chev svg{width:18px;height:18px;transition:transform .18s ease}
+.clp-chev:hover{background:var(--neu-bg);color:var(--txt)}
+.card.collapsed > .card-h .clp-chev svg{transform:rotate(-90deg)}
+.card.clp > .card-h:hover .clp-chev{background:var(--neu-bg);color:var(--txt)}
+.card.collapsed > *:not(.card-h){display:none!important}
+.card.collapsed > .card-h{padding-bottom:15px}
+.card.clp.collapsed{background:var(--card);opacity:.985}
+/* Nút Mở/Thu gọn tất cả trên topbar */
+.clp-all-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;font-weight:700;
+  color:var(--txt-2);background:var(--card);border:1px solid var(--line-2);border-radius:8px;
+  padding:7px 11px;cursor:pointer;white-space:nowrap}
+.clp-all-btn:hover{border-color:var(--acc);color:var(--acc)}
+.clp-all-btn .ico{width:16px;height:16px}
+@media(max-width:720px){.clp-all-btn span{display:none}}
+
+/* ── v4.10.1: thu gọn phần bảng OMS (giữ toolbar/lọc) ─────────── */
+#tblArea.clp-hidden{display:none!important}
+.clp-bar{cursor:pointer;user-select:none}
+.clp-bar .clp-chev{margin-right:2px}
+.clp-bar.collapsed .clp-chev svg{transform:rotate(-90deg)}
