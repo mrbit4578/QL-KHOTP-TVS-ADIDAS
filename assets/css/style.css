@@ -501,3 +501,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 /* Tên màu tiếng Việt hiển thị cạnh mã màu */
 .col-vn{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;color:var(--txt-2);
   background:var(--neu-bg);border-radius:4px;padding:1px 6px;white-space:nowrap}
+
+/* ── v4.8: Sửa đơn đặt hàng ngay trên màn hình OMS ─────────────── */
+.act-cell{white-space:nowrap}
+.act-cell .btn{margin-right:4px}
+.act-cell .btn:last-child{margin-right:0}
+.tbl tbody tr.row-editing{background:var(--acc-soft)}
+.tbl tbody tr.row-editing td{vertical-align:middle}
+.tbl tbody tr.row-editing:hover{background:var(--acc-soft)}
