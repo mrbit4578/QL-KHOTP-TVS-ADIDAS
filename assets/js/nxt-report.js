@@ -20,7 +20,10 @@
   const SZ = () => U.SIZES;
 
   /* Trạng thái màn hình (giữ nguyên khi vẽ lại) */
-  const st = { from: null, to: null, mode: "wide", showEmpty: false };
+  /* touched = người dùng đã tự chọn kỳ → tôn trọng lựa chọn, không tự đổi nữa.
+     Chưa chọn → mỗi lần vẽ lại tự lấy trọn kỳ theo dữ liệu MỚI NHẤT (quan trọng:
+     dữ liệu chung tải từ GitHub về SAU khi trang vẽ lần đầu). */
+  const st = { from: null, to: null, mode: "wide", showEmpty: false, touched: false };
 
   /* Ngày đầu / cuối tháng — tính theo UTC để KHÔNG bị lệch 1 ngày ở múi giờ
      Việt Nam (+07): new Date(y, m, 0).toISOString() sẽ trả về ngày hôm trước. */
@@ -116,7 +119,7 @@
   /* ═════════════════ GIAO DIỆN TRÊN MÀN HÌNH ═════════════════ */
   R.mount = function (host) {
     if (!host) return;
-    if (!st.from || !st.to) { const d = R.defaultRange(); st.from = d.from; st.to = d.to; }
+    if (!st.touched || !st.from || !st.to) { const d = R.defaultRange(); st.from = d.from; st.to = d.to; }
     draw(host);
   };
 
@@ -171,15 +174,15 @@
     renderTable(document.getElementById("rpTable"), rep);
 
     const on = (id, f) => { const e = document.getElementById(id); if (e) e.onclick = f; };
-    const setRange = (a, b) => { st.from = a; st.to = b; draw(host); };
-    document.getElementById("rpFrom").onchange = e => { st.from = e.target.value || st.from; if (st.from > st.to) st.to = st.from; draw(host); };
-    document.getElementById("rpTo").onchange = e => { st.to = e.target.value || st.to; if (st.to < st.from) st.from = st.to; draw(host); };
+    const setRange = (a, b) => { st.from = a; st.to = b; st.touched = true; draw(host); };
+    document.getElementById("rpFrom").onchange = e => { st.from = e.target.value || st.from; if (st.from > st.to) st.to = st.from; st.touched = true; draw(host); };
+    document.getElementById("rpTo").onchange = e => { st.to = e.target.value || st.to; if (st.to < st.from) st.from = st.to; st.touched = true; draw(host); };
     on("rpThisMonth", () => { const t = TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
       setRange(firstDay(y, m), lastDay(y, m)); });
     on("rpThisQuarter", () => { const t = TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
       const q0 = Math.floor((m - 1) / 3) * 3 + 1;
       setRange(firstDay(y, q0), lastDay(y, q0 + 2)); });
-    on("rpAll", () => { const d = R.defaultRange(); setRange(d.from, d.to); });
+    on("rpAll", () => { const d = R.defaultRange(); st.touched = false; setRange(d.from, d.to); st.touched = false; });
     on("rpWide", () => { st.mode = "wide"; draw(host); });
     on("rpLong", () => { st.mode = "long"; draw(host); });
     on("rpEmpty", () => { st.showEmpty = !st.showEmpty; draw(host); });
