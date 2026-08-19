@@ -4,7 +4,7 @@
 
 Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-X-T)** kho thành phẩm, xây dựng từ **100% dữ liệu thật** trong file `THEO DOI CHI TIET N-X-T ADIDAS.xlsm`.
 
-🌐 **Chạy online:** https://mrbit4578.github.io/QL-KHOTP-TVS-ADIDAS/
+🌐 **Chạy online:** https://mrsirom629-max.github.io/Warehouse-TVS-Adidas/
 
 ---
 
@@ -13,7 +13,7 @@ Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-
 ### Bật GitHub Pages (làm 1 lần)
 1. Vào repo → **Settings → Pages**
 2. Mục **Build and deployment › Source**: chọn *Deploy from a branch* → Branch **main**, thư mục **/ (root)** → **Save**
-3. Chờ ~1 phút → web chạy tại **https://mrbit4578.github.io/QL-KHOTP-TVS-ADIDAS/**
+3. Chờ ~1 phút → web chạy tại **https://mrsirom629-max.github.io/Warehouse-TVS-Adidas/**
 
 ### Dữ liệu thật lưu trên GitHub
 - Toàn bộ dữ liệu nhập thêm (đơn hàng, nhập kho, phiếu xuất kho) lưu tại **`data/tvs-data.json`** trong repo
@@ -36,7 +36,7 @@ Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-
 ### GitHub Token — chìa khoá GHI dữ liệu (phân quyền thật sự)
 Lớp mật khẩu chỉ là giao diện; **quyền ghi thật** được GitHub bảo vệ bằng token:
 1. Chủ repo vào **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
-2. **Repository access**: chỉ chọn `QL-KHOTP-TVS-ADIDAS` · **Permissions → Contents: Read and write** · hạn dùng tuỳ ý
+2. **Repository access**: chỉ chọn `Warehouse-TVS-Adidas` · **Permissions → Contents: Read and write** · hạn dùng tuỳ ý
 3. Gửi token riêng cho **3 người nhập liệu** — mỗi người dán token 1 lần vào ô "GitHub Token" khi đăng nhập (máy sẽ nhớ)
 4. Người không có token dù biết mật khẩu cũng **không thể ghi** — API GitHub từ chối (401/403)
 
@@ -76,7 +76,7 @@ python3 -m http.server 8080
 | OMS | **Đơn đặt hàng** | Tra cứu 95 đơn / 549 dòng, lọc đa chiều, ma trận size từng đơn + ➕ nhập liệu / import / export + ✏️ **sửa / xoá / khôi phục đơn ngay tại màn hình (v4.8)** |
 | WMS | **Nhập kho** | Nhật ký nhập kho từng ngày, đủ 17 cột gốc, quy cách đóng thùng, trạng thái QC + ➕ nhập liệu / import / export |
 | **PXK** | **Lệnh giao hàng** | Phiếu xuất kho kiêm lệnh giao hàng (Mẫu 03/XKNB) — chọn nhiều chỉ thị, tải SL từ Nhập kho, ghi ngày thực xuất, **% xuất đúng hạn**, in phiếu |
-| Inventory Tracking | **Tồn kho N-X-T** | Luồng ①Đặt → ②Nhập → ③Xuất → ④Tồn → ⑤Còn SX, danh sách thiếu hụt |
+| Inventory Tracking | **Tồn kho N-X-T** | Luồng ①Đặt → ②Nhập → ③Xuất → ④Tồn → ⑤Còn SX, danh sách thiếu hụt + 📊 **báo cáo theo kỳ & xuất Excel (v4.9)** |
 | TMS | **Kế hoạch xuất** | 15 mốc "Ngày xuất KD" (25/07/2026 → 09/01/2027), độ sẵn sàng từng mốc |
 | Architecture | **Kiến trúc hệ thống** | Sơ đồ ERP ↔ WMS ↔ WCS/OMS/TMS + 5 kiến trúc RAG (hình tham chiếu ②) |
 | AI Layer | **Trợ lý AI** | Chatbot mô phỏng Agentic RAG: hỏi đáp trực tiếp trên dữ liệu thật (kể cả % đúng hạn) |
@@ -131,6 +131,39 @@ Từ v4.8, **mọi đơn hàng đều sửa được ngay tại màn hình OMS**
 
 Số liệu N-X-T, tồn kho, kế hoạch xuất TMS, bảng điều khiển và trợ lý AI **tự tính lại tức thì** sau mỗi lần sửa.
 
+## 📊 BÁO CÁO N-X-T THEO KỲ + XUẤT FILE EXCEL (v4.9 — MỚI)
+
+Ngay tại màn hình **Tồn kho · N-X-T** (cuối trang) có khối **“Báo cáo N-X-T theo kỳ — xuất Excel”**:
+
+| Nút | Tác dụng |
+|---|---|
+| **Từ ngày / Đến ngày** | Chọn kỳ báo cáo bất kỳ · kèm nút nhanh **Tháng này · Quý này · Toàn bộ** |
+| **Hiển thị hàng ngang theo size** | 1 dòng = 1 đơn hàng · 4 khối cột **Tồn đầu kỳ · Nhập · Xuất · Tồn cuối kỳ**, mỗi khối trải UK 3→UK 9 + cột Cộng |
+| **Hiển thị size theo dòng** | 1 dòng = 1 đơn × 1 size, các cột SL đặt · Tồn đầu · Nhập · Xuất · **Ngày thực xuất** · Tồn cuối |
+| **Hiện cả đơn không phát sinh** | In đủ 95 đơn (kể cả đơn chưa nhập/xuất trong kỳ) thay vì chỉ đơn có biến động |
+| **Export Excel (.xlsx)** | Tải file Excel đúng bảng đang xem |
+
+**Công thức chuẩn kế toán kho** (tính theo từng đơn × size):
+- Tồn đầu kỳ = nhập kho **trước** “từ ngày” − xuất kho **trước** “từ ngày”
+- Nhập trong kỳ = dòng nhập kho có Ngày NK trong kỳ
+- Xuất trong kỳ = phiếu xuất kho **đã xác nhận** có Ngày thực xuất trong kỳ (dòng MIX SIZE được phân bổ đúng từng size)
+- **Tồn cuối kỳ = Tồn đầu kỳ + Nhập − Xuất**
+
+**Cột “Ngày thực xuất” (v4.9.1)** — chỉ có ở kiểu **size theo dòng** (cả trên màn hình lẫn file Excel):
+- Nạp trực tiếp từ ô *Ngày thực xuất* của phiếu xuất kho bên **Lệnh giao hàng · PXK**
+- Chỉ tính **phiếu đã xác nhận xuất kho**; phiếu còn nháp không hiển thị
+- Một size xuất làm nhiều lần → liệt kê đủ các ngày (`25/07/2026 · 03/08/2026`) kèm nhãn *n lần*; di chuột vào ô để xem từng phiếu và số đôi
+- Dòng phiếu **MIX SIZE** được phân bổ đúng ngày cho từng size
+- Kiểu *size hàng ngang* giữ nguyên, không thêm cột này
+
+**File Excel xuất ra gồm 3 sheet:**
+1. `N-X-T size ngang` hoặc `N-X-T size theo dong` — đúng kiểu đang xem, có tiêu đề công ty/kỳ/người lập, gộp ô, cố định dòng tiêu đề, định dạng số `#,##0`
+2. `Tong hop theo size` — cộng dồn toàn bộ đơn theo UK 3→UK 9
+3. `Nhat ky bien dong` — liệt kê từng lượt nhập/xuất trong kỳ kèm số chứng từ (đối chiếu kiểm kê)
+
+Tên file tự đặt: `BAO_CAO_N-X-T_20260716_20260722_SIZE-NGANG.xlsx`.
+Bộ ghi Excel nằm tại `assets/js/xlsx-write.js` — **thuần JavaScript, không thư viện ngoài, không CDN**, nên vẫn chạy offline đúng tinh thần hệ thống.
+
 ## 🚚 Lệnh giao hàng / Phiếu xuất kho (Mẫu 03/XKNB) — v3.0
 
 Theo đúng file mẫu `PHIEU XUAT KHO THANH PHAM.xlsx`:
@@ -183,6 +216,8 @@ TVS-ADIDAS-WebSystem/
     ├── css/style.css           # Toàn bộ thiết kế (offline, không CDN) + form + phiếu in
     ├── img/logo.svg
     └── js/
+        ├── xlsx-write.js       # ★ Ghi file .xlsx thuần JS (v4.9) — dùng cho báo cáo N-X-T
+        ├── nxt-report.js       # ★ Báo cáo N-X-T theo kỳ + export Excel (v4.9)
         ├── data.js             # ★ DỮ LIỆU THẬT trích từ Excel (549 + 11 dòng) — bất biến
         ├── store.js            # ★ Lớp dữ liệu động: localStorage, CSV mẫu/import/export, phiếu XK
         ├── utils.js            # Lõi nghiệp vụ: N-X-T, tồn khả dụng, % xuất đúng hạn (U.rebuild)
