@@ -509,3 +509,10 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 .tbl tbody tr.row-editing{background:var(--acc-soft)}
 .tbl tbody tr.row-editing td{vertical-align:middle}
 .tbl tbody tr.row-editing:hover{background:var(--acc-soft)}
+
+/* ── v4.9: Báo cáo N-X-T theo kỳ (khối cột theo size) ─────────── */
+.rp-f{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--txt-2)}
+.tbl th.rp-blk{text-align:center;border-left:2px solid var(--line-2);background:var(--soft);letter-spacing:.03em}
+.tbl th.rp-sum,.tbl td.rp-sum{background:var(--neu-bg)}
+.tbl.rp-wide th,.tbl.rp-wide td{white-space:nowrap}
+.tbl.rp-wide thead tr:first-child th{position:relative}

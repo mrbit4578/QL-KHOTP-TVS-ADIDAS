@@ -118,9 +118,13 @@
             </tr></tfoot>
           </table></div>
           ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ 95 đơn” để xem đầy đủ.</div>`}
-        </div>`;
+        </div>
+
+        <!-- v4.9: Báo cáo N-X-T theo kỳ + xuất Excel (assets/js/nxt-report.js) -->
+        <div id="nxtReportHost"></div>`;
 
       document.getElementById("btnToggleAll").onclick = () => { st.showAll = !st.showAll; this.render(root); };
+      if (window.NXTReport) NXTReport.mount(document.getElementById("nxtReportHost"));
     }
   };
 })();
