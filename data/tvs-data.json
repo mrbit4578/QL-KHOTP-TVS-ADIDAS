@@ -8239,7 +8239,7 @@
    "qcNo": "",
    "date": "2026-08-13",
    "actualDate": "2026-08-14",
-   "status": "draft",
+   "status": "shipped",
    "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
    "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
    "warehouse": "Tại Kho thành phẩm CTY",
@@ -8664,7 +8664,7 @@
  },
  "seedReceiptsOff": false,
  "meta": {
-  "updatedAt": "2026-08-22T00:42:17.490Z",
+  "updatedAt": "2026-08-22T00:42:23.207Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
