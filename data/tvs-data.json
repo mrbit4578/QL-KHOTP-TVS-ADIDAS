@@ -8410,8 +8410,8 @@
    "pkl": "TVS-PKL-2026-0014",
    "qcNo": "",
    "date": "2026-08-22",
-   "actualDate": null,
-   "status": "draft",
+   "actualDate": "2026-08-22",
+   "status": "shipped",
    "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
    "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
    "warehouse": "Tại Kho thành phẩm CTY",
@@ -8420,7 +8420,7 @@
    "driver": "Trần Văn Ngà",
    "truck": "60C178.92",
    "seal": "",
-   "condition": "Nguyên carton, thùng kéo băng keo 1/2 phía dưới, mặt trên không kéo băng keo",
+   "condition": "Nguyên carton, thùng kéo băng keo 1/2 phía dưới, mặt trên không kéo băng keo,HÀNG MƯỢN VỀ TUẤN VIỆT TÁI CHẾ - TRẢ LẠI",
    "approved": "Đã duyệt",
    "orders": [
     "AE2607212"
@@ -8899,7 +8899,7 @@
  },
  "seedReceiptsOff": false,
  "meta": {
-  "updatedAt": "2026-08-22T00:43:28.655Z",
+  "updatedAt": "2026-08-22T00:44:09.766Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
