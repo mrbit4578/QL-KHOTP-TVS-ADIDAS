@@ -9459,7 +9459,7 @@
    "pkl": "TVS-PKL-2026-0015",
    "qcNo": "",
    "date": "2026-08-24",
-   "actualDate": "2026-08-24",
+   "actualDate": "2026-08-02",
    "status": "draft",
    "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
    "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
@@ -10898,7 +10898,7 @@
  },
  "seedReceiptsOff": false,
  "meta": {
-  "updatedAt": "2026-08-24T10:07:14.736Z",
+  "updatedAt": "2026-08-24T10:07:19.454Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
