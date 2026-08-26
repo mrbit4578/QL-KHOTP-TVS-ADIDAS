@@ -68,41 +68,35 @@
     return n - 1;
   };
 
-  /* ── Đọc sheet đầu tiên thành mảng 2 chiều ── */
-  X.parse = async function (buf) {
-    if (!X.supported) throw new Error("Trình duyệt không hỗ trợ DecompressionStream — hãy dùng file CSV");
-    const entries = readEntries(buf);
-
-    /* sharedStrings */
-    let shared = [];
-    if (entries["xl/sharedStrings.xml"]) {
-      const doc = parseXML(await extract(buf, entries["xl/sharedStrings.xml"]));
-      shared = [...doc.getElementsByTagName("si")].map(si =>
-        [...si.getElementsByTagName("t")].map(t => t.textContent).join(""));
-    }
-
-    /* sheet đầu tiên theo workbook.xml + rels */
-    let sheetPath = "xl/worksheets/sheet1.xml";
+  /* ── Danh sách sheet trong workbook (tên + đường dẫn xml) ── */
+  async function sheetList(buf, entries) {
+    const out = [];
     try {
       const wbDoc = parseXML(await extract(buf, entries["xl/workbook.xml"]));
-      const first = wbDoc.getElementsByTagName("sheet")[0];
-      const rid = first && (first.getAttribute("r:id") || first.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id"));
-      if (rid && entries["xl/_rels/workbook.xml.rels"]) {
+      let rels = {};
+      if (entries["xl/_rels/workbook.xml.rels"]) {
         const relDoc = parseXML(await extract(buf, entries["xl/_rels/workbook.xml.rels"]));
         for (const rel of relDoc.getElementsByTagName("Relationship")) {
-          if (rel.getAttribute("Id") === rid) {
-            let t = rel.getAttribute("Target").replace(/^\//, "");
-            if (!t.startsWith("xl/")) t = "xl/" + t.replace(/^(\.\.\/)+/, "");
-            sheetPath = t;
-          }
+          let t = rel.getAttribute("Target").replace(/^\//, "");
+          if (!t.startsWith("xl/")) t = "xl/" + t.replace(/^(\.\.\/)+/, "");
+          rels[rel.getAttribute("Id")] = t;
         }
       }
-    } catch (e) { /* dùng mặc định sheet1 */ }
-    if (!entries[sheetPath]) {
-      const alt = Object.keys(entries).find(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k));
-      if (alt) sheetPath = alt; else throw new Error("Không tìm thấy worksheet");
+      for (const sh of wbDoc.getElementsByTagName("sheet")) {
+        const rid = sh.getAttribute("r:id") || sh.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+        const path = rels[rid];
+        if (path && entries[path]) out.push({ name: sh.getAttribute("name") || "", path });
+      }
+    } catch (e) { /* fallback bên dưới */ }
+    if (!out.length) {
+      Object.keys(entries).filter(k => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort()
+        .forEach((p, i) => out.push({ name: "Sheet" + (i + 1), path: p }));
     }
+    return out;
+  }
 
+  /* ── Đọc 1 worksheet (theo đường dẫn) thành mảng 2 chiều ── */
+  async function readSheet(buf, entries, sheetPath, shared) {
     const doc = parseXML(await extract(buf, entries[sheetPath]));
     const rows = [];
     for (const rowEl of doc.getElementsByTagName("row")) {
@@ -122,7 +116,7 @@
           const v = c.getElementsByTagName("v")[0];
           if (v) {
             if (t === "s") val = shared[parseInt(v.textContent, 10)] ?? "";
-            else if (t === "str" || t === "b") val = v.textContent;
+            else if (t === "str" || t === "b" || t === "e") val = v.textContent;
             else {
               const num = parseFloat(v.textContent);
               val = isNaN(num) ? v.textContent : num;
@@ -133,6 +127,43 @@
       }
     }
     return rows;
+  }
+
+  async function sharedStrings(buf, entries) {
+    if (!entries["xl/sharedStrings.xml"]) return [];
+    const doc = parseXML(await extract(buf, entries["xl/sharedStrings.xml"]));
+    return [...doc.getElementsByTagName("si")].map(si =>
+      [...si.getElementsByTagName("t")].map(t => t.textContent).join(""));
+  }
+
+  /* ── Đọc sheet đầu tiên thành mảng 2 chiều (giữ nguyên API cũ) ── */
+  X.parse = async function (buf, opts) {
+    if (!X.supported) throw new Error("Trình duyệt không hỗ trợ DecompressionStream — hãy dùng file CSV");
+    const entries = readEntries(buf);
+    const shared = await sharedStrings(buf, entries);
+    const sheets = await sheetList(buf, entries);
+    if (!sheets.length) throw new Error("Không tìm thấy worksheet");
+    let pick = sheets[0];
+    const want = opts && opts.sheet ? String(opts.sheet).toLowerCase().trim() : "";
+    if (want) {
+      const f = sheets.find(s => s.name.toLowerCase().trim() === want);
+      if (f) pick = f;
+    }
+    return await readSheet(buf, entries, pick.path, shared);
+  };
+
+  /* ── Đọc TOÀN BỘ sheet: [{ name, rows }] — dùng khi cần chọn sheet (CLP…) ── */
+  X.parseSheets = async function (buf) {
+    if (!X.supported) throw new Error("Trình duyệt không hỗ trợ DecompressionStream — hãy dùng file CSV");
+    const entries = readEntries(buf);
+    const shared = await sharedStrings(buf, entries);
+    const sheets = await sheetList(buf, entries);
+    const out = [];
+    for (const s of sheets) {
+      try { out.push({ name: s.name, rows: await readSheet(buf, entries, s.path, shared) }); }
+      catch (e) { out.push({ name: s.name, rows: [] }); }
+    }
+    return out;
   };
 
   /* Số serial Excel → ISO yyyy-mm-dd (epoch 1900, bỏ qua giờ) */

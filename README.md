@@ -4,6 +4,8 @@
 
 Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-X-T)** kho thành phẩm, xây dựng từ **100% dữ liệu thật** trong file `THEO DOI CHI TIET N-X-T ADIDAS.xlsm`.
 
+> 🆕 **v5.0 — MỚI:** đã mapping **packing list (CLP) đủ 3 đợt** (95 chỉ thị = 40.027 đôi = 7.578 thùng) và bổ sung màn hình **Packing List · CLP** với tính năng **IMPORT PACKING LIST THEO MẪU** — từ đợt 4, 5, 6… chỉ cần import file là hệ thống **tự mapping** (thùng nguyên / thùng lẻ / thùng MIX SIZE), tự đối chiếu với đơn đặt hàng và dùng ngay cho phiếu xuất kho.
+
 🌐 **Chạy online:** https://mrsirom629-max.github.io/Warehouse-TVS-Adidas/
 
 ---
@@ -61,6 +63,7 @@ python3 -m http.server 8080
 | Sheet Excel | Nội dung | Đưa vào hệ thống |
 |---|---|---|
 | `Data` — DATA ĐƠN ĐẶT HÀNG GỐC | 549 dòng chi tiết đơn đặt hàng từ khách adidas: ngày xuất KD, quốc gia, đơn hàng, PO, màu, size, số đôi, số thùng, đợt | `assets/js/data.js` → `TVS_ORDERS` |
+| Sheet `CLP` của 3 file đơn hàng (đợt 1 · 2 · 3) | **Packing list thật**: 95 chỉ thị = **40.027 đôi = 7.578 thùng**, 898 nhóm thùng (45 nhóm MIX size) — khớp 100% số đôi với đơn đặt hàng theo từng size | `assets/js/data-packing.js` → `TVS_PACKING` |
 | `chi tiet nhap kho theo ngay.xlsx` (cập nhật 30/07/2026) | **Dữ liệu nhập kho nguồn** — 11 dòng ma trận theo ngày (16/07→22/07) = **2.006 đôi / 345 thùng**, 5 chỉ thị: AE2607131, AE2607171, AE2607172, AE2607173, AE2607563 | `assets/js/data.js` → `TVS_RECEIPTS` (45 dòng chi tiết sau unpivot) |
 
 **Số liệu tổng (đối chiếu khớp 100% với Excel):**
@@ -75,7 +78,8 @@ python3 -m http.server 8080
 | Analytics & Dashboard | **Bảng điều khiển** | KPI, cảnh báo đơn sắp đến hạn còn thiếu hàng, 5 biểu đồ tổng quan |
 | OMS | **Đơn đặt hàng** | Tra cứu 95 đơn / 549 dòng, lọc đa chiều, ma trận size từng đơn + ➕ nhập liệu / import / export + ✏️ **sửa / xoá / khôi phục đơn ngay tại màn hình (v4.8)** |
 | WMS | **Nhập kho** | Nhật ký nhập kho từng ngày, đủ 17 cột gốc, quy cách đóng thùng, trạng thái QC + ➕ nhập liệu / import / export |
-| **PXK** | **Lệnh giao hàng** | Phiếu xuất kho kiêm lệnh giao hàng (Mẫu 03/XKNB) — chọn nhiều chỉ thị, tải SL từ Nhập kho, ghi ngày thực xuất, **% xuất đúng hạn**, in phiếu |
+| **PXK** | **Lệnh giao hàng** | Phiếu xuất kho kiêm lệnh giao hàng (Mẫu 03/XKNB) — chọn nhiều chỉ thị, tải SL từ Nhập kho, ghi ngày thực xuất, **% xuất đúng hạn**, in phiếu + ➕ **import packing list ngay tại màn hình (v5.0)** |
+| **Packing List** | **Packing List · CLP** | ★ **(v5.0)** Packing list 3 đợt gốc (95 chỉ thị = 40.027 đôi = 7.578 thùng) + **IMPORT packing list theo mẫu cho đợt 4, 5, 6…**, đối chiếu size với đơn đặt hàng, export .xlsx/.csv, nhật ký import |
 | Inventory Tracking | **Tồn kho N-X-T** | Luồng ①Đặt → ②Nhập → ③Xuất → ④Tồn → ⑤Còn SX, danh sách thiếu hụt + 📊 **báo cáo theo kỳ & xuất Excel (v4.9)** |
 | TMS | **Kế hoạch xuất** | 15 mốc "Ngày xuất KD" (25/07/2026 → 09/01/2027), độ sẵn sàng từng mốc |
 | Architecture | **Kiến trúc hệ thống** | Sơ đồ ERP ↔ WMS ↔ WCS/OMS/TMS + 5 kiến trúc RAG (hình tham chiếu ②) |
@@ -99,6 +103,7 @@ python3 -m http.server 8080
 - `MAU_IMPORT_DON_DAT_HANG.csv` — 9 cột như sheet Data gốc
 - `MAU_IMPORT_NHAP_KHO.csv` — chỉ cần Ngày NK, Đơn hàng, Size, Số đôi (quốc gia/PO/màu **tự mapping** từ đơn hàng)
 - `MAU_IMPORT_PHIEU_XUAT_KHO.csv` — Số phiếu, Ngày, Chỉ thị, Size, SL thực xuất
+- `MAU_IMPORT_PACKING_LIST_CLP.xlsx` / `.csv` **(v5.0)** — packing list theo layout sheet CLP của khách (kèm sheet *Hướng dẫn*), có ví dụ thùng nguyên · thùng lẻ · **thùng MIX size**
 - Import có **kiểm tra lỗi từng dòng** (sai size, chỉ thị không tồn tại, vượt tồn khả dụng…) và **xem trước** trước khi áp dụng
 - Export dữ liệu hiện tại ra CSV ở từng màn hình
 
@@ -189,11 +194,49 @@ Theo đúng file mẫu `PHIEU XUAT KHO THANH PHAM.xlsx`:
 8. **Tự co dòng vừa trang** — khi trang cuối chỉ còn ít dòng + khối ký mà thiếu chỗ, hệ thống tự nén chiều cao dòng/khối ký để gói gọn trong trang, không lấn sang tờ sau (có badge "tự co dòng vừa trang")
 9. **In qua tài liệu độc lập (v3.3)** — bấm "In phiếu" hệ thống dựng một tài liệu in riêng trong iframe ẩn (chỉ chứa các trang phiếu + CSS in chuyên dụng, cô lập 100% khỏi giao diện ứng dụng) rồi mới gọi hộp thoại in → **mọi trang 2-3-4… luôn in đủ nội dung** trên mọi trình duyệt, kể cả khi web đang chạy nhúng trong iframe khác; mỗi trang khoá đúng 1 tờ A4, footer ghim đáy tờ; bấm Ctrl+P trực tiếp khi đang mở phiếu cũng được tự xử lý qua cơ chế dự phòng
 
-## 📦 Packing List (CLP) — nguồn tính số thùng
+## 📦 Packing List (CLP) — nguồn tính số thùng (v5.0 — cập nhật)
 
-- File gốc: `260720_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 1` (sheet CLP) → nhúng tại `assets/js/data-packing.js`
-- **34 chỉ thị đợt 1 = 12.601 đôi = 2.646 thùng**, 336 nhóm thùng trong đó **17 nhóm MIX size**
-- Đối chiếu khớp 100% số đôi với đơn đặt hàng; đơn chưa có packing → tự dùng quy cách chuẩn 6 đôi/thùng
+| Đợt | File gốc (sheet CLP) | Chỉ thị | Số đôi | Số thùng | Nhóm thùng | Nhóm MIX |
+|---|---|---|---|---|---|---|
+| Đợt 1 | `260720_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 1` | 34 | 12.601 | 2.646 | 336 | 17 |
+| Đợt 2 | `260820_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 2` | 50 | 24.373 | 4.303 | 477 | 26 |
+| Đợt 3 | `260825_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 3` | 11 | 3.053 | 629 | 85 | 2 |
+| **Tổng** | nhúng tại `assets/js/data-packing.js` | **95** | **40.027** | **7.578** | **898** | **45** |
+
+- Đối chiếu **khớp 100%** số đôi với đơn đặt hàng (`TVS_ORDERS`) theo **từng chỉ thị × từng size**; dãy số thùng `từ → đến` liên tục `1..tổng thùng` cho mọi chỉ thị
+- Cấu trúc dữ liệu (schema) của đợt 2 & 3 **giữ nguyên y hệt đợt 1**: `{po, col, ctry, name, cust, wh, gender, totalPrs, totalCtn, groups[{sizes, prs, perCtn, ctn, from, to, box, mix}]}`
+- Đơn chưa có packing → tự dùng quy cách chuẩn 6 đôi/thùng (đánh dấu `*` trên phiếu xuất kho)
+- **Đợt 4, 5, 6… KHÔNG cần sửa code**: dùng màn hình **Packing List · CLP → Import packing list** (xem mục dưới)
+
+## 📥 IMPORT PACKING LIST THEO MẪU — ĐỢT 4, 5, 6… (v5.0 — MỚI)
+
+Màn hình mới **“Packing List · CLP”** trên sidebar (và nút **Import packing list** ngay trong màn hình *Lệnh giao hàng · PXK*):
+
+| Khối | Nội dung |
+|---|---|
+| **6 KPI** | Chỉ thị có packing · Tổng số đôi (PL) · Tổng thùng carton · Nhóm MIX SIZE · Chỉ thị chưa có packing · Đối chiếu đơn đặt hàng |
+| **Packing list theo đợt đặt hàng** | Từng đợt: số chỉ thị · đôi · thùng · nhóm thùng · nhóm MIX · nguồn (gốc / import) · kết quả đối chiếu |
+| **Chi tiết theo chỉ thị** | Lọc theo đợt / nguồn / tìm kiếm; bấm 1 dòng → xem **toàn bộ nhóm thùng** (thùng số #từ–đến, MIX, mã hộp) + **bảng đối chiếu size** packing ↔ SL đặt |
+| **Chỉ thị chưa có packing list** | Danh sách đơn còn thiếu packing (đang tạm tính 6 đôi/thùng) |
+| **Nhật ký import** | Ai import · lúc nào · file/sheet nào · thêm mới / ghi đè / bỏ qua · lý do |
+
+**Cách import (2 phút):**
+1. Bấm **File mẫu (.xlsx)** hoặc **File mẫu (.csv)** → mở bằng Excel, điền theo đúng cột (hoặc dùng **thẳng file CLP gốc của khách adidas**, không cần sửa gì)
+2. Bấm **Import packing list** → chọn file `.xlsx` (hệ thống **tự tìm sheet `CLP`**) hoặc `.csv`
+3. Hệ thống **xem trước & đối chiếu**: số chỉ thị · số đôi · số thùng · số nhóm MIX · so sánh **từng size** với đơn đặt hàng (OMS) · cảnh báo dòng lỗi
+4. Chỉ thị **đã có packing** hiện cảnh báo *“cần tích ghi đè”* — bạn tự **tích chọn** từng chỉ thị muốn ghi đè (không tích = giữ nguyên số liệu cũ)
+5. Nhập **lý do** (bắt buộc) → **Lưu** → phiếu xuất kho dùng ngay packing mới; dữ liệu tự **commit `data/tvs-data.json`** lên GitHub
+
+**Quy tắc đọc file (đúng như file gốc của khách):**
+- 1 dòng = 1 nhóm thùng: `SIZE · Tổng số đôi · Số đôi/thùng · Số thùng · Số thùng từ → đến · Mã hộp`
+- **Thùng MIX SIZE**: dòng đầu ghi `Số thùng = 1` + `Số thùng từ = đến`; các size còn lại **cùng thùng** để **trống** 3 cột (Số thùng, từ, đến) — hệ thống tự gộp thành 1 thùng MIX
+- Dòng **TỔNG** của chỉ thị: để trống `SIZE`, ghi tổng số đôi & tổng số thùng → dùng để đối chiếu
+- **Quốc gia / Đợt / Ngày xuất KD không cần ghi** — tự mapping từ đơn đặt hàng theo *Mã chỉ thị*
+- Nhận mọi biến thể tên cột (`Mã chỉ thị` / `MÃ ĐƠN`, `Art#` / `Hình thể`, `Tổng số đôi` / `Số lượng`…) — nhận diện cột theo tên, không phụ thuộc vị trí
+
+**Thao tác khác:** Export packing hiện hành ra `.xlsx` (2 sheet: `CLP` re-import được + `Tong hop`) hoặc `.csv` · Export 1 chỉ thị · **Xoá bản import** (tự khôi phục về packing gốc nếu có) · Xoá toàn bộ bản import. Packing list gốc đợt 1–3 **không xoá được trên web** (bảo vệ dữ liệu nguồn) — muốn thay số liệu thì import file mới và chọn **ghi đè**.
+
+> Người **chỉ xem** vẫn xem được toàn bộ packing list nhưng **không thấy** nút Import / Xoá (lớp `need-edit`).
 
 ## 📥 Import nhập kho trực tiếp từ Excel (.xlsx)
 
@@ -222,35 +265,58 @@ Dữ liệu nhập kho gốc được **fix cứng** trong `assets/js/data.js`, 
 ```
 TVS-ADIDAS-WebSystem/
 ├── index.html                  # Khung SPA (sidebar + topbar + router)
+├── TVS-ADIDAS-1FILE.html       # ★ Bản gộp 1 file (v5.0) — sinh bởi tools/build-1file.py
 ├── README.md
+├── data/tvs-data.json          # Dữ liệu chung lưu trên GitHub (đơn/nhập/xuất/packing import)
+├── tools/
+│   └── build-1file.py          # ★ (v5.0) Sinh lại TVS-ADIDAS-1FILE.html từ index.html + assets/
 └── assets/
     ├── css/style.css           # Toàn bộ thiết kế (offline, không CDN) + form + phiếu in
     ├── img/logo.svg
     └── js/
-        ├── xlsx-write.js       # ★ Ghi file .xlsx thuần JS (v4.9) — dùng cho báo cáo N-X-T
+        ├── data.js             # ★ DỮ LIỆU THẬT trích từ Excel (549 + 11 dòng) — bất biến
+        ├── data-packing.js     # ★ PACKING LIST (CLP) 3 ĐỢT — 95 chỉ thị · 40.027 đôi · 7.578 thùng
+        ├── xlsx-lite.js        # Đọc .xlsx thuần JS (v5.0: đọc được MỌI sheet — tự chọn sheet CLP)
+        ├── xlsx-write.js       # ★ Ghi file .xlsx thuần JS (v4.9) — báo cáo N-X-T & export packing
         ├── nxt-report.js       # ★ Báo cáo N-X-T theo kỳ + export Excel (v4.9)
         ├── collapsible.js      # ★ Sổ xuống / thu gọn khối trên mọi màn hình (v4.10)
-        ├── data.js             # ★ DỮ LIỆU THẬT trích từ Excel (549 + 11 dòng) — bất biến
-        ├── store.js            # ★ Lớp dữ liệu động: localStorage, CSV mẫu/import/export, phiếu XK
+        ├── store.js            # ★ Lớp dữ liệu động: localStorage, CSV/XLSX mẫu–import–export, phiếu XK,
+        │                       #   IMPORT PACKING LIST + nhật ký + ghi đè có xác nhận (v5.0)
         ├── utils.js            # Lõi nghiệp vụ: N-X-T, tồn khả dụng, % xuất đúng hạn (U.rebuild)
         ├── charts.js           # Thư viện biểu đồ SVG thuần
-        ├── app.js              # Router #/, icon, modal, toast, chọn file, in phiếu
+        ├── app.js              # Router #/, icon, modal, toast, chọn file (.xlsx nhiều sheet), in phiếu
         └── views/
             ├── dashboard.js    # Bảng điều khiển
             ├── orders.js       # OMS — Đơn đặt hàng + nhập liệu/import/export + SỬA/XOÁ/NHẬT KÝ (v4.8)
             ├── warehouse.js    # WMS — Nhập kho + nhập liệu/import/export
-            ├── delivery.js     # ★ PXK — Lệnh giao hàng, phiếu 03/XKNB, % đúng hạn
+            ├── delivery.js     # ★ PXK — Lệnh giao hàng, phiếu 03/XKNB, % đúng hạn + import packing (v5.0)
+            ├── packing.js      # ★ (v5.0) PACKING LIST · CLP — xem theo đợt, import theo mẫu, export, nhật ký
             ├── inventory.js    # N-X-T — Tồn kho (xuất thực từ phiếu XK)
             ├── shipping.js     # TMS — Kế hoạch xuất
             ├── architecture.js # Kiến trúc hệ thống (2 hình tham chiếu)
             └── assistant.js    # Trợ lý AI (Agentic RAG mô phỏng)
 ```
 
+### 🔧 Sinh lại bản gộp 1 file (sau khi sửa code)
+
+```bash
+cd TVS-ADIDAS-WebSystem
+python3 tools/build-1file.py --version v5.0
+# → TVS-ADIDAS-1FILE.html (gộp 1 CSS + 22 JS, giữ đúng thứ tự nạp script)
+```
+
 ## 🔄 Cập nhật dữ liệu kỳ sau
 
-Khi có file Excel mới, chỉ cần tái sinh `assets/js/data.js` (giữ nguyên định dạng `TVS_META / TVS_ORDERS / TVS_RECEIPTS`) — toàn bộ trang, biểu đồ, cảnh báo, N-X-T và trợ lý AI tự cập nhật theo.
+| Loại dữ liệu | Cách cập nhật |
+|---|---|
+| **Đơn đặt hàng** (đợt mới) | Màn hình *Đơn đặt hàng · OMS* → **Import** file `.xlsx/.csv` (size hàng ngang hoặc hàng dọc) — hoặc tái sinh `assets/js/data.js` khi có file Excel gốc mới (giữ nguyên định dạng `TVS_META / TVS_ORDERS / TVS_RECEIPTS`) |
+| **Nhập kho theo ngày** | Màn hình *Nhập kho · WMS* → **Import** đúng file mẫu `chi tiet nhap kho theo ngay.xlsx` |
+| **Packing List (CLP) đợt 4, 5, 6…** | Màn hình *Packing List · CLP* → **Import packing list** (file CLP gốc `.xlsx` hoặc `.csv` theo mẫu) — **không cần sửa code** |
+| **Phiếu xuất kho** | Màn hình *Lệnh giao hàng · PXK* → Tạo lệnh / Import phiếu |
+
+Toàn bộ trang, biểu đồ, cảnh báo, N-X-T, kế hoạch xuất TMS và trợ lý AI **tự tính lại tức thì** sau mỗi lần cập nhật; dữ liệu tự đồng bộ GitHub (`data/tvs-data.json`).
 
 ---
-© 2026 TVS — Công ty TNHH Giày Tuấn Việt · Xây dựng cho chương trình adidas Rubber Boots NVQ89
+© 2026 TVS — Công ty TNHH Giày Tuấn Việt · Xây dựng cho chương trình adidas Rubber Boots NVQ89 · **phiên bản v5.0**
 
 > **Mẹo:** File `TVS-ADIDAS-1FILE.html` là bản gộp toàn bộ hệ thống vào 1 file duy nhất — tiện gửi qua Zalo/Email, mở là chạy. Bản chuẩn nhiều file vẫn là `index.html`.

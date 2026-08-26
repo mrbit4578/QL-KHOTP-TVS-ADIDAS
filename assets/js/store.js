@@ -13,10 +13,14 @@
   /* ── Giữ bản gốc & nạp overlay ─────────────────────────────── */
   const SEED_ORDERS = window.TVS_ORDERS.slice();
   const SEED_RECEIPTS = window.TVS_RECEIPTS.slice();
+  /* PACKING LIST gốc nhúng trong data-packing.js (đợt 1 + 2 + 3) — bất biến */
+  const SEED_PACKING = Object.assign({}, window.TVS_PACKING || {});
 
   function blank() {
     return { ordersAdded: [], receiptsAdded: [], shipments: [], seq: 0, receiptEdits: {},
-             orderEdits: {}, seedReceiptsOff: false };
+             orderEdits: {}, seedReceiptsOff: false,
+             /* v5.0 — packing list import cho các đợt 4, 5, 6… */
+             packingAdded: {}, packingMeta: {}, packingLog: [] };
   }
   const SIZES6 = ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8", "UK 9"];
   const PK = (window.TVS_META && TVS_META.packing) || 6;
@@ -141,6 +145,8 @@
     const base = Store.local.seedReceiptsOff ? [] : SEED_RECEIPTS;
     window.TVS_RECEIPTS = applyReceiptEdits(base.concat(Store.local.receiptsAdded));
     window.TVS_SHIPMENTS = Store.local.shipments;
+    /* Packing list = gốc (đợt 1–3) + packing import thêm (đợt 4, 5, 6…) */
+    window.TVS_PACKING = Object.assign({}, SEED_PACKING, Store.local.packingAdded || {});
   };
   Store.merge();
 
@@ -205,6 +211,9 @@
       receiptEdits: data.receiptEdits || {},
       orderEdits: data.orderEdits || {},
       seedReceiptsOff: !!data.seedReceiptsOff,
+      packingAdded: data.packingAdded || {},
+      packingMeta: data.packingMeta || {},
+      packingLog: data.packingLog || [],
     });
     persist();
     Store.merge();
@@ -542,6 +551,7 @@
     receipts: Store.local.receiptsAdded.length,
     shipments: Store.local.shipments.length,
     orderEdits: Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length,
+    packing: Object.keys(Store.local.packingAdded || {}).length,
   });
   Store.resetAll = function () {
     if (!Store.guard()) return;
@@ -894,6 +904,468 @@
       });
     }
     return { groups: [...groups.values()], errs };
+  };
+
+  /* ═══════════════════════════════════════════════════════════════
+     PACKING LIST (CLP) — IMPORT THEO MẪU CHO CÁC ĐỢT 4, 5, 6… (v5.0)
+     • Đợt 1 · 2 · 3 = dữ liệu gốc nhúng trong assets/js/data-packing.js
+       (95 chỉ thị — bất biến, không sửa qua web)
+     • Đợt sau: chỉ cần IMPORT file .xlsx/.csv theo mẫu → hệ thống tự
+       mapping thành đúng cấu trúc packing (thùng nguyên / thùng lẻ /
+       thùng MIX SIZE), lưu localStorage + tự commit lên GitHub
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* Chuẩn hoá tiêu đề cột: bỏ dấu · đ→d · bỏ ký tự đặc biệt */
+  const pkNorm = s => String(s ?? "").toLowerCase().replace(/đ/g, "d")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+
+  const pkInt = v => {
+    if (v === null || v === undefined || v === "") return null;
+    if (typeof v === "number") return isFinite(v) ? Math.round(v) : null;
+    const s = String(v).trim().replace(/[.\s,']/g, "");
+    return /^-?\d+$/.test(s) ? parseInt(s, 10) : null;
+  };
+  /* Size trong packing list: 3 → 10 (UK) */
+  const pkSize = v => {
+    const s = pkNorm(v).replace(/^uk/, "").trim();
+    const m = s.match(/^(\d{1,2})$/);
+    if (!m) return null;
+    const n = +m[1];
+    return (n >= 3 && n <= 10) ? "UK " + n : null;
+  };
+
+  /* Dòng tiêu đề packing list: có ô "SIZE" + ô "Số thùng" + ô mã chỉ thị */
+  Store.pkFindHeader = function (rows, limit) {
+    limit = limit || 15;
+    for (let i = 0; i < Math.min(rows.length, limit); i++) {
+      const cs = (rows[i] || []).map(pkNorm);
+      const hasSize = cs.some(c => c === "size" || c === "co size");
+      const hasCtn = cs.some(c => c === "so thung" || c.indexOf("so thung") === 0);
+      const hasOrd = cs.some(c => c.includes("chi thi") || c === "ma don" || c.includes("don hang"));
+      if (hasSize && hasCtn && hasOrd) return i;
+    }
+    return -1;
+  };
+
+  /* Nhận diện cột — hỗ trợ mọi biến thể layout CLP (đợt 1/2/3 & về sau) */
+  function pkMapCols(header) {
+    const H = (header || []).map(pkNorm);
+    const find = pred => { for (let i = 0; i < H.length; i++) if (H[i] && pred(H[i])) return i; return -1; };
+    return {
+      ord: find(c => c.includes("chi thi") || c === "ma don" || c.includes("don hang")),
+      po: find(c => c === "po" || c.indexOf("po ") === 0 || c === "po no" || c === "so po"),
+      col: find(c => ["art", "art no", "hinh the", "ma mau", "mau", "ma hang", "ma art"].includes(c)),
+      name: find(c => c.includes("ten hinh the") || c.includes("ten hang") || c.includes("ten san pham")),
+      cust: find(c => c.includes("khach hang")),
+      wh: find(c => c.includes("nuoc") && c.includes("kho")),
+      gender: find(c => c.includes("gioi tinh")),
+      size: find(c => c === "size" || c === "co size"),
+      perCtn: find(c => c.includes("doi") && c.includes("thung")),
+      prs: find(c => ["so luong", "tong so doi", "so doi", "sl", "tong doi"].includes(c)),
+      ctn: find(c => c === "so thung"),
+      from: find(c => ["tu thung", "so thung tu", "thung tu", "tu"].includes(c)),
+      to: find(c => ["den thung", "so thung den", "thung den", "den"].includes(c)),
+      box: find(c => c.includes("ma hop")),
+    };
+  }
+
+  /* ── Bộ máy mapping: mảng 2 chiều → { ord: {…schema TVS_PACKING…} } ──
+     Quy tắc đọc (đúng như file gốc của khách adidas):
+     • 1 dòng = 1 nhóm thùng (thùng nguyên hoặc thùng lẻ)
+     • Dòng có SIZE nhưng TRỐNG "Số thùng"/"Từ–Đến thùng" → cùng nằm trong
+       THÙNG MIX của nhóm liền trước (gộp size vào nhóm đó)
+     • Dòng có số thùng từ–đến TRÙNG nhóm liền trước → cũng là thùng MIX
+     • Dòng TRỐNG SIZE nhưng có tổng số đôi → dòng TỔNG của chỉ thị (đối chiếu)
+     • Dòng trống mã chỉ thị → bỏ qua                                     */
+  function pkParseRows(rows) {
+    const errs = [], warns = [], fileTotals = {};
+    const hi = Store.pkFindHeader(rows);
+    if (hi < 0) return { packing: {}, order: [], errs: ["Không tìm thấy dòng tiêu đề packing list — cần các cột “Mã chỉ thị”, “SIZE”, “Số thùng” (xem file mẫu)"], warns, fileTotals };
+    const ix = pkMapCols(rows[hi]);
+    ["ord", "size", "prs", "ctn"].forEach(k => { if (ix[k] < 0) errs.push("Thiếu cột bắt buộc trong file: " + ({ ord: "Mã chỉ thị", size: "SIZE", prs: "Tổng số đôi", ctn: "Số thùng" })[k]); });
+    if (errs.length) return { packing: {}, order: [], errs, warns, fileTotals };
+
+    const cell = (R, k) => (ix[k] >= 0 && ix[k] < R.length ? R[ix[k]] : null);
+    const packing = {}, order = [];
+
+    for (let i = hi + 1; i < rows.length; i++) {
+      const R = rows[i] || [], line = i + 1;
+      const ord = String(cell(R, "ord") ?? "").trim().toUpperCase();
+      if (!ord) continue;
+      const sz = pkSize(cell(R, "size"));
+      const prs = pkInt(cell(R, "prs"));
+      let per = pkInt(cell(R, "perCtn"));
+      let ctn = pkInt(cell(R, "ctn"));
+      let frm = pkInt(cell(R, "from"));
+      let to = pkInt(cell(R, "to"));
+      const box = String(cell(R, "box") ?? "").trim();
+
+      let p = packing[ord];
+      if (!p) {
+        p = packing[ord] = {
+          po: String(cell(R, "po") ?? "").trim(),
+          col: String(cell(R, "col") ?? "").trim().toUpperCase(),
+          ctry: "",
+          name: String(cell(R, "name") ?? "").trim() || "ADIDAS RAINBOOT W",
+          cust: String(cell(R, "cust") ?? "").trim(),
+          wh: String(cell(R, "wh") ?? "").trim(),
+          gender: String(cell(R, "gender") ?? "").trim() || "Women",
+          totalPrs: 0, totalCtn: 0, groups: [],
+        };
+        order.push(ord);
+      }
+
+      /* dòng TỔNG của chỉ thị (không có size) → chỉ dùng để đối chiếu */
+      if (!sz) { if (prs) fileTotals[ord] = { prs, ctn: ctn || 0 }; continue; }
+      if (!prs || prs <= 0) { errs.push(`Dòng ${line}: ${ord} size ${sz} — số đôi không hợp lệ`); continue; }
+
+      const g = p.groups, prev = g.length ? g[g.length - 1] : null;
+      let cont = false;
+      if (prev) {
+        if (ctn === null && frm === null && to === null) cont = true;
+        else if (frm !== null && prev.from === frm && prev.to === (to === null ? frm : to)) cont = true;
+      }
+      if (cont) {                       /* → thùng MIX SIZE */
+        prev.sizes[sz] = (prev.sizes[sz] || 0) + prs;
+        prev.prs += prs;
+        prev.perCtn = prev.prs;
+        prev.mix = Object.keys(prev.sizes).length > 1;
+        continue;
+      }
+      if (ctn === null || ctn <= 0) {
+        if (!per) { errs.push(`Dòng ${line}: ${ord} size ${sz} — thiếu cả “Số thùng” và “Đôi/thùng”`); continue; }
+        ctn = Math.ceil(prs / per);
+      }
+      if (!per) per = ctn ? Math.ceil(prs / ctn) : prs;
+      if (frm === null) frm = prev && prev.to ? prev.to + 1 : 1;
+      if (to === null) to = frm + ctn - 1;
+      g.push({ sizes: { [sz]: prs }, prs, perCtn: per, ctn, from: frm, to, box, mix: false });
+    }
+
+    for (const ord of order) {
+      const p = packing[ord];
+      p.totalPrs = p.groups.reduce((a, g) => a + g.prs, 0);
+      p.totalCtn = p.groups.reduce((a, g) => a + g.ctn, 0);
+      if (!p.groups.length) { errs.push(`${ord}: không đọc được nhóm thùng nào`); continue; }
+      const ft = fileTotals[ord];
+      if (ft) {
+        if (ft.prs !== p.totalPrs) warns.push(`${ord}: dòng TỔNG trong file ${U.fmt(ft.prs)} đôi ≠ tổng các dòng chi tiết ${U.fmt(p.totalPrs)} đôi`);
+        if (ft.ctn && ft.ctn !== p.totalCtn) warns.push(`${ord}: dòng TỔNG trong file ${U.fmt(ft.ctn)} thùng ≠ tổng các dòng chi tiết ${U.fmt(p.totalCtn)} thùng`);
+      }
+      /* dãy số thùng phải liên tục 1..totalCtn */
+      let cur = 0, bad = false;
+      for (const g of p.groups) {
+        if (g.from !== cur + 1 || g.to !== g.from + g.ctn - 1) { bad = true; break; }
+        cur = g.to;
+      }
+      if (bad || cur !== p.totalCtn) warns.push(`${ord}: dãy số thùng trong file không liên tục (kiểm tra lại cột “Số thùng từ/đến”)`);
+    }
+    return { packing, order, errs, warns, fileTotals };
+  }
+
+  /* Chọn sheet packing tốt nhất khi file .xlsx có nhiều sheet */
+  Store.pkPickSheet = function (sheets) {
+    let best = null, bestScore = -1;
+    (sheets || []).forEach((s, i) => {
+      const n = pkNorm(s.name);
+      let sc = 0;
+      if (n === "clp") sc += 100; else if (n.includes("clp") || n.includes("packing")) sc += 80;
+      if (Store.pkFindHeader(s.rows || []) >= 0) sc += 50;
+      sc += Math.min((s.rows || []).length, 4000) / 10000 - i / 1000;
+      if (sc > bestScore) { best = s; bestScore = sc; }
+    });
+    return best;
+  };
+
+  /* ── IMPORT chính: nhận {rows} hoặc {sheets:[{name,rows}]} ──
+     Trả về đầy đủ dữ liệu để XEM TRƯỚC (preview) & đối chiếu trước khi lưu */
+  Store.importPackingCLP = function (input) {
+    const src = Array.isArray(input) ? { rows: input } : (input || {});
+    let rows = src.rows, sheet = src.sheet || "";
+    if (src.sheets && src.sheets.length) {
+      const pick = Store.pkPickSheet(src.sheets);
+      if (pick) { rows = pick.rows; sheet = pick.name; }
+    }
+    rows = rows || [];
+    const r = pkParseRows(rows);
+    const preview = [], dupes = [];
+    let prs = 0, ctn = 0, groups = 0, mix = 0;
+
+    for (const ord of r.order) {
+      const p = r.packing[ord];
+      const o = U.orderByCode(ord);
+      p.ctry = o ? o.ctry : (p.ctry || "");
+      const sizes = {};
+      p.groups.forEach(g => Object.entries(g.sizes).forEach(([sz, q]) => { sizes[sz] = (sizes[sz] || 0) + q; }));
+      const cmp = [];
+      let match = "noorder";
+      if (o) {
+        match = "ok";
+        const all = new Set([...Object.keys(sizes), ...Object.keys(o.sizes)]);
+        [...all].sort((a, b) => U.sizeIdx(a) - U.sizeIdx(b)).forEach(sz => {
+          const pl = sizes[sz] || 0, od = o.sizes[sz] ? o.sizes[sz].ordered : 0;
+          cmp.push({ sz, pl, od });
+          if (pl !== od) match = "diff";
+        });
+        if (match === "diff")
+          r.warns.push(`${ord}: packing ${U.fmt(p.totalPrs)} đôi lệch so với đơn đặt hàng ${U.fmt(o.prs)} đôi — kiểm tra lại trước khi lưu`);
+      } else {
+        r.warns.push(`${ord}: chưa có trong đơn đặt hàng (OMS) — vẫn import được, hãy nhập/import đơn hàng để dùng trên phiếu xuất kho`);
+      }
+      const exists = Store.packingSource(ord);
+      if (exists) dupes.push(ord);
+      const gmix = p.groups.filter(g => g.mix).length;
+      prs += p.totalPrs; ctn += p.totalCtn; groups += p.groups.length; mix += gmix;
+      preview.push({
+        ord, po: p.po, col: p.col, ctry: p.ctry, name: p.name, cust: p.cust, wh: p.wh,
+        bat: o ? o.bat : (Store.packingBatch(ord) || null),
+        prs: p.totalPrs, ctn: p.totalCtn, groups: p.groups.length, mix: gmix,
+        sizes, cmp, match, exists, ordPrs: o ? o.prs : null,
+      });
+    }
+    return {
+      packing: r.packing, order: r.order, errs: r.errs, warns: r.warns,
+      preview, dupes, sheet, file: src.name || "",
+      totals: { orders: r.order.length, prs, ctn, groups, mix },
+    };
+  };
+
+  /* ── Nguồn packing của 1 chỉ thị: 'import' | 'seed' | null ── */
+  Store.packingSource = ord => (Store.local.packingAdded || {})[ord] ? "import"
+    : (SEED_PACKING[ord] ? "seed" : null);
+  Store.packingOf = ord => (window.TVS_PACKING || {})[ord] || null;
+  Store.packingMeta = ord => (Store.local.packingMeta || {})[ord] || null;
+  Store.seedPackingCount = () => Object.keys(SEED_PACKING).length;
+  /* Đợt của chỉ thị: lấy từ đơn đặt hàng, nếu chưa có thì lấy từ nhật ký import */
+  Store.packingBatch = function (ord) {
+    const o = U.orderByCode(ord);
+    if (o) return o.bat;
+    const m = Store.packingMeta(ord);
+    return m && m.bat ? m.bat : null;
+  };
+
+  /* ── LƯU packing đã import (ghi đè phải được người dùng xác nhận) ── */
+  Store.applyPacking = function (res, opts) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    opts = opts || {};
+    const reason = String(opts.reason || "").trim();
+    if (!reason) return { ok: false, msg: "Vui lòng nhập lý do / ghi chú cho lần import này" };
+    const ow = new Set(opts.overwrite || []);
+    const at = new Date().toISOString(), by = whoAmI();
+    const added = [], over = [], skipped = [];
+    Store.local.packingAdded = Store.local.packingAdded || {};
+    Store.local.packingMeta = Store.local.packingMeta || {};
+    Store.local.packingLog = Store.local.packingLog || [];
+
+    for (const ord of (res.order || [])) {
+      const p = res.packing[ord];
+      if (!p || !p.groups || !p.groups.length) continue;
+      const ex = Store.packingSource(ord);
+      if (ex && !ow.has(ord)) { skipped.push(ord); continue; }
+      Store.local.packingAdded[ord] = JSON.parse(JSON.stringify(p));
+      Store.local.packingMeta[ord] = {
+        at, by, reason, file: res.file || "", sheet: res.sheet || "",
+        bat: (U.orderByCode(ord) || {}).bat || opts.bat || null,
+        over: !!ex, prevSource: ex || null,
+        prs: p.totalPrs, ctn: p.totalCtn, groups: p.groups.length,
+      };
+      (ex ? over : added).push(ord);
+    }
+    if (!added.length && !over.length) return { ok: false, msg: "Không có chỉ thị nào được lưu (tất cả đã tồn tại và chưa được chọn ghi đè)" };
+    Store.local.packingLog.unshift({
+      at, by, reason, file: res.file || "", sheet: res.sheet || "",
+      added: added.slice(), over: over.slice(), skipped: skipped.slice(),
+      prs: [...added, ...over].reduce((a, c) => a + (res.packing[c] ? res.packing[c].totalPrs : 0), 0),
+      ctn: [...added, ...over].reduce((a, c) => a + (res.packing[c] ? res.packing[c].totalCtn : 0), 0),
+    });
+    if (Store.local.packingLog.length > 200) Store.local.packingLog.length = 200;
+    commit();
+    return { ok: true, added, over, skipped };
+  };
+
+  /* ── XOÁ packing đã import của 1 chỉ thị (dữ liệu gốc đợt 1–3 không xoá) ── */
+  Store.deletePacking = function (ord, reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!(Store.local.packingAdded || {})[ord])
+      return { ok: false, msg: `${ord} thuộc packing list GỐC (đợt 1–3) nhúng trong data-packing.js — không xoá được trên web. Muốn thay số liệu hãy import file mới và chọn GHI ĐÈ.` };
+    if (!reason || !String(reason).trim()) return { ok: false, msg: "Vui lòng nhập lý do xoá" };
+    const meta = Store.local.packingMeta[ord] || {};
+    delete Store.local.packingAdded[ord];
+    delete Store.local.packingMeta[ord];
+    Store.local.packingLog = Store.local.packingLog || [];
+    Store.local.packingLog.unshift({
+      at: new Date().toISOString(), by: whoAmI(), reason: String(reason).trim(),
+      file: meta.file || "", sheet: meta.sheet || "", deleted: [ord], added: [], over: [], skipped: [],
+      prs: meta.prs || 0, ctn: meta.ctn || 0,
+    });
+    commit();
+    const back = SEED_PACKING[ord] ? " — đã khôi phục về packing list gốc" : "";
+    return { ok: true, msg: `Đã xoá packing import của ${ord}${back}` };
+  };
+
+  /* Xoá TOÀN BỘ packing đã import (giữ nguyên đợt 1–3 gốc) */
+  Store.clearImportedPacking = function (reason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const ords = Object.keys(Store.local.packingAdded || {});
+    if (!ords.length) return { ok: false, msg: "Chưa có packing list nào được import" };
+    Store.local.packingAdded = {};
+    Store.local.packingMeta = {};
+    Store.local.packingLog = Store.local.packingLog || [];
+    Store.local.packingLog.unshift({
+      at: new Date().toISOString(), by: whoAmI(), reason: String(reason || "Xoá toàn bộ packing đã import").trim(),
+      file: "", sheet: "", deleted: ords, added: [], over: [], skipped: [], prs: 0, ctn: 0,
+    });
+    commit();
+    return { ok: true, n: ords.length };
+  };
+
+  /* ── Thống kê packing list (dùng cho KPI & bảng theo đợt) ── */
+  Store.packingStats = function () {
+    const PKG = window.TVS_PACKING || {};
+    const st = { orders: 0, prs: 0, ctn: 0, groups: 0, mix: 0, seed: 0, imported: 0, byBat: {}, diff: 0, noOrder: 0 };
+    for (const [ord, p] of Object.entries(PKG)) {
+      const bat = Store.packingBatch(ord) || 0;
+      const b = st.byBat[bat] || (st.byBat[bat] = { bat, orders: 0, prs: 0, ctn: 0, groups: 0, mix: 0, seed: 0, imported: 0, diff: 0 });
+      const src = Store.packingSource(ord);
+      const gmix = p.groups.filter(g => g.mix).length;
+      const o = U.orderByCode(ord);
+      const dif = o ? (o.prs !== p.totalPrs) : false;
+      st.orders++; st.prs += p.totalPrs; st.ctn += p.totalCtn; st.groups += p.groups.length; st.mix += gmix;
+      if (src === "seed") st.seed++; else st.imported++;
+      if (dif) st.diff++;
+      if (!o) st.noOrder++;
+      b.orders++; b.prs += p.totalPrs; b.ctn += p.totalCtn; b.groups += p.groups.length; b.mix += gmix;
+      if (src === "seed") b.seed++; else b.imported++;
+      if (dif) b.diff++;
+    }
+    st.without = (U.ORDER_INDEX || []).filter(o => !PKG[o.ord]).length;
+    return st;
+  };
+
+  /* Danh sách packing (kèm đối chiếu đơn đặt hàng) cho màn hình Packing List */
+  Store.packingRows = function () {
+    const PKG = window.TVS_PACKING || {};
+    return Object.keys(PKG).map(ord => {
+      const p = PKG[ord], o = U.orderByCode(ord);
+      const sizes = {};
+      p.groups.forEach(g => Object.entries(g.sizes).forEach(([sz, q]) => { sizes[sz] = (sizes[sz] || 0) + q; }));
+      return {
+        ord, p, o, sizes,
+        bat: Store.packingBatch(ord), src: Store.packingSource(ord), meta: Store.packingMeta(ord),
+        prs: p.totalPrs, ctn: p.totalCtn, groups: p.groups.length,
+        mix: p.groups.filter(g => g.mix).length,
+        ordPrs: o ? o.prs : null,
+        match: !o ? "noorder" : (o.prs === p.totalPrs && U.SIZES.every(sz => (sizes[sz] || 0) === (o.sizes[sz] ? o.sizes[sz].ordered : 0)) ? "ok" : "diff"),
+      };
+    }).sort((a, b) => (a.bat || 99) - (b.bat || 99) || a.ord.localeCompare(b.ord));
+  };
+
+  /* ── FILE MẪU & EXPORT packing list ─────────────────────────── */
+  const PK_TPL_HEAD = ["STT", "Mã chỉ thị", "Po#", "Art#", "Tên hình thể", "Mã khách hàng",
+    "Mã nước-mã kho", "Giới tính", "SIZE", "Tổng số đôi", "Số đôi/ thùng",
+    "Số thùng", "Số thùng từ", "Số thùng đến", "Mã hộp"];
+
+  function pkRowsOf(ords) {
+    const PKG = window.TVS_PACKING || {};
+    const rows = [PK_TPL_HEAD.slice()];
+    let stt = 0;
+    for (const ord of ords) {
+      const p = PKG[ord]; if (!p) continue;
+      stt++;
+      for (const g of p.groups) {
+        let first = true;
+        for (const [sz, q] of Object.entries(g.sizes)) {
+          rows.push([stt, ord, p.po, p.col, p.name, p.cust, p.wh, p.gender,
+            sz.replace("UK ", ""), q,
+            first ? g.perCtn : "", first ? g.ctn : "", first ? g.from : "", first ? g.to : "", g.box]);
+          first = false;
+        }
+      }
+      rows.push([stt, ord, p.po, p.col, p.name, p.cust, p.wh, p.gender, "", p.totalPrs, "", p.totalCtn, "", "", ""]);
+    }
+    return rows;
+  }
+  Store.packingTemplateRows = pkRowsOf;
+
+  /* File mẫu CSV — 1 chỉ thị đủ thùng nguyên + thùng lẻ + thùng MIX SIZE */
+  Store.templatePackingCSV = function () {
+    Store.downloadCSV("MAU_IMPORT_PACKING_LIST_CLP.csv", [
+      PK_TPL_HEAD.slice(),
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 4, 36, 6, 6, 1, 6, "NHNS88"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 5, 102, 6, 17, 7, 23, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 6, 60, 6, 10, 24, 33, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 6, 3, 3, 1, 34, 34, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 7, 2, 5, 1, 35, 35, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 8, 3, "", "", "", "", "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", "", 206, "", 35, "", "", ""],
+    ]);
+  };
+
+  /* File mẫu .xlsx (2 sheet: CLP theo mẫu + Hướng dẫn) */
+  Store.templatePackingXLSX = function () {
+    if (!window.XlsxWrite) { Store.templatePackingCSV(); return; }
+    const S = XlsxWrite.S;
+    const head = PK_TPL_HEAD.map(h => ({ v: h, s: S.head }));
+    const data = [
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 4, 36, 6, 6, 1, 6, "NHNS88"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 5, 102, 6, 17, 7, 23, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 6, 60, 6, 10, 24, 33, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 6, 3, 3, 1, 34, 34, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 7, 2, 5, 1, 35, 35, "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", 8, 3, "", "", "", "", "NHNS72"],
+      [1, "AE2701001", "0903999999-1", "LC1783", "ADIDAS RAINBOOT W", "0308999999", "600000-SI600000", "Women", "", 206, "", 35, "", "", ""],
+    ];
+    XlsxWrite.download("MAU_IMPORT_PACKING_LIST_CLP.xlsx", [
+      { name: "CLP", freeze: { r: 1, c: 2 }, cols: [{ w: 6 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 22 }, { w: 14 }, { w: 22 }, { w: 9 }, { w: 7 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 11 }], rows: [head].concat(data) },
+      {
+        name: "Huong dan", cols: [{ w: 110 }], rows: [
+          [{ v: "HƯỚNG DẪN IMPORT PACKING LIST (CLP) — TVS × adidas", s: S.title }],
+          ["1. Giữ nguyên dòng tiêu đề sheet CLP (có thể thêm/bớt cột phụ, hệ thống tự nhận cột theo tên)."],
+          ["2. Mỗi dòng = 1 nhóm thùng: SIZE · Tổng số đôi · Số đôi/thùng · Số thùng · Số thùng từ → đến · Mã hộp."],
+          ["3. THÙNG MIX SIZE: dòng đầu ghi đủ Số thùng = 1 và Số thùng từ = đến; các size còn lại trong cùng thùng để TRỐNG 3 cột (Số thùng, từ, đến)."],
+          ["4. Dòng TỔNG của mỗi chỉ thị: để trống SIZE, ghi tổng số đôi & tổng số thùng (hệ thống dùng để đối chiếu)."],
+          ["5. Quốc gia / Đợt đặt hàng KHÔNG cần ghi — hệ thống tự mapping từ đơn đặt hàng (OMS) theo Mã chỉ thị."],
+          ["6. Import tại màn hình “Packing List · CLP” → nút “Import packing list”. Hệ thống xem trước, đối chiếu số đôi với đơn đặt hàng rồi mới lưu."],
+          ["7. Chỉ thị đã có packing list sẽ được cảnh báo — chỉ ghi đè khi bạn tự tích chọn."],
+        ]
+      },
+    ]);
+  };
+
+  /* Export packing hiện hành (CSV theo đúng mẫu → import lại được) */
+  Store.exportPackingCSV = function (ords, fname) {
+    const list = ords && ords.length ? ords : Object.keys(window.TVS_PACKING || {});
+    Store.downloadCSV(fname || "PACKING_LIST_CLP_TVS.csv", pkRowsOf(list));
+  };
+
+  /* Export packing hiện hành ra .xlsx (sheet CLP + sheet tổng hợp) */
+  Store.exportPackingXLSX = function (ords, fname) {
+    const PKG = window.TVS_PACKING || {};
+    const list = ords && ords.length ? ords : Object.keys(PKG);
+    if (!window.XlsxWrite) { Store.exportPackingCSV(list); return; }
+    const S = XlsxWrite.S;
+    const raw = pkRowsOf(list);
+    const head = raw[0].map(h => ({ v: h, s: S.head }));
+    const body = raw.slice(1).map(r => r.map((c, i) => (typeof c === "number" && i !== 0
+      ? { v: c, s: S.num } : { v: c === "" ? null : c, s: i === 0 ? S.txtC : S.txt })));
+    const sum = [[{ v: "TỔNG HỢP PACKING LIST THEO CHỈ THỊ", s: S.title }], []];
+    sum.push(["Chỉ thị", "Đợt", "Quốc gia", "PO", "Màu", "Tổng đôi", "Tổng thùng", "Số nhóm thùng", "Nhóm MIX", "Nguồn"].map(h => ({ v: h, s: S.head })));
+    let tp = 0, tc = 0;
+    for (const ord of list) {
+      const p = PKG[ord]; if (!p) continue;
+      tp += p.totalPrs; tc += p.totalCtn;
+      sum.push([{ v: ord, s: S.txtB }, { v: Store.packingBatch(ord) || "", s: S.txtC }, { v: p.ctry, s: S.txt },
+        { v: p.po, s: S.txt }, { v: p.col, s: S.txt }, { v: p.totalPrs, s: S.num }, { v: p.totalCtn, s: S.num },
+        { v: p.groups.length, s: S.num }, { v: p.groups.filter(g => g.mix).length, s: S.num },
+        { v: Store.packingSource(ord) === "seed" ? "Gốc (data-packing.js)" : "Import", s: S.txt }]);
+    }
+    sum.push([{ v: "TỔNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: tp, s: S.totN }, { v: tc, s: S.totN }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }]);
+    XlsxWrite.download(fname || "PACKING_LIST_CLP_TVS.xlsx", [
+      { name: "CLP", freeze: { r: 1, c: 2 }, cols: [{ w: 6 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 22 }, { w: 14 }, { w: 22 }, { w: 9 }, { w: 7 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 11 }], rows: [head].concat(body) },
+      { name: "Tong hop", cols: [{ w: 14 }, { w: 7 }, { w: 20 }, { w: 16 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 11 }, { w: 22 }], rows: sum },
+    ]);
   };
 
   window.Store = Store;

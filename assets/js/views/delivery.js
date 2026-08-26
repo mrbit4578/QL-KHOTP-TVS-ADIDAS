@@ -53,6 +53,7 @@
       const drafts = ships.filter(s => s.status !== "shipped");
       const done = ships.filter(s => s.status === "shipped");
       const OT = U.ONTIME;
+      const PKS = Store.packingStats();
 
       root.innerHTML = `
         <div class="grid g-kpi">
@@ -82,7 +83,12 @@
             <button class="btn" id="btnTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="btnImp">${App.icon("upload", "ico")} Import phiếu từ file</button>
             <button class="btn" id="btnExpAll" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký xuất (CSV)</button>
-            <span class="f-chipcount">Số thùng & dòng MIX size lấy đúng theo PACKING LIST đợt 1 (${Object.keys(window.TVS_PACKING || {}).length} chỉ thị)</span>
+            <button class="btn need-edit" id="btnImpPk" data-testid="pxk-import-packing">${App.icon("upload", "ico")} Import packing list</button>
+            <button class="btn" id="btnGoPk" data-testid="pxk-goto-packing">${App.icon("box", "ico")} Màn hình Packing List</button>
+            <span class="f-chipcount">Số thùng & dòng MIX size lấy đúng theo <b>PACKING LIST (CLP)</b>:
+              ${U.fmt(PKS.orders)} chỉ thị · ${U.fmt(PKS.ctn)} thùng · ${U.fmt(PKS.mix)} nhóm MIX
+              (${Object.keys(PKS.byBat).sort().map(b => "đợt " + b).join(" · ")}${PKS.imported ? ` · ${PKS.imported} chỉ thị import` : ""})
+              ${PKS.without ? ` · <b>${PKS.without}</b> chỉ thị chưa có packing (tạm tính ${TVS_META.packing} đôi/thùng)` : ""}</span>
           </div>
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr>
@@ -153,11 +159,40 @@
           </table></div>`
           : `<div class="card-b note">Chưa có chỉ thị nào ghi nhận ngày thực xuất. Sau khi bấm <b>“Xuất kho”</b> trên phiếu,
              hệ thống ghi ngày thực xuất và tự đối chiếu với "Ngày xuất KD" để tính % đúng hạn tại đây.</div>`}
+        </div>
+
+        <div class="card mt">
+          <div class="card-h"><h3>Nguồn tính số thùng — Packing List (CLP)</h3>
+            <span class="sub">đợt 1–3 nhúng sẵn · các đợt 4, 5, 6… chỉ cần import theo mẫu là tự mapping</span></div>
+          <div class="tbl-wrap"><table class="tbl" data-testid="pxk-packing-table">
+            <thead><tr><th>Đợt đặt hàng</th><th class="num">Chỉ thị có PL</th><th class="num">Số đôi</th>
+              <th class="num">Số thùng</th><th class="num">Nhóm thùng</th><th class="num">Nhóm MIX</th><th>Nguồn</th></tr></thead>
+            <tbody>${Object.keys(PKS.byBat).map(Number).sort((a, b) => a - b).map(b => {
+              const x = PKS.byBat[b];
+              return `<tr>
+                <td><b>${b ? "đợt " + b : "—"}</b></td>
+                <td class="num">${U.fmt(x.orders)}</td>
+                <td class="num">${U.fmt(x.prs)}</td>
+                <td class="num">${U.fmt(x.ctn)}</td>
+                <td class="num">${U.fmt(x.groups)}</td>
+                <td class="num">${x.mix ? U.fmt(x.mix) : "—"}</td>
+                <td>${x.seed ? `<span class="bdg neu plain">${x.seed} gốc</span> ` : ""}${x.imported ? `<span class="bdg acc plain">${x.imported} import</span>` : ""}</td>
+              </tr>`;
+            }).join("")}</tbody>
+            <tfoot><tr><td>TỔNG</td><td class="num">${U.fmt(PKS.orders)}</td><td class="num">${U.fmt(PKS.prs)}</td>
+              <td class="num">${U.fmt(PKS.ctn)}</td><td class="num">${U.fmt(PKS.groups)}</td>
+              <td class="num">${U.fmt(PKS.mix)}</td><td></td></tr></tfoot>
+          </table></div>
+          <div class="note" style="padding:10px 18px">Bấm <b>“Import packing list”</b> trên thanh công cụ để nạp packing list đợt mới
+            (.xlsx sheet CLP hoặc .csv theo mẫu) — hệ thống tự tách thùng nguyên / thùng lẻ / thùng MIX SIZE và dùng ngay cho phiếu xuất kho.
+            ${PKS.without ? `Hiện còn <b>${PKS.without}</b> chỉ thị chưa có packing list — tạm tính ${TVS_META.packing} đôi/thùng (đánh dấu * trên phiếu).` : ""}</div>
         </div>`;
 
       document.getElementById("btnNew").onclick = () => openWizard(null);
       document.getElementById("btnTpl").onclick = () => { Store.templateShipments(); App.toast("Đã tải file mẫu MAU_IMPORT_PHIEU_XUAT_KHO.csv", "ok"); };
       document.getElementById("btnImp").onclick = importShipFile;
+      document.getElementById("btnImpPk").onclick = () => Views._packingImport();
+      document.getElementById("btnGoPk").onclick = () => { location.hash = "#/packing"; };
       const expAll = document.getElementById("btnExpAll");
       if (expAll) expAll.onclick = exportLog;
     }

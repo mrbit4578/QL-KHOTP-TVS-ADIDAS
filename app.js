@@ -43,6 +43,7 @@
     { id: "orders", icon: "orders", label: "Đơn đặt hàng · OMS", view: "orders" },
     { id: "warehouse", icon: "box", label: "Nhập kho · WMS", view: "warehouse" },
     { id: "delivery", icon: "doc", label: "Lệnh giao hàng · PXK", view: "delivery" },
+    { id: "packing", icon: "box", label: "Packing List · CLP", view: "packing" },
     { id: "inventory", icon: "layers", label: "Tồn kho · N-X-T", view: "inventory" },
     { id: "shipping", icon: "truck", label: "Kế hoạch xuất · TMS", view: "shipping" },
     { sec: "Hệ thống & AI" },
@@ -67,11 +68,12 @@
     const el = document.getElementById("localInfo");
     if (!el || !window.Store) return;
     const c = Store.counts();
-    const total = c.orders + c.receipts + c.shipments + (c.orderEdits || 0);
+    const total = c.orders + c.receipts + c.shipments + (c.orderEdits || 0) + (c.packing || 0);
     const edTxt = c.orderEdits ? ` · <b>${c.orderEdits}</b> đơn đã sửa` : "";
+    const pkTxt = c.packing ? ` · <b>${c.packing}</b> chỉ thị packing import` : "";
     const demo = Store.persistent ? "" : `<div style="color:#f2a20c;margin-top:3px">⚠ Chế độ demo: trình duyệt nhúng chặn lưu trữ — dữ liệu nhập sẽ mất khi tải lại trang. Bản .zip chạy máy thật lưu bình thường.</div>`;
     el.innerHTML = (total
-      ? `Dữ liệu nhập thêm: <b>${c.orders}</b> dòng đơn · <b>${c.receipts}</b> dòng NK · <b>${c.shipments}</b> phiếu XK${edTxt}
+      ? `Dữ liệu nhập thêm: <b>${c.orders}</b> dòng đơn · <b>${c.receipts}</b> dòng NK · <b>${c.shipments}</b> phiếu XK${edTxt}${pkTxt}
          <a id="btnResetLocal" style="color:#ff8d80;cursor:pointer;font-weight:700"> ↺ Khôi phục gốc</a>`
       : `Chưa có dữ liệu nhập thêm (100% từ Excel gốc)`) + demo;
     const rst = el.querySelector("#btnResetLocal");
@@ -160,8 +162,11 @@
     inp.click();
   };
 
-  /* ── Chọn file dữ liệu: nhận trực tiếp .xlsx (qua XlsxLite) hoặc .csv ── */
-  App.pickDataFile = cb => {
+  /* ── Chọn file dữ liệu: nhận trực tiếp .xlsx (qua XlsxLite) hoặc .csv ──
+     opts.allSheets = true → trả về đủ mọi sheet trong workbook
+     ({ sheets:[{name,rows}] }) để bên gọi tự chọn sheet (ví dụ sheet CLP) */
+  App.pickDataFile = (cb, opts) => {
+    opts = opts || {};
     const old = document.getElementById("tvsFilePick");
     if (old) old.remove();
     const inp = document.createElement("input");
@@ -180,12 +185,21 @@
           return;
         }
         rd.onload = async () => {
-          try { cb({ rows: await XlsxLite.parse(rd.result), name: f.name, kind: "xlsx" }); }
-          catch (e) { App.toast("⚠ Không đọc được file Excel: " + (e.message || e), "warn"); }
+          try {
+            if (opts.allSheets) {
+              const sheets = await XlsxLite.parseSheets(rd.result);
+              cb({ sheets, rows: (sheets[0] || {}).rows || [], name: f.name, kind: "xlsx" });
+            } else {
+              cb({ rows: await XlsxLite.parse(rd.result), name: f.name, kind: "xlsx" });
+            }
+          } catch (e) { App.toast("⚠ Không đọc được file Excel: " + (e.message || e), "warn"); }
         };
         rd.readAsArrayBuffer(f);
       } else {
-        rd.onload = () => cb({ rows: Store.parseCSV(String(rd.result || "")), name: f.name, kind: "csv" });
+        rd.onload = () => {
+          const rows = Store.parseCSV(String(rd.result || ""));
+          cb({ rows, sheets: [{ name: f.name, rows }], name: f.name, kind: "csv" });
+        };
         rd.readAsText(f, "utf-8");
       }
     };

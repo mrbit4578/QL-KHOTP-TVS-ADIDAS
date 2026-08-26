@@ -54,14 +54,38 @@
     "ITALY": "🇮🇹", "ARGENTINA": "🇦🇷", "CANADA": "🇨🇦", "CHILE": "🇨🇱",
     "ISRAEL": "🇮🇱", "TURKIYE": "🇹🇷", "GERMANY": "🇩🇪", "UNITED KINGDOM": "🇬🇧",
     "UNITED STATES": "🇺🇸", "UNITED ARAB EMIRATES": "🇦🇪", "COLOMBIA": "🇨🇴",
-    "JAPAN": "🇯🇵", "SOUTH AFRICA": "🇿🇦", "MEXICO": "🇲🇽"
+    "JAPAN": "🇯🇵", "SOUTH AFRICA": "🇿🇦", "MEXICO": "🇲🇽",
+    /* thị trường bổ sung từ đợt 4 trở đi */
+    "BRAZIL": "🇧🇷", "THAILAND": "🇹🇭", "CHINA": "🇨🇳", "TAIWAN": "🇹🇼",
+    "SOUTH KOREA": "🇰🇷", "KOREA": "🇰🇷", "INDIA": "🇮🇳", "INDONESIA": "🇮🇩",
+    "MALAYSIA": "🇲🇾", "SINGAPORE": "🇸🇬", "PHILIPPINES": "🇵🇭", "VIETNAM": "🇻🇳",
+    "AUSTRALIA": "🇦🇺", "NEW ZEALAND": "🇳🇿", "FRANCE": "🇫🇷", "SPAIN": "🇪🇸",
+    "PORTUGAL": "🇵🇹", "NETHERLANDS": "🇳🇱", "BELGIUM": "🇧🇪", "SWITZERLAND": "🇨🇭",
+    "AUSTRIA": "🇦🇹", "POLAND": "🇵🇱", "CZECH REPUBLIC": "🇨🇿", "SWEDEN": "🇸🇪",
+    "NORWAY": "🇳🇴", "DENMARK": "🇩🇰", "FINLAND": "🇫🇮", "IRELAND": "🇮🇪",
+    "GREECE": "🇬🇷", "HUNGARY": "🇭🇺", "ROMANIA": "🇷🇴", "RUSSIA": "🇷🇺",
+    "SAUDI ARABIA": "🇸🇦", "QATAR": "🇶🇦", "KUWAIT": "🇰🇼", "EGYPT": "🇪🇬",
+    "MOROCCO": "🇲🇦", "PERU": "🇵🇪", "ECUADOR": "🇪🇨", "URUGUAY": "🇺🇾",
+    "PANAMA": "🇵🇦", "COSTA RICA": "🇨🇷", "GUATEMALA": "🇬🇹",
   };
   U.flag = c => U.FLAGS[c] || "🌐";
   U.VN_COUNTRY = {
     "ITALY": "Ý", "ARGENTINA": "Argentina", "CANADA": "Canada", "CHILE": "Chile",
     "ISRAEL": "Israel", "TURKIYE": "Thổ Nhĩ Kỳ", "GERMANY": "Đức",
     "UNITED KINGDOM": "Anh", "UNITED STATES": "Mỹ", "UNITED ARAB EMIRATES": "UAE",
-    "COLOMBIA": "Colombia", "JAPAN": "Nhật Bản", "SOUTH AFRICA": "Nam Phi", "MEXICO": "Mexico"
+    "COLOMBIA": "Colombia", "JAPAN": "Nhật Bản", "SOUTH AFRICA": "Nam Phi", "MEXICO": "Mexico",
+    "BRAZIL": "Brazil", "THAILAND": "Thái Lan", "CHINA": "Trung Quốc", "TAIWAN": "Đài Loan",
+    "SOUTH KOREA": "Hàn Quốc", "KOREA": "Hàn Quốc", "INDIA": "Ấn Độ", "INDONESIA": "Indonesia",
+    "MALAYSIA": "Malaysia", "SINGAPORE": "Singapore", "PHILIPPINES": "Philippines",
+    "VIETNAM": "Việt Nam", "AUSTRALIA": "Úc", "NEW ZEALAND": "New Zealand",
+    "FRANCE": "Pháp", "SPAIN": "Tây Ban Nha", "PORTUGAL": "Bồ Đào Nha",
+    "NETHERLANDS": "Hà Lan", "BELGIUM": "Bỉ", "SWITZERLAND": "Thuỵ Sĩ", "AUSTRIA": "Áo",
+    "POLAND": "Ba Lan", "CZECH REPUBLIC": "Séc", "SWEDEN": "Thuỵ Điển", "NORWAY": "Na Uy",
+    "DENMARK": "Đan Mạch", "FINLAND": "Phần Lan", "IRELAND": "Ireland", "GREECE": "Hy Lạp",
+    "HUNGARY": "Hungary", "ROMANIA": "Romania", "RUSSIA": "Nga", "SAUDI ARABIA": "Ả Rập Xê Út",
+    "QATAR": "Qatar", "KUWAIT": "Kuwait", "EGYPT": "Ai Cập", "MOROCCO": "Maroc",
+    "PERU": "Peru", "ECUADOR": "Ecuador", "URUGUAY": "Uruguay", "PANAMA": "Panama",
+    "COSTA RICA": "Costa Rica", "GUATEMALA": "Guatemala",
   };
 
   /* ── Gom nhóm & tổng hợp ───────────────────────────────────── */
