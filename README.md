@@ -6,7 +6,8 @@ Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-
 
 > 🆕 **v5.0 — MỚI:** đã mapping **packing list (CLP) đủ 3 đợt** (95 chỉ thị = 40.027 đôi = 7.578 thùng) và bổ sung màn hình **Packing List · CLP** với tính năng **IMPORT PACKING LIST THEO MẪU** — từ đợt 4, 5, 6… chỉ cần import file là hệ thống **tự mapping** (thùng nguyên / thùng lẻ / thùng MIX SIZE), tự đối chiếu với đơn đặt hàng và dùng ngay cho phiếu xuất kho.
 
-🌐 **Chạy online:** https://mrsirom629-max.github.io/Warehouse-TVS-Adidas/
+🌐 **Chạy online (GitHub Pages):** https://mrbit4578.github.io/QL-KHOTP-TVS-ADIDAS/
+🗄 **Repo dữ liệu:** https://github.com/mrbit4578/QL-KHOTP-TVS-ADIDAS
 
 ---
 
@@ -15,7 +16,7 @@ Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-
 ### Bật GitHub Pages (làm 1 lần)
 1. Vào repo → **Settings → Pages**
 2. Mục **Build and deployment › Source**: chọn *Deploy from a branch* → Branch **main**, thư mục **/ (root)** → **Save**
-3. Chờ ~1 phút → web chạy tại **https://mrsirom629-max.github.io/Warehouse-TVS-Adidas/**
+3. Chờ ~1 phút → web chạy tại **https://mrbit4578.github.io/QL-KHOTP-TVS-ADIDAS/**
 
 ### Dữ liệu thật lưu trên GitHub
 - Toàn bộ dữ liệu nhập thêm (đơn hàng, nhập kho, phiếu xuất kho) lưu tại **`data/tvs-data.json`** trong repo
@@ -38,7 +39,7 @@ Hệ thống web tĩnh hoàn chỉnh theo dõi **Nhập – Xuất – Tồn (N-
 ### GitHub Token — chìa khoá GHI dữ liệu (phân quyền thật sự)
 Lớp mật khẩu chỉ là giao diện; **quyền ghi thật** được GitHub bảo vệ bằng token:
 1. Chủ repo vào **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
-2. **Repository access**: chỉ chọn `Warehouse-TVS-Adidas` · **Permissions → Contents: Read and write** · hạn dùng tuỳ ý
+2. **Repository access**: chỉ chọn `QL-KHOTP-TVS-ADIDAS` · **Permissions → Contents: Read and write** · hạn dùng tuỳ ý
 3. Gửi token riêng cho **3 người nhập liệu** — mỗi người dán token 1 lần vào ô "GitHub Token" khi đăng nhập (máy sẽ nhớ)
 4. Người không có token dù biết mật khẩu cũng **không thể ghi** — API GitHub từ chối (401/403)
 
