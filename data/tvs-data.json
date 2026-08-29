@@ -10323,6 +10323,50 @@
    "notProduced": null,
    "_id": "Lmtdpblvjc49z",
    "_src": "import"
+  },
+  {
+   "rd": "2026-08-28",
+   "rdLabel": "28/08/2026",
+   "ctry": "GERMANY",
+   "ord": "AE2607628",
+   "po": "0903081080-1",
+   "item": "NVQ89",
+   "col": "LC1787",
+   "sz": "UK 8",
+   "prs": 6,
+   "ctn": 1,
+   "qcQty": null,
+   "qcDate": null,
+   "ordered": 52,
+   "diff": 0,
+   "bat": 1,
+   "actualExp": null,
+   "planExp": "2026-09-01",
+   "notProduced": null,
+   "_id": "Lmtdphffxhknc",
+   "_src": "import"
+  },
+  {
+   "rd": "2026-08-28",
+   "rdLabel": "28/08/2026",
+   "ctry": "GERMANY",
+   "ord": "AE2607628",
+   "po": "0903081080-1",
+   "item": "NVQ89",
+   "col": "LC1787",
+   "sz": "UK 9",
+   "prs": 6,
+   "ctn": 1,
+   "qcQty": null,
+   "qcDate": null,
+   "ordered": 35,
+   "diff": 0,
+   "bat": 1,
+   "actualExp": null,
+   "planExp": "2026-09-01",
+   "notProduced": null,
+   "_id": "Lmtdphffxbpqz",
+   "_src": "import"
   }
  ],
  "shipments": [
@@ -16217,7 +16261,7 @@
  "packingMeta": {},
  "packingLog": [],
  "meta": {
-  "updatedAt": "2026-08-29T01:28:11.790Z",
+  "updatedAt": "2026-08-29T01:32:43.401Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
