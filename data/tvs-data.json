@@ -15199,8 +15199,8 @@
    "pkl": "TVS-PKL-2026-0021",
    "qcNo": "",
    "date": "2026-08-29",
-   "actualDate": null,
-   "status": "draft",
+   "actualDate": "2026-08-29",
+   "status": "shipped",
    "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
    "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
    "warehouse": "Tại Kho thành phẩm CTY",
@@ -15529,9 +15529,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 8",
-     "qty": 34,
-     "ctn": 6,
-     "maxQty": 34
+     "qty": 48,
+     "ctn": 8,
+     "maxQty": 48
     },
     {
      "ord": "AE2607628",
@@ -15550,9 +15550,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 9",
-     "qty": 29,
+     "qty": 30,
      "ctn": 5,
-     "maxQty": 29
+     "maxQty": 30
     },
     {
      "ord": "AE2607628",
@@ -15616,6 +15616,48 @@
      "qty": 4,
      "ctn": 1,
      "maxQty": 4
+    },
+    {
+     "ord": "AE2607628",
+     "ctry": "GERMANY",
+     "po": "0903081080-1",
+     "style": "NVQ89",
+     "col": "LC1787",
+     "perCtn": 4,
+     "groupPrs": 4,
+     "groupCtn": 1,
+     "from": 51,
+     "to": 51,
+     "box": "NNS72",
+     "gi": 9,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 8",
+     "qty": 4,
+     "ctn": 1,
+     "maxQty": 4
+    },
+    {
+     "ord": "AE2607628",
+     "ctry": "GERMANY",
+     "po": "0903081080-1",
+     "style": "NVQ89",
+     "col": "LC1787",
+     "perCtn": 5,
+     "groupPrs": 5,
+     "groupCtn": 1,
+     "from": 52,
+     "to": 52,
+     "box": "NNS72",
+     "gi": 10,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 9",
+     "qty": 5,
+     "ctn": 1,
+     "maxQty": 5
     },
     {
      "ord": "AE2607244",
@@ -15697,9 +15739,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 7",
-     "qty": 67,
-     "ctn": 12,
-     "maxQty": 67
+     "qty": 84,
+     "ctn": 14,
+     "maxQty": 84
     },
     {
      "ord": "AE2607244",
@@ -15718,9 +15760,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 8",
-     "qty": 13,
-     "ctn": 3,
-     "maxQty": 13
+     "qty": 24,
+     "ctn": 4,
+     "maxQty": 24
     },
     {
      "ord": "AE2607244",
@@ -15739,9 +15781,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 9",
-     "qty": 8,
-     "ctn": 2,
-     "maxQty": 8
+     "qty": 18,
+     "ctn": 3,
+     "maxQty": 18
     },
     {
      "ord": "AE2607244",
@@ -15784,6 +15826,69 @@
      "qty": 1,
      "ctn": 1,
      "maxQty": 1
+    },
+    {
+     "ord": "AE2607244",
+     "ctry": "ITALY",
+     "po": "0903079827-1",
+     "style": "NVQ89",
+     "col": "LC1783",
+     "perCtn": 1,
+     "groupPrs": 1,
+     "groupCtn": 1,
+     "from": 88,
+     "to": 88,
+     "box": "NNS72",
+     "gi": 8,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 7",
+     "qty": 1,
+     "ctn": 1,
+     "maxQty": 1
+    },
+    {
+     "ord": "AE2607244",
+     "ctry": "ITALY",
+     "po": "0903079827-1",
+     "style": "NVQ89",
+     "col": "LC1783",
+     "perCtn": 1,
+     "groupPrs": 1,
+     "groupCtn": 1,
+     "from": 89,
+     "to": 89,
+     "box": "NNS72",
+     "gi": 9,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 8",
+     "qty": 1,
+     "ctn": 1,
+     "maxQty": 1
+    },
+    {
+     "ord": "AE2607244",
+     "ctry": "ITALY",
+     "po": "0903079827-1",
+     "style": "NVQ89",
+     "col": "LC1783",
+     "perCtn": 2,
+     "groupPrs": 2,
+     "groupCtn": 1,
+     "from": 90,
+     "to": 90,
+     "box": "NNS72",
+     "gi": 10,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 9",
+     "qty": 2,
+     "ctn": 1,
+     "maxQty": 2
     },
     {
      "ord": "AE2608049",
@@ -16261,7 +16366,7 @@
  "packingMeta": {},
  "packingLog": [],
  "meta": {
-  "updatedAt": "2026-08-29T01:32:43.401Z",
+  "updatedAt": "2026-08-29T01:33:55.563Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
