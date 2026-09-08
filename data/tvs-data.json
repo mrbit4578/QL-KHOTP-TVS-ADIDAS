@@ -21773,6 +21773,1070 @@
      "mix": false
     }
    ]
+  },
+  "AE2611306": {
+   "po": "0903433970-1",
+   "col": "LC1783",
+   "ctry": "CHINA",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308744699",
+   "wh": "825054-SI825040",
+   "gender": "Women",
+   "totalPrs": 2,
+   "totalCtn": 1,
+   "groups": [
+    {
+     "sizes": {
+      "UK 5": 2
+     },
+     "prs": 2,
+     "perCtn": 2,
+     "ctn": 1,
+     "from": 1,
+     "to": 1,
+     "box": "NHNS72",
+     "mix": false
+    }
+   ]
+  },
+  "AE2611517": {
+   "po": "0903430180-1",
+   "col": "LC1783",
+   "ctry": "CHINA",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308740154",
+   "wh": "825066-SI825037",
+   "gender": "Women",
+   "totalPrs": 878,
+   "totalCtn": 150,
+   "groups": [
+    {
+     "sizes": {
+      "UK 3": 96
+     },
+     "prs": 96,
+     "perCtn": 6,
+     "ctn": 16,
+     "from": 1,
+     "to": 16,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 186
+     },
+     "prs": 186,
+     "perCtn": 6,
+     "ctn": 31,
+     "from": 17,
+     "to": 47,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 222
+     },
+     "prs": 222,
+     "perCtn": 6,
+     "ctn": 37,
+     "from": 48,
+     "to": 84,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 216
+     },
+     "prs": 216,
+     "perCtn": 6,
+     "ctn": 36,
+     "from": 85,
+     "to": 120,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 132
+     },
+     "prs": 132,
+     "perCtn": 6,
+     "ctn": 22,
+     "from": 121,
+     "to": 142,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 6
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 143,
+     "to": 143,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 3": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 144,
+     "to": 144,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 5
+     },
+     "prs": 5,
+     "perCtn": 5,
+     "ctn": 1,
+     "from": 145,
+     "to": 145,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 3
+     },
+     "prs": 3,
+     "perCtn": 3,
+     "ctn": 1,
+     "from": 146,
+     "to": 146,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 1
+     },
+     "prs": 1,
+     "perCtn": 1,
+     "ctn": 1,
+     "from": 147,
+     "to": 147,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 5
+     },
+     "prs": 5,
+     "perCtn": 5,
+     "ctn": 1,
+     "from": 148,
+     "to": 148,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 1
+     },
+     "prs": 1,
+     "perCtn": 1,
+     "ctn": 1,
+     "from": 149,
+     "to": 149,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 1
+     },
+     "prs": 1,
+     "perCtn": 1,
+     "ctn": 1,
+     "from": 150,
+     "to": 150,
+     "box": "NHNS72",
+     "mix": false
+    }
+   ]
+  },
+  "AE2611564": {
+   "po": "0903432428-1",
+   "col": "LC1783",
+   "ctry": "CHINA",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308740156",
+   "wh": "825066-SI825037",
+   "gender": "Women",
+   "totalPrs": 522,
+   "totalCtn": 89,
+   "groups": [
+    {
+     "sizes": {
+      "UK 3": 30
+     },
+     "prs": 30,
+     "perCtn": 6,
+     "ctn": 5,
+     "from": 1,
+     "to": 5,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 150
+     },
+     "prs": 150,
+     "perCtn": 6,
+     "ctn": 25,
+     "from": 6,
+     "to": 30,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 186
+     },
+     "prs": 186,
+     "perCtn": 6,
+     "ctn": 31,
+     "from": 31,
+     "to": 61,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 78
+     },
+     "prs": 78,
+     "perCtn": 6,
+     "ctn": 13,
+     "from": 62,
+     "to": 74,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 36
+     },
+     "prs": 36,
+     "perCtn": 6,
+     "ctn": 6,
+     "from": 75,
+     "to": 80,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 6
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 81,
+     "to": 81,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 12
+     },
+     "prs": 12,
+     "perCtn": 6,
+     "ctn": 2,
+     "from": 82,
+     "to": 83,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 2
+     },
+     "prs": 2,
+     "perCtn": 2,
+     "ctn": 1,
+     "from": 84,
+     "to": 84,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 5
+     },
+     "prs": 5,
+     "perCtn": 5,
+     "ctn": 1,
+     "from": 85,
+     "to": 85,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 86,
+     "to": 86,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 3
+     },
+     "prs": 3,
+     "perCtn": 3,
+     "ctn": 1,
+     "from": 87,
+     "to": 87,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 5
+     },
+     "prs": 5,
+     "perCtn": 5,
+     "ctn": 1,
+     "from": 88,
+     "to": 88,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 5
+     },
+     "prs": 5,
+     "perCtn": 5,
+     "ctn": 1,
+     "from": 89,
+     "to": 89,
+     "box": "NHNS72",
+     "mix": false
+    }
+   ]
+  },
+  "AE2610792": {
+   "po": "0903438863-1",
+   "col": "LC1783",
+   "ctry": "BRAZIL",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308399558",
+   "wh": "672027-SI672027",
+   "gender": "Women",
+   "totalPrs": 300,
+   "totalCtn": 62,
+   "groups": [
+    {
+     "sizes": {
+      "UK 4": 25
+     },
+     "prs": 25,
+     "perCtn": 5,
+     "ctn": 5,
+     "from": 1,
+     "to": 5,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 35
+     },
+     "prs": 35,
+     "perCtn": 5,
+     "ctn": 7,
+     "from": 6,
+     "to": 12,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 90
+     },
+     "prs": 90,
+     "perCtn": 5,
+     "ctn": 18,
+     "from": 13,
+     "to": 30,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 55
+     },
+     "prs": 55,
+     "perCtn": 5,
+     "ctn": 11,
+     "from": 31,
+     "to": 41,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 50
+     },
+     "prs": 50,
+     "perCtn": 5,
+     "ctn": 10,
+     "from": 42,
+     "to": 51,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 25
+     },
+     "prs": 25,
+     "perCtn": 5,
+     "ctn": 5,
+     "from": 52,
+     "to": 56,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 57,
+     "to": 57,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 3
+     },
+     "prs": 3,
+     "perCtn": 3,
+     "ctn": 1,
+     "from": 58,
+     "to": 58,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 59,
+     "to": 59,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 60,
+     "to": 60,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 3
+     },
+     "prs": 3,
+     "perCtn": 3,
+     "ctn": 1,
+     "from": 61,
+     "to": 61,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 2
+     },
+     "prs": 2,
+     "perCtn": 2,
+     "ctn": 1,
+     "from": 62,
+     "to": 62,
+     "box": "NHNS72",
+     "mix": false
+    }
+   ]
+  },
+  "AE2611605": {
+   "po": "0903440420-1",
+   "col": "LC1783",
+   "ctry": "BRAZIL",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308475519",
+   "wh": "672027-SI672027",
+   "gender": "Women",
+   "totalPrs": 542,
+   "totalCtn": 110,
+   "groups": [
+    {
+     "sizes": {
+      "UK 4": 50
+     },
+     "prs": 50,
+     "perCtn": 5,
+     "ctn": 10,
+     "from": 1,
+     "to": 10,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 50
+     },
+     "prs": 50,
+     "perCtn": 5,
+     "ctn": 10,
+     "from": 11,
+     "to": 20,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 160
+     },
+     "prs": 160,
+     "perCtn": 5,
+     "ctn": 32,
+     "from": 21,
+     "to": 52,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 105
+     },
+     "prs": 105,
+     "perCtn": 5,
+     "ctn": 21,
+     "from": 53,
+     "to": 73,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 105
+     },
+     "prs": 105,
+     "perCtn": 5,
+     "ctn": 21,
+     "from": 74,
+     "to": 94,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 50
+     },
+     "prs": 50,
+     "perCtn": 5,
+     "ctn": 10,
+     "from": 95,
+     "to": 104,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 105,
+     "to": 105,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 106,
+     "to": 106,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 2
+     },
+     "prs": 2,
+     "perCtn": 2,
+     "ctn": 1,
+     "from": 107,
+     "to": 107,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 108,
+     "to": 108,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 109,
+     "to": 109,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 110,
+     "to": 110,
+     "box": "NHNS72",
+     "mix": false
+    }
+   ]
+  },
+  "AE2610793": {
+   "po": "0903426947-1",
+   "col": "LC1783",
+   "ctry": "UNITED ARAB EMIRATES",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308645870",
+   "wh": "848012-SI848012",
+   "gender": "Women",
+   "totalPrs": 100,
+   "totalCtn": 17,
+   "groups": [
+    {
+     "sizes": {
+      "UK 4": 12
+     },
+     "prs": 12,
+     "perCtn": 6,
+     "ctn": 2,
+     "from": 1,
+     "to": 2,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 18
+     },
+     "prs": 18,
+     "perCtn": 6,
+     "ctn": 3,
+     "from": 3,
+     "to": 5,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 24
+     },
+     "prs": 24,
+     "perCtn": 6,
+     "ctn": 4,
+     "from": 6,
+     "to": 9,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 12
+     },
+     "prs": 12,
+     "perCtn": 6,
+     "ctn": 2,
+     "from": 10,
+     "to": 11,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 12
+     },
+     "prs": 12,
+     "perCtn": 6,
+     "ctn": 2,
+     "from": 12,
+     "to": 13,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 4
+     },
+     "prs": 4,
+     "perCtn": 4,
+     "ctn": 1,
+     "from": 14,
+     "to": 14,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 3": 1,
+      "UK 4": 5
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 15,
+     "to": 15,
+     "box": "NHNS88",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 5": 2,
+      "UK 6": 4
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 16,
+     "to": 16,
+     "box": "NHNS72",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 6": 1,
+      "UK 7": 5
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 17,
+     "to": 17,
+     "box": "NHNS72",
+     "mix": true
+    }
+   ]
+  },
+  "AE2610986": {
+   "po": "0903430635-1",
+   "col": "LC1783",
+   "ctry": "THAILAND",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308746543",
+   "wh": "814006-SITHFW",
+   "gender": "Women",
+   "totalPrs": 120,
+   "totalCtn": 20,
+   "groups": [
+    {
+     "sizes": {
+      "UK 4": 18
+     },
+     "prs": 18,
+     "perCtn": 6,
+     "ctn": 3,
+     "from": 1,
+     "to": 3,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 24
+     },
+     "prs": 24,
+     "perCtn": 6,
+     "ctn": 4,
+     "from": 4,
+     "to": 7,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 30
+     },
+     "prs": 30,
+     "perCtn": 6,
+     "ctn": 5,
+     "from": 8,
+     "to": 12,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 18
+     },
+     "prs": 18,
+     "perCtn": 6,
+     "ctn": 3,
+     "from": 13,
+     "to": 15,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 6
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 16,
+     "to": 16,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 5,
+      "UK 5": 1
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 17,
+     "to": 17,
+     "box": "NHNS88",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 5": 4,
+      "UK 6": 2
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 18,
+     "to": 18,
+     "box": "NHNS72",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 6": 2,
+      "UK 7": 3,
+      "UK 8": 1
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 19,
+     "to": 19,
+     "box": "NHNS72",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 8": 2,
+      "UK 9": 4
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 20,
+     "to": 20,
+     "box": "NHNS72",
+     "mix": true
+    }
+   ]
+  },
+  "AE2611410": {
+   "po": "0903437006-1",
+   "col": "LC1783",
+   "ctry": "TAIWAN",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "0308615086",
+   "wh": "859013-SIATW001",
+   "gender": "Women",
+   "totalPrs": 578,
+   "totalCtn": 97,
+   "groups": [
+    {
+     "sizes": {
+      "UK 4": 84
+     },
+     "prs": 84,
+     "perCtn": 6,
+     "ctn": 14,
+     "from": 1,
+     "to": 14,
+     "box": "NHNS88",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 5": 144
+     },
+     "prs": 144,
+     "perCtn": 6,
+     "ctn": 24,
+     "from": 15,
+     "to": 38,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 6": 168
+     },
+     "prs": 168,
+     "perCtn": 6,
+     "ctn": 28,
+     "from": 39,
+     "to": 66,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 7": 102
+     },
+     "prs": 102,
+     "perCtn": 6,
+     "ctn": 17,
+     "from": 67,
+     "to": 83,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 8": 42
+     },
+     "prs": 42,
+     "perCtn": 6,
+     "ctn": 7,
+     "from": 84,
+     "to": 90,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 18
+     },
+     "prs": 18,
+     "perCtn": 6,
+     "ctn": 3,
+     "from": 91,
+     "to": 93,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 9": 2
+     },
+     "prs": 2,
+     "perCtn": 2,
+     "ctn": 1,
+     "from": 94,
+     "to": 94,
+     "box": "NHNS72",
+     "mix": false
+    },
+    {
+     "sizes": {
+      "UK 4": 2,
+      "UK 5": 4
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 95,
+     "to": 95,
+     "box": "NHNS88",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 5": 1,
+      "UK 6": 3,
+      "UK 7": 2
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 96,
+     "to": 96,
+     "box": "NHNS72",
+     "mix": true
+    },
+    {
+     "sizes": {
+      "UK 7": 3,
+      "UK 9": 3
+     },
+     "prs": 6,
+     "perCtn": 6,
+     "ctn": 1,
+     "from": 97,
+     "to": 97,
+     "box": "NHNS72",
+     "mix": true
+    }
+   ]
   }
  },
  "packingMeta": {
@@ -21892,9 +22956,134 @@
    "prs": 2840,
    "ctn": 476,
    "groups": 12
+  },
+  "AE2611306": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 2,
+   "ctn": 1,
+   "groups": 1
+  },
+  "AE2611517": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 878,
+   "ctn": 150,
+   "groups": 13
+  },
+  "AE2611564": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 522,
+   "ctn": 89,
+   "groups": 13
+  },
+  "AE2610792": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 300,
+   "ctn": 62,
+   "groups": 12
+  },
+  "AE2611605": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 542,
+   "ctn": 110,
+   "groups": 12
+  },
+  "AE2610793": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 100,
+   "ctn": 17,
+   "groups": 9
+  },
+  "AE2610986": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 120,
+   "ctn": 20,
+   "groups": 9
+  },
+  "AE2611410": {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "bat": 4,
+   "over": false,
+   "prevSource": null,
+   "prs": 578,
+   "ctn": 97,
+   "groups": 10
   }
  },
  "packingLog": [
+  {
+   "at": "2026-09-08T04:28:29.755Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 4",
+   "file": "260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 4 - SỐ LƯỢNG 3,042 ĐÔI .xlsx",
+   "sheet": "Sheet2",
+   "added": [
+    "AE2611306",
+    "AE2611517",
+    "AE2611564",
+    "AE2610792",
+    "AE2611605",
+    "AE2610793",
+    "AE2610986",
+    "AE2611410"
+   ],
+   "over": [],
+   "skipped": [],
+   "prs": 3042,
+   "ctn": 546
+  },
   {
    "at": "2026-09-08T03:55:24.971Z",
    "by": "thukho",
@@ -21919,7 +23108,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-09-08T03:55:26.600Z",
+  "updatedAt": "2026-09-08T04:28:31.384Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
