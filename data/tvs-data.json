@@ -28556,7 +28556,7 @@
    "deleted": false
   },
   "17/09/2026||AE2608506": {
-   "rev": 4,
+   "rev": 5,
    "log": [
     {
      "rev": 1,
@@ -28601,10 +28601,39 @@
      "by": "thukho",
      "reason": "Import dữ liệu mới — gỡ trạng thái đã xoá/đã sửa để nhận dữ liệu mới",
      "restored": true
+    },
+    {
+     "rev": 5,
+     "at": "2026-09-21T09:53:11.268Z",
+     "by": "thukho",
+     "reason": "nHẬP SAI SỐ LƯỢNG",
+     "before": {
+      "UK 4": 78,
+      "UK 5": 348,
+      "UK 6": 324,
+      "UK 7": 144,
+      "UK 8": 108,
+      "UK 9": 102
+     },
+     "after": {
+      "UK 4": 6,
+      "UK 5": 108,
+      "UK 6": 84,
+      "UK 7": 24,
+      "UK 8": 18,
+      "UK 9": 36
+     }
     }
    ],
    "deleted": false,
-   "sizes": null
+   "sizes": {
+    "UK 4": 6,
+    "UK 5": 108,
+    "UK 6": 84,
+    "UK 7": 24,
+    "UK 8": 18,
+    "UK 9": 36
+   }
   },
   "17/09/2026||AE2609612": {
    "rev": 1,
@@ -31291,7 +31320,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-09-21T09:51:49.456Z",
+  "updatedAt": "2026-09-21T09:53:13.032Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
