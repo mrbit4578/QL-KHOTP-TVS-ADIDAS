@@ -28424,7 +28424,7 @@
    "deleted": false
   },
   "17/09/2026||AE2608506": {
-   "rev": 2,
+   "rev": 3,
    "log": [
     {
      "rev": 1,
@@ -28447,9 +28447,24 @@
      "by": "thukho",
      "reason": "Import dữ liệu mới — gỡ trạng thái đã xoá/đã sửa để nhận dữ liệu mới",
      "restored": true
+    },
+    {
+     "rev": 3,
+     "at": "2026-09-21T09:50:13.948Z",
+     "by": "thukho",
+     "reason": "Trùng số liệu",
+     "before": {
+      "UK 4": 72,
+      "UK 5": 240,
+      "UK 6": 240,
+      "UK 7": 120,
+      "UK 8": 90,
+      "UK 9": 66
+     },
+     "after": null
     }
    ],
-   "deleted": false,
+   "deleted": true,
    "sizes": null
   },
   "17/09/2026||AE2609612": {
@@ -31137,7 +31152,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-09-21T09:47:20.382Z",
+  "updatedAt": "2026-09-21T09:50:15.655Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
