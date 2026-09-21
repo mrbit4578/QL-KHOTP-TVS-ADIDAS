@@ -27850,6 +27850,28 @@
     "UK 8": 3
    },
    "deleted": false
+  },
+  "17/09/2026||AE2608506": {
+   "rev": 1,
+   "log": [
+    {
+     "rev": 1,
+     "at": "2026-09-21T09:46:17.942Z",
+     "by": "thukho",
+     "reason": "nhầm ngày",
+     "before": {
+      "UK 4": 66,
+      "UK 5": 132,
+      "UK 6": 156,
+      "UK 7": 96,
+      "UK 8": 72,
+      "UK 9": 30
+     },
+     "after": null
+    }
+   ],
+   "deleted": true,
+   "sizes": null
   }
  },
  "orderEdits": {
@@ -30518,7 +30540,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-09-18T08:45:59.046Z",
+  "updatedAt": "2026-09-21T09:46:19.651Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
