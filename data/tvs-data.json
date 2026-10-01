@@ -31926,9 +31926,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 4",
-     "qty": 69,
+     "qty": 70,
      "ctn": 14,
-     "maxQty": 69
+     "maxQty": 70
     },
     {
      "ord": "AD2600005",
@@ -31989,9 +31989,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 7",
-     "qty": 73,
+     "qty": 75,
      "ctn": 15,
-     "maxQty": 73
+     "maxQty": 75
     },
     {
      "ord": "AD2600005",
@@ -32031,9 +32031,30 @@
      "note": "",
      "kind": "run",
      "sz": "UK 9",
-     "qty": 48,
+     "qty": 50,
      "ctn": 10,
-     "maxQty": 48
+     "maxQty": 50
+    },
+    {
+     "ord": "AD2600005",
+     "ctry": "CHILE",
+     "po": "0903527887-1",
+     "style": "NVQ89",
+     "col": "LC1786",
+     "perCtn": 4,
+     "groupPrs": 4,
+     "groupCtn": 1,
+     "from": 98,
+     "to": 98,
+     "box": "NHNS88",
+     "gi": 7,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 4",
+     "qty": 4,
+     "ctn": 1,
+     "maxQty": 4
     },
     {
      "ord": "AD2600005",
@@ -32076,6 +32097,48 @@
      "qty": 4,
      "ctn": 1,
      "maxQty": 4
+    },
+    {
+     "ord": "AD2600005",
+     "ctry": "CHILE",
+     "po": "0903527887-1",
+     "style": "NVQ89",
+     "col": "LC1786",
+     "perCtn": 3,
+     "groupPrs": 3,
+     "groupCtn": 1,
+     "from": 101,
+     "to": 101,
+     "box": "NHNS72",
+     "gi": 10,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 7",
+     "qty": 3,
+     "ctn": 1,
+     "maxQty": 3
+    },
+    {
+     "ord": "AD2600005",
+     "ctry": "CHILE",
+     "po": "0903527887-1",
+     "style": "NVQ89",
+     "col": "LC1786",
+     "perCtn": 3,
+     "groupPrs": 3,
+     "groupCtn": 1,
+     "from": 102,
+     "to": 102,
+     "box": "NHNS72",
+     "gi": 11,
+     "synthetic": false,
+     "note": "",
+     "kind": "run",
+     "sz": "UK 9",
+     "qty": 3,
+     "ctn": 1,
+     "maxQty": 3
     }
    ]
   }
@@ -35089,7 +35152,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-01T08:20:51.164Z",
+  "updatedAt": "2026-10-01T08:21:18.548Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
