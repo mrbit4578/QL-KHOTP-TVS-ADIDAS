@@ -32609,52 +32609,6 @@
      "maxQty": 3
     }
    ]
-  },
-  {
-   "id": "Lmus5soc6bpnt",
-   "code": "PXK-ADI-2026-0039",
-   "lgh": "TVS-ADI-2026-0039",
-   "pkl": "TVS-PKL-2026-0039",
-   "qcNo": "",
-   "date": "2026-07-20",
-   "actualDate": null,
-   "status": "draft",
-   "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
-   "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
-   "warehouse": "Tại Kho thành phẩm CTY",
-   "dept": "Phòng nghiệp vụ kinh doanh TVS",
-   "reason": "Giao hàng thành phẩm Adidas cho nhà máy nhận hàng",
-   "driver": "",
-   "truck": "",
-   "seal": "",
-   "condition": "Nguyên carton, thùng kéo băng keo 1/2 phía dưới, mặt trên không kéo băng keo",
-   "approved": "Đã duyệt",
-   "orders": [
-    "AD2600016"
-   ],
-   "lines": [
-    {
-     "ord": "AD2600016",
-     "ctry": "ARGENTINA",
-     "po": "0903590066-1",
-     "style": "NVQ89",
-     "col": "LC1787",
-     "perCtn": 3,
-     "groupPrs": 3,
-     "groupCtn": 1,
-     "from": 1,
-     "to": 1,
-     "box": "NHNS88",
-     "gi": 0,
-     "synthetic": false,
-     "note": "",
-     "kind": "run",
-     "sz": "UK 5",
-     "qty": 1,
-     "ctn": 1,
-     "maxQty": 1
-    }
-   ]
   }
  ],
  "seq": 39,
@@ -35822,7 +35776,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-03T08:57:50.746Z",
+  "updatedAt": "2026-10-03T08:58:07.175Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
