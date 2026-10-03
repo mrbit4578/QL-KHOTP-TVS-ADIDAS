@@ -19257,6 +19257,50 @@
    "notProduced": null,
    "_id": "Lmus1mkwy4qiu",
    "_src": "import"
+  },
+  {
+   "rd": "2026-10-01",
+   "rdLabel": "01/10/2026",
+   "ctry": "ARGENTINA",
+   "ord": "AD2600016",
+   "po": "0903590066-1",
+   "item": "NVQ89",
+   "col": "LC1787",
+   "sz": "UK 5",
+   "prs": 1,
+   "ctn": 1,
+   "qcQty": null,
+   "qcDate": null,
+   "ordered": 1,
+   "diff": 0,
+   "bat": 3,
+   "actualExp": null,
+   "planExp": "2026-10-24",
+   "notProduced": null,
+   "_id": "Lmus5el2zeeit",
+   "_src": "import"
+  },
+  {
+   "rd": "2026-10-01",
+   "rdLabel": "01/10/2026",
+   "ctry": "ARGENTINA",
+   "ord": "AD2600016",
+   "po": "0903590066-1",
+   "item": "NVQ89",
+   "col": "LC1787",
+   "sz": "UK 6",
+   "prs": 2,
+   "ctn": 1,
+   "qcQty": null,
+   "qcDate": null,
+   "ordered": 2,
+   "diff": 0,
+   "bat": 3,
+   "actualExp": null,
+   "planExp": "2026-10-24",
+   "notProduced": null,
+   "_id": "Lmus5el2z6sgy",
+   "_src": "import"
   }
  ],
  "shipments": [
@@ -35622,7 +35666,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-03T08:43:43.422Z",
+  "updatedAt": "2026-10-03T08:46:53.460Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
