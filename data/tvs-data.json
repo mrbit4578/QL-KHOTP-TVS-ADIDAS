@@ -1299,6 +1299,32 @@
    "bat": 5,
    "_id": "Lmts4wh5zsurd",
    "_src": "import"
+  },
+  {
+   "d": "2026-10-24",
+   "ctry": "ARGENTINA",
+   "ord": "AD2600016",
+   "po": "0903590066-1",
+   "col": "LC1787",
+   "sz": "UK 5",
+   "prs": 1,
+   "ctn": 1,
+   "bat": 3,
+   "_id": "Lmus5aij7adwg",
+   "_src": "manual"
+  },
+  {
+   "d": "2026-10-24",
+   "ctry": "ARGENTINA",
+   "ord": "AD2600016",
+   "po": "0903590066-1",
+   "col": "LC1787",
+   "sz": "UK 6",
+   "prs": 2,
+   "ctn": 1,
+   "bat": 3,
+   "_id": "Lmus5aij72fq0",
+   "_src": "manual"
   }
  ],
  "receiptsAdded": [
@@ -35596,7 +35622,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-03T07:02:17.704Z",
+  "updatedAt": "2026-10-03T08:43:43.422Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
