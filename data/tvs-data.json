@@ -35462,6 +35462,32 @@
      "mix": true
     }
    ]
+  },
+  "AD2600016": {
+   "po": "0903590066-1",
+   "col": "LC1787",
+   "ctry": "ARGENTINA",
+   "name": "ADIDAS RAINBOOT W",
+   "cust": "",
+   "wh": "",
+   "gender": "Women",
+   "totalPrs": 3,
+   "totalCtn": 1,
+   "groups": [
+    {
+     "sizes": {
+      "UK 5": 1,
+      "UK 6": 2
+     },
+     "prs": 3,
+     "perCtn": 3,
+     "ctn": 1,
+     "from": 1,
+     "to": 1,
+     "box": "NHNS88",
+     "mix": true
+    }
+   ]
   }
  },
  "packingMeta": {
@@ -35685,9 +35711,36 @@
    "prs": 578,
    "ctn": 97,
    "groups": 10
+  },
+  "AD2600016": {
+   "at": "2026-10-03T09:03:07.379Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 6",
+   "file": "MAU_IMPORT_PACKING_LIST_CLP.csv",
+   "sheet": "MAU_IMPORT_PACKING_LIST_CLP.csv",
+   "bat": 3,
+   "over": false,
+   "prevSource": null,
+   "prs": 3,
+   "ctn": 1,
+   "groups": 1
   }
  },
  "packingLog": [
+  {
+   "at": "2026-10-03T09:03:07.379Z",
+   "by": "thukho",
+   "reason": "pakinglisst đợt 6",
+   "file": "MAU_IMPORT_PACKING_LIST_CLP.csv",
+   "sheet": "MAU_IMPORT_PACKING_LIST_CLP.csv",
+   "added": [
+    "AD2600016"
+   ],
+   "over": [],
+   "skipped": [],
+   "prs": 3,
+   "ctn": 1
+  },
   {
    "at": "2026-10-03T08:59:05.875Z",
    "by": "thukho",
@@ -35820,7 +35873,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-03T09:00:56.811Z",
+  "updatedAt": "2026-10-03T09:03:09.000Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
