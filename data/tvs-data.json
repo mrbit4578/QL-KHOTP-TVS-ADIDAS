@@ -36760,8 +36760,8 @@
    "pkl": "TVS-PKL-2026-0043",
    "qcNo": "",
    "date": "2026-10-20",
-   "actualDate": null,
-   "status": "draft",
+   "actualDate": "2026-10-20",
+   "status": "shipped",
    "receiver": "CÔNG TY TNHH GIÀY ELITE VIỆT NAM",
    "receiverAddr": "Cụm công nghiệp Anova Group, ấp 4, Xã Long Cang, tỉnh Tây Ninh, Việt Nam",
    "warehouse": "Tại Kho thành phẩm CTY",
@@ -37543,9 +37543,9 @@
      "note": "",
      "kind": "run",
      "sz": "UK 7",
-     "qty": 114,
-     "ctn": 19,
-     "maxQty": 114
+     "qty": 150,
+     "ctn": 25,
+     "maxQty": 150
     },
     {
      "ord": "AE2608063",
@@ -40859,7 +40859,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-19T09:20:27.809Z",
+  "updatedAt": "2026-10-19T09:20:54.645Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
