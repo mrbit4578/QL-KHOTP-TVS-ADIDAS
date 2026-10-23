@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:14) -->
+<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:19) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
@@ -5316,9 +5316,33 @@ window.TVS_GH = {
   "use strict";
   window.Views = window.Views || {};
 
+  const st = { q: "", rd: "", from: "", to: "", ord: "", po: "", ctry: "", editedOnly: "" };
+
+  function filterReceipts(allRows) {
+    const q = st.q.trim().toLowerCase();
+    return allRows.filter(r => {
+      if (st.rd && r.rd !== st.rd && r.rdLabel !== st.rd) return false;
+      if (st.from && r.rd && r.rd < st.from) return false;
+      if (st.to && r.rd && r.rd > st.to) return false;
+      if (st.ord && r.ord !== st.ord) return false;
+      if (st.po && r.po !== st.po) return false;
+      if (st.ctry && r.ctry !== st.ctry) return false;
+      if (st.editedOnly === "1") {
+        const info = Store.receiptEditInfo ? Store.receiptEditInfo(r.rdLabel, r.ord) : null;
+        if (!info || !info.rev) return false;
+      }
+      if (q) {
+        const hay = `${r.rdLabel || ""} ${r.rd || ""} ${r.ord || ""} ${r.po || ""} ${r.ctry || ""} ${r.col || ""} ${r.notProduced || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
   window.Views.warehouse = {
     title: "Nhập kho thành phẩm · WMS",
-    render(root) {
+    render(root, params) {
+      if (params && params.q !== undefined) st.q = params.q;
       const R = TVS_RECEIPTS;
       const totPrs = U.sum(R, r => r.prs), totCtn = U.sum(R, r => r.ctn);
       const shortIn = U.sum(R.filter(r => r.diff < 0), r => -r.diff);
@@ -5445,17 +5469,78 @@ window.TVS_GH = {
         <div class="card mt">
           <div class="card-h"><h3>Ma trận nhập kho theo ngày</h3>
             <span class="sub">hiển thị đúng định dạng file mẫu "chi tiet nhap kho theo ngay.xlsx" — 1 dòng = 1 ngày × 1 chỉ thị</span></div>
-          <div class="tbl-wrap"><table class="tbl">
+          ${(() => {
+            const dates = [...new Map(R.map(r => [r.rd || r.rdLabel, { rd: r.rd || r.rdLabel, label: r.rdLabel }])).values()]
+              .sort((a, b) => String(a.rd).localeCompare(String(b.rd)));
+            const ords = U.uniq(R, r => r.ord).sort();
+            const pos = U.uniq(R, r => r.po).filter(Boolean).sort();
+            const ctries = U.uniq(R, r => r.ctry).sort();
+            return `<div class="filters" style="gap:8px;flex-wrap:wrap">
+              <input class="f-input" id="wQ" placeholder="Tìm chỉ thị, PO, ngày NK, quốc gia…" value="${U.esc(st.q)}" style="width:230px">
+              <select class="f-select" id="wDate" title="Lọc theo ngày nhập kho">
+                <option value="">Tất cả ngày NK (${dates.length})</option>
+                ${dates.map(d => `<option value="${U.esc(d.rd)}" ${st.rd === d.rd ? "selected" : ""}>Ngày ${U.esc(d.label)}</option>`).join("")}
+              </select>
+              <label class="rp-f" style="font-size:12px">Từ <input class="f-input" type="date" id="wFrom" value="${U.esc(st.from)}" style="width:138px;padding:6px 8px"></label>
+              <label class="rp-f" style="font-size:12px">Đến <input class="f-input" type="date" id="wTo" value="${U.esc(st.to)}" style="width:138px;padding:6px 8px"></label>
+              <select class="f-select" id="wOrd" title="Lọc theo mã chỉ thị / đơn hàng">
+                <option value="">Tất cả chỉ thị (${ords.length})</option>
+                ${ords.map(o => `<option value="${U.esc(o)}" ${st.ord === o ? "selected" : ""}>${U.esc(o)}</option>`).join("")}
+              </select>
+              <select class="f-select" id="wPo" title="Lọc theo số PO">
+                <option value="">Tất cả PO (${pos.length})</option>
+                ${pos.map(p => `<option value="${U.esc(p)}" ${st.po === p ? "selected" : ""}>PO ${U.esc(p)}</option>`).join("")}
+              </select>
+              <select class="f-select" id="wCtry" title="Lọc theo quốc gia">
+                <option value="">Tất cả quốc gia (${ctries.length})</option>
+                ${ctries.map(c => `<option value="${U.esc(c)}" ${st.ctry === c ? "selected" : ""}>${U.flag(c)} ${U.esc(c)}</option>`).join("")}
+              </select>
+              <select class="f-select" id="wEd" title="Lọc dòng đã chỉnh sửa">
+                <option value="">Mọi trạng thái</option>
+                <option value="1" ${st.editedOnly === "1" ? "selected" : ""}>✎ Chỉ dòng đã sửa SL</option>
+              </select>
+              <button class="btn" id="wReset">Xoá lọc</button>
+              <span class="f-chipcount" id="wCount"></span>
+            </div>`;
+          })()}
+          <div id="wMtxArea"></div>
+          <div class="note" style="padding:10px 18px">Import file .xlsx/.csv theo đúng mẫu này — hệ thống tự unpivot từng size thành dòng chi tiết bên dưới và mapping PO/màu/SL đặt/đợt/ngày xuất KD từ đơn hàng. Mỗi dòng có thể <b>Sửa số lượng</b> hoặc <b>Xóa</b> — mỗi lần sửa hệ thống ghi lại số lần sửa &amp; lý do (bấm “Lịch sử”).</div>
+        </div>
+
+        <div class="card mt">
+          <div class="card-h"><h3>Chi tiết thành phẩm nhập kho — đủ 17 cột theo file gốc</h3>
+            <span class="sub" id="wDtlSub">CHI TIẾT THÀNH PHẨM ADIDAS NHẬP KHO</span></div>
+          <div id="wDtlArea"></div>
+        </div>`;
+
+      const renderTables = () => {
+        const FR = filterReceipts(R);
+        const fPrs = U.sum(FR, r => r.prs), fCtn = U.sum(FR, r => r.ctn);
+        const fShortIn = U.sum(FR.filter(r => r.diff < 0), r => -r.diff);
+        const days = [...U.groupBy(FR, r => r.rdLabel + "|" + r.ord)];
+        Views._mtx = days.map(([k, rows]) => ({ rdLabel: rows[0].rdLabel, ord: rows[0].ord }));
+
+        const cntEl = document.getElementById("wCount");
+        if (cntEl) {
+          cntEl.innerHTML = `<b>${U.fmt(days.length)}</b> dòng ma trận (${U.fmt(FR.length)} dòng size) · <b>${U.fmt(fPrs)} đôi</b> · <b>${U.fmt(fCtn)} thùng</b>`;
+        }
+        const dtlSub = document.getElementById("wDtlSub");
+        if (dtlSub) {
+          dtlSub.textContent = `CHI TIẾT THÀNH PHẨM ADIDAS NHẬP KHO — ${U.fmt(FR.length)} dòng · ${U.fmt(fPrs)} đôi · ${U.fmt(fCtn)} thùng`;
+        }
+
+        const mtxArea = document.getElementById("wMtxArea");
+        if (mtxArea) {
+          mtxArea.innerHTML = `<div class="tbl-wrap"><table class="tbl">
             <thead><tr>
               <th>Ngày Nhập Kho</th><th>Ghi chú</th><th>Quốc gia</th><th>Chỉ thị</th><th>PO</th>
               <th>Mã hàng</th><th>Màu sắc</th>
               ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}
               <th class="num">Tổng đôi</th><th class="num">Thùng</th><th>Lần sửa</th><th>Thao tác</th>
             </tr></thead>
-            <tbody>${(() => {
-              const days = [...U.groupBy(R, r => r.rdLabel + "|" + r.ord)];
-              Views._mtx = days.map(([k, rows]) => ({ rdLabel: rows[0].rdLabel, ord: rows[0].ord }));
-              return days.map(([k, rows], gi) => {
+            <tbody>${!days.length
+              ? `<tr><td colspan="${11 + U.SIZES.length}" class="note" style="text-align:center;padding:18px">Không tìm thấy dòng nhập kho nào khớp bộ lọc hiện tại.</td></tr>`
+              : days.map(([k, rows], gi) => {
                 const r0 = rows[0];
                 const bySz = {};
                 rows.forEach(r => bySz[r.sz] = (bySz[r.sz] || 0) + r.prs);
@@ -5483,28 +5568,27 @@ window.TVS_GH = {
                     ${rev ? `<button class="btn small" onclick="Views._mtxHistory(${gi})">Lịch sử</button>` : ""}
                   </td>
                 </tr>`;
-              }).join("");
-            })()}</tbody>
+              }).join("")}</tbody>
             <tfoot><tr>
-              <td colspan="7">TỔNG CỘNG</td>
-              ${U.SIZES.map(s => `<td class="num">${U.fmt(U.sum(R.filter(r => r.sz === s), r => r.prs)) === "0" ? "" : U.fmt(U.sum(R.filter(r => r.sz === s), r => r.prs))}</td>`).join("")}
-              <td class="num">${U.fmt(totPrs)}</td><td class="num">${U.fmt(totCtn)}</td><td colspan="2"></td>
+              <td colspan="7">TỔNG CỘNG (${U.fmt(days.length)} dòng)</td>
+              ${U.SIZES.map(s => `<td class="num">${U.fmt(U.sum(FR.filter(r => r.sz === s), r => r.prs)) === "0" ? "" : U.fmt(U.sum(FR.filter(r => r.sz === s), r => r.prs))}</td>`).join("")}
+              <td class="num">${U.fmt(fPrs)}</td><td class="num">${U.fmt(fCtn)}</td><td colspan="2"></td>
             </tr></tfoot>
-          </table></div>
-          <div class="note" style="padding:10px 18px">Import file .xlsx/.csv theo đúng mẫu này — hệ thống tự unpivot từng size thành dòng chi tiết bên dưới và mapping PO/màu/SL đặt/đợt/ngày xuất KD từ đơn hàng. Mỗi dòng có thể <b>Sửa số lượng</b> hoặc <b>Xóa</b> — mỗi lần sửa hệ thống ghi lại số lần sửa &amp; lý do (bấm “Lịch sử”).</div>
-        </div>
+          </table></div>`;
+        }
 
-        <div class="card mt">
-          <div class="card-h"><h3>Chi tiết thành phẩm nhập kho — đủ 17 cột theo file gốc</h3>
-            <span class="sub">CHI TIẾT THÀNH PHẨM ADIDAS NHẬP KHO</span></div>
-          <div class="tbl-wrap"><table class="tbl">
+        const dtlArea = document.getElementById("wDtlArea");
+        if (dtlArea) {
+          dtlArea.innerHTML = `<div class="tbl-wrap"><table class="tbl">
             <thead><tr>
               <th>Ngày NK</th><th>Quốc gia</th><th>Đơn hàng</th><th>PO</th><th>Mã hàng</th>
               <th>Màu</th><th>Size</th><th class="num">Số đôi</th><th class="num">Số thùng</th>
               <th class="num">SL kiểm</th><th>Ngày kiểm</th><th class="num">SL đơn đặt</th>
               <th class="num">Thiếu/Đủ</th><th>Đợt</th><th>Ngày thực xuất</th><th>Ngày xuất KD</th><th>SL thiếu chưa SX</th><th>Nguồn</th>
             </tr></thead>
-            <tbody>${R.map(r => `
+            <tbody>${!FR.length
+              ? `<tr><td colspan="18" class="note" style="text-align:center;padding:18px">Không có dòng chi tiết nào khớp bộ lọc.</td></tr>`
+              : FR.map(r => `
               <tr${r._edited ? ' class="row-edited"' : ''}>
                 <td><b>${U.esc(r.rdLabel)}</b></td>
                 <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
@@ -5529,15 +5613,31 @@ window.TVS_GH = {
                   : `<span class="note">Excel gốc</span>`}</td>
               </tr>`).join("")}</tbody>
             <tfoot><tr>
-              <td colspan="7">TỔNG NHẬP KHO</td>
-              <td class="num">${U.fmt(totPrs)}</td><td class="num">${U.fmt(totCtn)}</td>
+              <td colspan="7">TỔNG NHẬP KHO (${U.fmt(FR.length)} dòng)</td>
+              <td class="num">${U.fmt(fPrs)}</td><td class="num">${U.fmt(fCtn)}</td>
               <td colspan="2"></td>
-              <td class="num">${U.fmt(U.sum(R, r => r.ordered))}</td>
-              <td class="num neg">−${U.fmt(shortIn)}</td>
+              <td class="num">${U.fmt(U.sum(FR, r => r.ordered))}</td>
+              <td class="num neg">${fShortIn ? "−" + U.fmt(fShortIn) : "0"}</td>
               <td colspan="5"></td>
             </tr></tfoot>
-          </table></div>
-        </div>`;
+          </table></div>`;
+        }
+      };
+
+      const bindEv = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+      bindEv("wQ", "input", e => { st.q = e.target.value; renderTables(); });
+      bindEv("wDate", "change", e => { st.rd = e.target.value; renderTables(); });
+      bindEv("wFrom", "change", e => { st.from = e.target.value; renderTables(); });
+      bindEv("wTo", "change", e => { st.to = e.target.value; renderTables(); });
+      bindEv("wOrd", "change", e => { st.ord = e.target.value; renderTables(); });
+      bindEv("wPo", "change", e => { st.po = e.target.value; renderTables(); });
+      bindEv("wCtry", "change", e => { st.ctry = e.target.value; renderTables(); });
+      bindEv("wEd", "change", e => { st.editedOnly = e.target.value; renderTables(); });
+      bindEv("wReset", "click", () => {
+        Object.assign(st, { q: "", rd: "", from: "", to: "", ord: "", po: "", ctry: "", editedOnly: "" });
+        this.render(root, {});
+      });
+      renderTables();
 
       const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
       bind("rSeedOff", () => {
@@ -5558,11 +5658,12 @@ window.TVS_GH = {
       document.getElementById("rTpl").onclick = () => { Store.templateReceipts(); App.toast("Đã tải file mẫu theo ngày (cột size 3→10). Hệ thống nhận cả file .xlsx gốc lẫn .csv theo mẫu này", "ok"); };
       document.getElementById("rImp").onclick = importReceipts;
       document.getElementById("rExp").onclick = () => {
+        const expRows = filterReceipts(TVS_RECEIPTS);
         Store.downloadCSV("NHAP_KHO_TVS.csv", [
           ["Ngày NK", "Quốc gia", "Đơn hàng", "PO", "Mã hàng", "Màu", "Size", "Số đôi", "Số thùng", "SL kiểm", "Ngày kiểm", "SL đơn đặt", "Thiếu/Đủ", "Đợt", "Ngày xuất KD", "Ghi chú chưa SX"],
-          ...TVS_RECEIPTS.map(r => [r.rdLabel, r.ctry, r.ord, r.po, r.item, r.col, r.sz, r.prs, r.ctn,
+          ...expRows.map(r => [r.rdLabel, r.ctry, r.ord, r.po, r.item, r.col, r.sz, r.prs, r.ctn,
             r.qcQty ?? "", r.qcDate ? U.fmtDate(r.qcDate) : "", r.ordered, r.diff, r.bat, U.fmtDate(r.planExp), r.notProduced || ""])]);
-        App.toast(`Đã export ${TVS_RECEIPTS.length} dòng nhập kho (CSV)`, "ok");
+        App.toast(`Đã export ${expRows.length} dòng nhập kho (CSV)`, "ok");
       };
     }
   };
