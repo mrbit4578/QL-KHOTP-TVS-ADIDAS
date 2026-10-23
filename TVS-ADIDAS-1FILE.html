@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:19) -->
+<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:22) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
@@ -6023,6 +6023,49 @@ window.TVS_GH = {
   const SIGN_ROLES = ["Người lập phiếu", "Người nhận hàng", "Thủ kho", "Bảo vệ", "Phòng.NVKD", "Ban giám đốc"];
 
   let wiz = null;
+  const flt = { q: "", date: "", from: "", to: "", ord: "", po: "", ctry: "", status: "" };
+
+  function shipPOs(s) {
+    const pos = U.uniq((s.lines || []).map(l => l.po || (U.orderByCode(l.ord) || {}).po).filter(Boolean), x => x);
+    if (pos.length) return pos;
+    return U.uniq((s.orders || []).map(c => (U.orderByCode(c) || {}).po).filter(Boolean), x => x);
+  }
+  function shipCtries(s) {
+    const cs = U.uniq((s.lines || []).map(l => l.ctry || (U.orderByCode(l.ord) || {}).ctry).filter(Boolean), x => x);
+    if (cs.length) return cs;
+    return U.uniq((s.orders || []).map(c => (U.orderByCode(c) || {}).ctry).filter(Boolean), x => x);
+  }
+  function filterShipments(ships) {
+    const q = flt.q.trim().toLowerCase();
+    return ships.filter(s => {
+      const effDate = s.actualDate || s.date || "";
+      const pos = shipPOs(s);
+      const ctries = shipCtries(s);
+      const ords = s.orders || [];
+      if (flt.date && s.actualDate !== flt.date && s.date !== flt.date) return false;
+      if (flt.from && effDate && effDate < flt.from) return false;
+      if (flt.to && effDate && effDate > flt.to) return false;
+      if (flt.ord && !ords.includes(flt.ord)) return false;
+      if (flt.po && !pos.some(p => p.includes(flt.po))) return false;
+      if (flt.ctry && !ctries.includes(flt.ctry)) return false;
+      if (flt.status === "shipped" && s.status !== "shipped") return false;
+      if (flt.status === "draft" && s.status === "shipped") return false;
+      if (flt.status === "ontime" || flt.status === "late") {
+        if (s.status !== "shipped") return false;
+        const anyLate = ords.some(c => { const o = U.orderByCode(c); return o && o.delayDays > 0; });
+        if (flt.status === "ontime" && anyLate) return false;
+        if (flt.status === "late" && !anyLate) return false;
+      }
+      if (q) {
+        const hay = [
+          s.code, s.lgh, s.pkl, s.date, U.fmtDate(s.date), s.actualDate, U.fmtDate(s.actualDate),
+          s.receiver, ...ords, ...pos, ...ctries
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
 
   const stBdg = s => s.status === "shipped"
     ? `<span class="bdg ok">đã xuất kho · ${U.fmtDate(s.actualDate)}</span>`
@@ -6072,7 +6115,7 @@ window.TVS_GH = {
         </div>
 
         <div class="card mt">
-          <div class="filters">
+          <div class="filters" style="background:var(--soft)">
             <button class="btn primary need-edit" id="btnNew">${App.icon("plus", "ico")} Tạo lệnh giao hàng</button>
             <button class="btn" id="btnTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="btnImp">${App.icon("upload", "ico")} Import phiếu từ file</button>
@@ -6084,75 +6127,50 @@ window.TVS_GH = {
               (${Object.keys(PKS.byBat).sort().map(b => "đợt " + b).join(" · ")}${PKS.imported ? ` · ${PKS.imported} chỉ thị import` : ""})
               ${PKS.without ? ` · <b>${PKS.without}</b> chỉ thị chưa có packing (tạm tính ${TVS_META.packing} đôi/thùng)` : ""}</span>
           </div>
-          <div class="tbl-wrap"><table class="tbl">
-            <thead><tr>
-              <th>Số phiếu</th><th>Lệnh GH số</th><th>Ngày phiếu</th><th>Chỉ thị</th><th>Xuất cho</th>
-              <th class="num">Số đôi</th><th class="num">Số thùng</th><th>Trạng thái</th>
-              <th style="min-width:158px">Ngày thực xuất</th><th>Hành động</th>
-            </tr></thead>
-            <tbody>${ships.length ? ships.map(s => `
-              <tr>
-                <td><b>${U.esc(s.code)}</b></td>
-                <td class="mono">${U.esc(s.lgh)}</td>
-                <td>${U.fmtDate(s.date)}</td>
-                <td>${s.orders.map(c => `<span class="bdg neu plain">${c}</span>`).join(" ")}</td>
-                <td class="note" style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${U.esc(s.receiver)}</td>
-                <td class="num">${U.fmt(U.sum(s.lines, l => l.qty))}</td>
-                <td class="num">${U.fmt(U.sum(s.lines, l => l.ctn))}</td>
-                <td>${stBdg(s)}</td>
-                <td>
-                  <input type="date" class="cell-in need-edit" style="width:140px"
-                    value="${s.actualDate || ""}" title="Nhập / sửa ngày thực xuất"
-                    onchange="Views._setActual('${s.id}', this.value)">
-                  <span class="view-only">${s.actualDate ? U.fmtDate(s.actualDate) : "—"}</span>
-                </td>
-                <td style="white-space:nowrap">
-                  <button class="btn small" onclick="Views._pxkView('${s.id}')">${App.icon("print", "ico")} Phiếu</button>
-                  ${s.status !== "shipped"
-                    ? `<button class="btn small primary need-edit" onclick="Views._pxkConfirm('${s.id}')">Xuất kho</button>
-                       <button class="btn small need-edit" onclick="Views._pxkEdit('${s.id}')">Sửa</button>
-                       <button class="btn small danger need-edit" onclick="Views._pxkDel('${s.id}')">${App.icon("trash", "ico")}</button>`
-                    : `<button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
-                       <button class="btn small danger need-edit" onclick="Views._pxkRevert('${s.id}')">Hủy xuất</button>`}
-                </td>
-              </tr>`).join("") : `
-              <tr><td colspan="10" style="text-align:center;padding:34px" class="note">
-                Chưa có lệnh giao hàng nào. Bấm <b>“Tạo lệnh giao hàng”</b> → chọn các chỉ thị cần xuất —
-                hệ thống tải số lượng thực nhập từ kho và tính thùng theo packing list.</td></tr>`}
-            </tbody>
-          </table></div>
-          <div class="note" style="padding:6px 18px 2px">Ô <b>Ngày thực xuất</b> nhập trực tiếp tại đây: phiếu đã xuất → tự cập nhật tỷ lệ đúng hạn; phiếu nháp → điền sẵn cho bước “Xuất kho”.</div>
+          ${(() => {
+            const allDates = U.uniq(ships.flatMap(s => [s.actualDate, s.date]).filter(Boolean), d => d).sort();
+            const allOrds = U.uniq(ships.flatMap(s => s.orders || []), o => o).sort();
+            const allPOs = U.uniq(ships.flatMap(s => shipPOs(s)), p => p).sort();
+            const allCtries = U.uniq(ships.flatMap(s => shipCtries(s)), c => c).sort();
+            return `<div class="filters" style="gap:8px;flex-wrap:wrap">
+              <input class="f-input" id="dQ" placeholder="Tìm số phiếu, LGH, chỉ thị, PO, ngày xuất…" value="${U.esc(flt.q)}" style="width:245px">
+              <select class="f-select" id="dDate" title="Lọc theo ngày thực xuất / ngày phiếu">
+                <option value="">Tất cả ngày xuất (${allDates.length})</option>
+                ${allDates.map(d => `<option value="${U.esc(d)}" ${flt.date === d ? "selected" : ""}>Ngày ${U.fmtDate(d)}</option>`).join("")}
+              </select>
+              <label class="rp-f" style="font-size:12px">Từ <input class="f-input" type="date" id="dFrom" value="${U.esc(flt.from)}" style="width:138px;padding:6px 8px"></label>
+              <label class="rp-f" style="font-size:12px">Đến <input class="f-input" type="date" id="dTo" value="${U.esc(flt.to)}" style="width:138px;padding:6px 8px"></label>
+              <select class="f-select" id="dOrd" title="Lọc theo mã chỉ thị">
+                <option value="">Tất cả chỉ thị (${allOrds.length})</option>
+                ${allOrds.map(o => `<option value="${U.esc(o)}" ${flt.ord === o ? "selected" : ""}>${U.esc(o)}</option>`).join("")}
+              </select>
+              <select class="f-select" id="dPo" title="Lọc theo số PO">
+                <option value="">Tất cả PO (${allPOs.length})</option>
+                ${allPOs.map(p => `<option value="${U.esc(p)}" ${flt.po === p ? "selected" : ""}>PO ${U.esc(p)}</option>`).join("")}
+              </select>
+              <select class="f-select" id="dCtry" title="Lọc theo quốc gia">
+                <option value="">Tất cả quốc gia (${allCtries.length})</option>
+                ${allCtries.map(c => `<option value="${U.esc(c)}" ${flt.ctry === c ? "selected" : ""}>${U.flag(c)} ${U.esc(c)}</option>`).join("")}
+              </select>
+              <select class="f-select" id="dStatus" title="Lọc theo trạng thái xuất kho">
+                <option value="">Mọi trạng thái</option>
+                <option value="shipped" ${flt.status === "shipped" ? "selected" : ""}>✓ Đã xuất kho</option>
+                <option value="draft" ${flt.status === "draft" ? "selected" : ""}>⏳ Nháp · chờ xuất</option>
+                <option value="ontime" ${flt.status === "ontime" ? "selected" : ""}>Đúng / sớm hạn</option>
+                <option value="late" ${flt.status === "late" ? "selected" : ""}>Trễ hạn</option>
+              </select>
+              <button class="btn" id="dReset">Xoá lọc</button>
+              <span class="f-chipcount" id="dCount"></span>
+            </div>`;
+          })()}
+          <div id="dShipArea"></div>
+          <div class="note" style="padding:6px 18px 8px">Ô <b>Ngày thực xuất</b> nhập trực tiếp tại đây: phiếu đã xuất → tự cập nhật tỷ lệ đúng hạn; phiếu nháp → điền sẵn cho bước “Xuất kho”.</div>
         </div>
 
         <div class="card mt">
           <div class="card-h"><h3>Đối chiếu ngày xuất — tỷ lệ đúng hạn theo chỉ thị</h3>
-            <span class="sub">Ngày thực xuất (phiếu XK) ↔ Ngày xuất KD (đơn đặt hàng)</span></div>
-          ${OT.n ? `<div class="tbl-wrap"><table class="tbl">
-            <thead><tr>
-              <th>Chỉ thị</th><th>Quốc gia</th><th>Ngày xuất KD</th><th>Ngày thực xuất</th>
-              <th class="num">SL đặt</th><th class="num">Đã xuất</th><th class="num">% xuất</th>
-              <th class="num">Chênh (ngày)</th><th>Kết quả</th>
-            </tr></thead>
-            <tbody>${OT.orders.map(o => `
-              <tr>
-                <td class="clickable" onclick="Views._openOrder('${o.ord}')"><b>${o.ord}</b></td>
-                <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
-                <td>${U.fmtDate(o.d)}</td>
-                <td><b>${U.fmtDate(o.lastShipDate)}</b></td>
-                <td class="num">${U.fmt(o.prs)}</td>
-                <td class="num">${U.fmt(o.shipPrs)}</td>
-                <td class="num">${U.fmtPct(o.shipPrs / o.prs, 0)}</td>
-                <td class="num ${o.delayDays > 0 ? "neg" : "pos"}">${o.delayDays > 0 ? "+" : ""}${o.delayDays}</td>
-                <td>${onTimeBdg(o)}${o.shipPrs < o.prs ? ` <span class="bdg neu plain">xuất một phần</span>` : ""}</td>
-              </tr>`).join("")}</tbody>
-            <tfoot><tr>
-              <td colspan="4">TỶ LỆ ĐÚNG HẠN</td>
-              <td class="num" colspan="3">${OT.onTimeN}/${OT.n} chỉ thị = <b>${U.fmtPct(OT.rate, 0)}</b></td>
-              <td class="num" colspan="2">theo số đôi: <b>${U.fmtPct(OT.pairsRate, 0)}</b></td>
-            </tr></tfoot>
-          </table></div>`
-          : `<div class="card-b note">Chưa có chỉ thị nào ghi nhận ngày thực xuất. Sau khi bấm <b>“Xuất kho”</b> trên phiếu,
-             hệ thống ghi ngày thực xuất và tự đối chiếu với "Ngày xuất KD" để tính % đúng hạn tại đây.</div>`}
+            <span class="sub" id="dOtSub">Ngày thực xuất (phiếu XK) ↔ Ngày xuất KD (đơn đặt hàng)</span></div>
+          <div id="dOtArea"></div>
         </div>
 
         <div class="card mt">
@@ -6181,6 +6199,123 @@ window.TVS_GH = {
             (.xlsx sheet CLP hoặc .csv theo mẫu) — hệ thống tự tách thùng nguyên / thùng lẻ / thùng MIX SIZE và dùng ngay cho phiếu xuất kho.
             ${PKS.without ? `Hiện còn <b>${PKS.without}</b> chỉ thị chưa có packing list — tạm tính ${TVS_META.packing} đôi/thùng (đánh dấu * trên phiếu).` : ""}</div>
         </div>`;
+
+      const renderDeliveryTables = () => {
+        const FS = filterShipments(ships);
+        const totPrs = U.sum(FS, s => U.sum(s.lines, l => l.qty));
+        const totCtn = U.sum(FS, s => U.sum(s.lines, l => l.ctn));
+        const cntEl = document.getElementById("dCount");
+        if (cntEl) {
+          cntEl.innerHTML = `<b>${U.fmt(FS.length)}</b> / ${U.fmt(ships.length)} phiếu · <b>${U.fmt(totPrs)} đôi</b> · <b>${U.fmt(totCtn)} thùng</b>`;
+        }
+        const shipArea = document.getElementById("dShipArea");
+        if (shipArea) {
+          shipArea.innerHTML = `<div class="tbl-wrap"><table class="tbl">
+            <thead><tr>
+              <th>Số phiếu</th><th>Lệnh GH số</th><th>Ngày phiếu</th><th>Chỉ thị</th><th>PO</th><th>Xuất cho</th>
+              <th class="num">Số đôi</th><th class="num">Số thùng</th><th>Trạng thái</th>
+              <th style="min-width:158px">Ngày thực xuất</th><th>Hành động</th>
+            </tr></thead>
+            <tbody>${FS.length ? FS.map(s => {
+              const pos = shipPOs(s);
+              const ctries = shipCtries(s);
+              return `<tr>
+                <td><b>${U.esc(s.code)}</b></td>
+                <td class="mono">${U.esc(s.lgh)}</td>
+                <td>${U.fmtDate(s.date)}</td>
+                <td>${s.orders.map(c => {
+                  const o = U.orderByCode(c);
+                  return `<span class="bdg neu plain clickable" onclick="Views._openOrder('${c}')" title="${o ? U.esc(o.ctry + " · PO " + o.po) : ""}">${o ? U.flag(o.ctry) + " " : ""}${c}</span>`;
+                }).join(" ")}</td>
+                <td class="mono">${pos.length ? pos.map(U.esc).join(", ") : "—"}</td>
+                <td class="note" style="max-width:190px;overflow:hidden;text-overflow:ellipsis" title="${U.esc(s.receiver)}">${ctries.map(c => U.flag(c)).join(" ")} ${U.esc(s.receiver)}</td>
+                <td class="num"><b>${U.fmt(U.sum(s.lines, l => l.qty))}</b></td>
+                <td class="num">${U.fmt(U.sum(s.lines, l => l.ctn))}</td>
+                <td>${stBdg(s)}</td>
+                <td>
+                  <input type="date" class="cell-in need-edit" style="width:140px"
+                    value="${s.actualDate || ""}" title="Nhập / sửa ngày thực xuất"
+                    onchange="Views._setActual('${s.id}', this.value)">
+                  <span class="view-only">${s.actualDate ? U.fmtDate(s.actualDate) : "—"}</span>
+                </td>
+                <td style="white-space:nowrap">
+                  <button class="btn small" onclick="Views._pxkView('${s.id}')">${App.icon("print", "ico")} Phiếu</button>
+                  ${s.status !== "shipped"
+                    ? `<button class="btn small primary need-edit" onclick="Views._pxkConfirm('${s.id}')">Xuất kho</button>
+                       <button class="btn small need-edit" onclick="Views._pxkEdit('${s.id}')">Sửa</button>
+                       <button class="btn small danger need-edit" onclick="Views._pxkDel('${s.id}')">${App.icon("trash", "ico")}</button>`
+                    : `<button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
+                       <button class="btn small danger need-edit" onclick="Views._pxkRevert('${s.id}')">Hủy xuất</button>`}
+                </td>
+              </tr>`;
+            }).join("") : `
+              <tr><td colspan="11" style="text-align:center;padding:28px" class="note">
+                ${ships.length ? "Không có phiếu xuất kho nào khớp bộ lọc hiện tại." : "Chưa có lệnh giao hàng nào. Bấm <b>“Tạo lệnh giao hàng”</b> → chọn các chỉ thị cần xuất."}</td></tr>`}
+            </tbody>
+            <tfoot><tr>
+              <td colspan="6">TỔNG CỘNG (${U.fmt(FS.length)} phiếu)</td>
+              <td class="num">${U.fmt(totPrs)}</td>
+              <td class="num">${U.fmt(totCtn)}</td>
+              <td colspan="3"></td>
+            </tr></tfoot>
+          </table></div>`;
+        }
+
+        const otArea = document.getElementById("dOtArea");
+        if (otArea) {
+          if (!OT.n) {
+            otArea.innerHTML = `<div class="card-b note">Chưa có chỉ thị nào ghi nhận ngày thực xuất. Sau khi bấm <b>“Xuất kho”</b> trên phiếu, hệ thống ghi ngày thực xuất và tự đối chiếu với "Ngày xuất KD" để tính % đúng hạn tại đây.</div>`;
+          } else {
+            const matchedOrds = new Set(FS.flatMap(s => s.orders || []));
+            const otOrders = OT.orders.filter(o => matchedOrds.has(o.ord));
+            const onTimeN = otOrders.filter(o => o.onTime).length;
+            const rate = otOrders.length ? onTimeN / otOrders.length : 0;
+            const otSub = document.getElementById("dOtSub");
+            if (otSub) otSub.textContent = `Ngày thực xuất (phiếu XK) ↔ Ngày xuất KD (đơn đặt hàng) — ${otOrders.length} chỉ thị`;
+            otArea.innerHTML = `<div class="tbl-wrap"><table class="tbl">
+              <thead><tr>
+                <th>Chỉ thị</th><th>PO</th><th>Quốc gia</th><th>Ngày xuất KD</th><th>Ngày thực xuất</th>
+                <th class="num">SL đặt</th><th class="num">Đã xuất</th><th class="num">% xuất</th>
+                <th class="num">Chênh (ngày)</th><th>Kết quả</th>
+              </tr></thead>
+              <tbody>${otOrders.length ? otOrders.map(o => `
+                <tr>
+                  <td class="clickable" onclick="Views._openOrder('${o.ord}')"><b>${o.ord}</b></td>
+                  <td class="mono">${U.esc(o.po || "—")}</td>
+                  <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
+                  <td>${U.fmtDate(o.d)}</td>
+                  <td><b>${U.fmtDate(o.lastShipDate)}</b></td>
+                  <td class="num">${U.fmt(o.prs)}</td>
+                  <td class="num">${U.fmt(o.shipPrs)}</td>
+                  <td class="num">${U.fmtPct(o.shipPrs / o.prs, 0)}</td>
+                  <td class="num ${o.delayDays > 0 ? "neg" : "pos"}">${o.delayDays > 0 ? "+" : ""}${o.delayDays}</td>
+                  <td>${onTimeBdg(o)}${o.shipPrs < o.prs ? ` <span class="bdg neu plain">xuất một phần</span>` : ""}</td>
+                </tr>`).join("") : `<tr><td colspan="10" class="note" style="text-align:center;padding:18px">Không có chỉ thị đã xuất nào khớp bộ lọc.</td></tr>`}</tbody>
+              <tfoot><tr>
+                <td colspan="5">TỶ LỆ ĐÚNG HẠN (${otOrders.length} chỉ thị)</td>
+                <td class="num">${U.fmt(U.sum(otOrders, o => o.prs))}</td>
+                <td class="num">${U.fmt(U.sum(otOrders, o => o.shipPrs))}</td>
+                <td class="num" colspan="3">${onTimeN}/${otOrders.length} chỉ thị = <b>${otOrders.length ? U.fmtPct(rate, 0) : "—"}</b></td>
+              </tr></tfoot>
+            </table></div>`;
+          }
+        }
+      };
+
+      const bindEv = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+      bindEv("dQ", "input", e => { flt.q = e.target.value; renderDeliveryTables(); });
+      bindEv("dDate", "change", e => { flt.date = e.target.value; renderDeliveryTables(); });
+      bindEv("dFrom", "change", e => { flt.from = e.target.value; renderDeliveryTables(); });
+      bindEv("dTo", "change", e => { flt.to = e.target.value; renderDeliveryTables(); });
+      bindEv("dOrd", "change", e => { flt.ord = e.target.value; renderDeliveryTables(); });
+      bindEv("dPo", "change", e => { flt.po = e.target.value; renderDeliveryTables(); });
+      bindEv("dCtry", "change", e => { flt.ctry = e.target.value; renderDeliveryTables(); });
+      bindEv("dStatus", "change", e => { flt.status = e.target.value; renderDeliveryTables(); });
+      bindEv("dReset", "click", () => {
+        Object.assign(flt, { q: "", date: "", from: "", to: "", ord: "", po: "", ctry: "", status: "" });
+        this.render(root);
+      });
+      renderDeliveryTables();
 
       document.getElementById("btnNew").onclick = () => openWizard(null);
       document.getElementById("btnTpl").onclick = () => { Store.templateShipments(); App.toast("Đã tải file mẫu MAU_IMPORT_PHIEU_XUAT_KHO.csv", "ok"); };
@@ -6224,7 +6359,8 @@ window.TVS_GH = {
 
   function exportLog() {
     const rows = [["Số phiếu", "Lệnh GH số", "Ngày phiếu", "Ngày thực xuất", "Chỉ thị", "Quốc gia", "PO", "Style", "Màu", "Size/Quy cách", "Chi tiết mix", "Thùng số", "SL theo PL", "SL thực xuất", "Số carton", "Ngày xuất KD", "Đúng hạn"]];
-    for (const s of TVS_SHIPMENTS.filter(x => x.status === "shipped"))
+    const expShips = filterShipments(TVS_SHIPMENTS.filter(x => x.status === "shipped"));
+    for (const s of expShips)
       for (const l of s.lines) {
         const o = U.orderByCode(l.ord);
         rows.push([s.code, s.lgh, U.fmtDate(s.date), U.fmtDate(s.actualDate), l.ord, l.ctry, l.po, l.style, l.col,
@@ -6233,14 +6369,14 @@ window.TVS_GH = {
           l.groupPrs ?? l.req ?? "", l.qty, l.ctn, o ? U.fmtDate(o.d) : "", o && s.actualDate <= o.d ? "Đúng hạn" : "Trễ"]);
       }
     Store.downloadCSV("NHAT_KY_XUAT_KHO_TVS.csv", rows);
-    App.toast("Đã xuất nhật ký xuất kho (CSV)", "ok");
+    App.toast(`Đã xuất nhật ký xuất kho (${expShips.length} phiếu · CSV)`, "ok");
   }
 
   /* ═════════ WIZARD TẠO / SỬA PHIẾU ═════════ */
   function newShipment() {
     return {
       id: null, code: "", lgh: "", pkl: "", qcNo: "",
-      date: TVS_META.today, actualDate: null, status: "draft",
+      date: U.todayISO ? U.todayISO() : TVS_META.today, actualDate: null, status: "draft",
       receiver: DEFAULTS.receiver, receiverAddr: DEFAULTS.receiverAddr,
       warehouse: DEFAULTS.warehouse, dept: DEFAULTS.dept, reason: DEFAULTS.reason,
       driver: "", truck: "", seal: "", condition: DEFAULTS.condition, approved: "Đã duyệt",
