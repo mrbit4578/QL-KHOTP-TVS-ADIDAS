@@ -24405,6 +24405,28 @@
    "notProduced": null,
    "_id": "Lmvke6hzs4129",
    "_src": "import"
+  },
+  {
+   "rd": "2026-10-24",
+   "rdLabel": "24/10/2026",
+   "ctry": "GERMANY",
+   "ord": "AE2608208",
+   "po": "0903186591-1",
+   "item": "NVQ89",
+   "col": "LC1785",
+   "sz": "UK 6",
+   "prs": 6,
+   "ctn": 1,
+   "qcQty": null,
+   "qcDate": null,
+   "ordered": 66,
+   "diff": 0,
+   "bat": 2,
+   "actualExp": null,
+   "planExp": "2026-11-09",
+   "notProduced": null,
+   "_id": "Lmvkedrm61y6r",
+   "_src": "import"
   }
  ],
  "shipments": [
@@ -43708,7 +43730,7 @@
   }
  ],
  "meta": {
-  "updatedAt": "2026-10-23T03:12:04.327Z",
+  "updatedAt": "2026-10-23T03:15:44.764Z",
   "updatedBy": "thukho",
   "app": "TVS N-X-T v4"
  }
