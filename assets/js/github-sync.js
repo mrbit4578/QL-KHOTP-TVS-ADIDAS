@@ -106,9 +106,12 @@
       const payload = Object.assign({}, Store.local, {
         meta: { updatedAt: new Date().toISOString(), updatedBy: Auth.current.u, app: "TVS N-X-T v4" }
       });
+      const jsonStr = (window.Store && Store.stringifyCompact)
+        ? Store.stringifyCompact(payload)
+        : JSON.stringify(payload, null, 1);
       const body = {
         message: `Cập nhật dữ liệu bởi ${Auth.current.u} (${Auth.current.name}) — ${new Date().toLocaleString("vi-VN")}`,
-        content: b64encodeUtf8(JSON.stringify(payload, null, 1)),
+        content: b64encodeUtf8(jsonStr),
         branch: CFG.branch,
       };
       if (Sync.state.sha) body.sha = Sync.state.sha;

@@ -403,9 +403,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
             <td class="num">100%</td>
           </tr></tfoot>
         </table></div>
-        <div class="note mt">Hệ thống tự động đo dung lượng thực tế mỗi khi bạn thêm, sửa, xóa hoặc đồng bộ dữ liệu với GitHub.</div>
-        <div class="mt" style="display:flex;justify-content:flex-end"><button class="btn" onclick="App.closeModal()">Đóng</button></div>
+        <div class="note mt">Hệ thống tự động đo dung lượng thực tế mỗi khi bạn thêm, sửa, xóa hoặc đồng bộ dữ liệu với GitHub. Nút <b>“Dọn dẹp & Tối ưu bộ nhớ”</b> giúp loại bỏ các bản ghi thừa / đã xóa trong mảng thô và nén định dạng JSON nhưng vẫn giữ nguyên 100% số liệu & nhật ký sửa/xóa.</div>
+        <div class="mt" style="display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+          <button class="btn primary need-edit" id="btnCompactStorage">🧹 Dọn dẹp & Tối ưu bộ nhớ${st.redundantRows ? ` (${st.redundantRows} dòng thừa)` : ""}</button>
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
       </div>`, true);
+    const btnC = document.getElementById("btnCompactStorage");
+    if (btnC) btnC.onclick = () => {
+      if (!Store.compactStorage) return;
+      const r = Store.compactStorage();
+      if (!r || !r.ok) return;
+      App.openStorageModal();
+      App.toast(`🧹 Đã tối ưu bộ nhớ: dọn ${r.removedRows} dòng thừa · tiết kiệm ${U.fmt(r.savedBytes)} B (giữ nguyên 100% dữ liệu & nhật ký)`, "ok");
+    };
   };
 
   /* ── Chip trạng thái đồng bộ GitHub ── */

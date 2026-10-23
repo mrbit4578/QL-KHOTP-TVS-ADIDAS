@@ -250,7 +250,8 @@
                     ? `<button class="btn small primary need-edit" onclick="Views._pxkConfirm('${s.id}')">Xuất kho</button>
                        <button class="btn small need-edit" onclick="Views._pxkEdit('${s.id}')">Sửa</button>
                        <button class="btn small danger need-edit" onclick="Views._pxkDel('${s.id}')">${App.icon("trash", "ico")}</button>`
-                    : `<button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
+                    : `<button class="btn small need-edit" onclick="Views._pxkEditInfo('${s.id}')" title="Sửa thông tin vận chuyển: Tài xế, Biển số, Seal, QC Release, Số phiếu…">Sửa TT</button>
+                       <button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
                        <button class="btn small danger need-edit" onclick="Views._pxkRevert('${s.id}')">Hủy xuất</button>`}
                 </td>
               </tr>`;
@@ -400,11 +401,30 @@
 
   const val = id => (document.getElementById(id) || {}).value?.trim() ?? "";
 
-  /* Sinh dòng phiếu từ PACKING LIST của các chỉ thị đã chọn */
+  /* Sinh dòng phiếu từ PACKING LIST của các chỉ thị đã chọn.
+     Bảo toàn SL tùy chỉnh (qty) và ghi chú (note) của các dòng đã lưu khi sửa phiếu nháp. */
   function buildLines(s) {
+    const prevLines = Array.isArray(s.lines) ? s.lines.slice() : [];
+    const prevOrds = new Set(prevLines.map(p => p.ord));
+    const usedPrev = new Set();
+    const findPrev = (ord, g, sz) => {
+      const kind = g.mix ? "mix" : "run";
+      let m = prevLines.find(p => !usedPrev.has(p) && p.ord === ord && p.kind === kind && p.gi !== undefined && p.gi === g.gi);
+      if (!m) {
+        m = prevLines.find(p => !usedPrev.has(p) && p.ord === ord && p.kind === kind &&
+          (g.mix || p.sz === sz) && (p.from || null) === (g.from || null) && (p.to || null) === (g.to || null));
+      }
+      if (!m && !g.mix) {
+        m = prevLines.find(p => !usedPrev.has(p) && p.ord === ord && p.kind === "run" && p.sz === sz);
+      }
+      if (m) usedPrev.add(m);
+      return m;
+    };
+
     const lines = [];
     for (const ord of s.orders) {
       const o = U.orderByCode(ord); if (!o) continue;
+      const hadOrdBefore = prevOrds.has(ord);
       const rem = {};
       U.SIZES.forEach(sz => { rem[sz] = U.avail(ord, sz); });
       for (const g of Store.packingGroups(ord)) {
@@ -414,14 +434,27 @@
           box: g.box || "", gi: g.gi, synthetic: !!g.synthetic, note: "",
         };
         if (g.mix) {
+          const prev = findPrev(ord, g, null);
           const can = Object.entries(g.sizes).every(([sz, q]) => (rem[sz] || 0) >= q);
-          if (can) Object.entries(g.sizes).forEach(([sz, q]) => { rem[sz] -= q; });
-          lines.push({ ...base, kind: "mix", sizes: { ...g.sizes }, qty: can ? g.prs : 0, ctn: can ? g.ctn : 0, canShip: can });
+          const wantShip = prev ? (prev.qty > 0 && can) : (hadOrdBefore ? false : can);
+          if (wantShip) Object.entries(g.sizes).forEach(([sz, q]) => { rem[sz] -= q; });
+          lines.push({
+            ...base, note: (prev && prev.note) || "",
+            kind: "mix", sizes: { ...g.sizes },
+            qty: wantShip ? g.prs : 0, ctn: wantShip ? g.ctn : 0, canShip: can,
+          });
         } else {
           const sz = Object.keys(g.sizes)[0];
-          const take = Math.max(0, Math.min(rem[sz] || 0, g.prs));
+          const prev = findPrev(ord, g, sz);
+          const maxTake = Math.max(0, Math.min(rem[sz] || 0, g.prs));
+          const take = prev
+            ? Math.max(0, Math.min(typeof prev.qty === "number" ? prev.qty : maxTake, maxTake))
+            : (hadOrdBefore ? 0 : maxTake);
           rem[sz] = (rem[sz] || 0) - take;
-          lines.push({ ...base, kind: "run", sz, qty: take, ctn: ctnFor(take, base), maxQty: take });
+          lines.push({
+            ...base, note: (prev && prev.note) || "",
+            kind: "run", sz, qty: take, ctn: ctnFor(take, base), maxQty: maxTake,
+          });
         }
       }
     }
@@ -438,11 +471,6 @@
       </div>`;
 
     if (wiz.step === 1) {
-      const q = wiz.search.trim().toLowerCase();
-      const cands = U.ORDER_INDEX.filter(o =>
-        (!wiz.onlyAvail || (o.recvPrs - o.shipPrs) > 0 || s.orders.includes(o.ord)) &&
-        (!q || o.ord.toLowerCase().includes(q) || o.ctry.toLowerCase().includes(q) || o.po.toLowerCase().includes(q)));
-
       App.openModal(`
         <div class="modal-h"><h3>${s.id ? "Sửa" : "Tạo"} lệnh giao hàng — ${U.esc(s.code)}</h3>
           <span class="bdg warn">nháp</span>
@@ -482,57 +510,70 @@
             <span class="num-col">SL thiếu/đủ</span>
             <span class="num-col">Tồn KD</span>
           </div>
-          <div class="chk-list" id="wList">
-            ${cands.map(o => {
-              const avail = o.recvPrs - o.shipPrs;
-              const bal = o.recvPrs - o.prs;          /* nhập kho SX so với đặt hàng KD */
-              return `<label class="chkline ${s.orders.includes(o.ord) ? "sel" : ""}">
-                <input type="checkbox" data-ord="${o.ord}" ${s.orders.includes(o.ord) ? "checked" : ""}>
-                <b style="width:96px">${o.ord}</b>
-                <span style="width:20px">${Store.hasPacking(o.ord) ? "📦" : ""}</span>
-                <span style="width:128px">${U.flag(o.ctry)} ${U.esc(o.ctry)}</span>
-                <span class="note" style="width:78px">${o.col}</span>
-                <span class="note" style="width:104px">${U.fmtDate(o.d)}</span>
-                <span class="num-col">${U.fmt(o.prs)}</span>
-                <span class="num-col">${U.fmt(o.recvPrs)}</span>
-                <span class="num-col ${bal < 0 ? "neg" : "pos"}">${bal < 0 ? "thiếu " + U.fmt(-bal) : (bal === 0 ? "đủ" : "+" + U.fmt(bal))}</span>
-                <span class="num-col ${avail > 0 ? "pos" : "note"}">${U.fmt(avail)}</span>
-              </label>`;
-            }).join("") || `<div class="note" style="padding:14px">Không có chỉ thị phù hợp — hãy nhập kho trước hoặc bỏ lọc "tồn khả dụng".</div>`}
-          </div>
+          <div class="chk-list" id="wList"></div>
           <div class="note" style="margin-top:6px">Đơn vị: đôi · <b>SL thiếu/đủ</b> = SL nhập kho SX − SL đặt hàng KD · <b>Tồn KD</b> = đã nhập − đã xuất (số còn xuất được)</div>
 
           <div class="mt" style="display:flex;gap:8px;align-items:center">
-            <button class="btn primary" id="wNext">Tải số lượng từ Nhập kho + Packing list →</button>
+            <button class="btn primary" id="wNext">${s.lines && s.lines.length ? "Tiếp tục chỉnh số lượng thực xuất →" : "Tải số lượng từ Nhập kho + Packing list →"}</button>
             <button class="btn" onclick="App.closeModal()">Huỷ</button>
             <span class="note" id="wHint"></span>
           </div>
         </div>`, true);
 
       const collect = () => {
-        s.code = val("wCode"); s.date = val("wDate") || TVS_META.today; s.lgh = val("wLgh");
+        s.code = val("wCode"); s.date = val("wDate") || (U.todayISO ? U.todayISO() : TVS_META.today); s.lgh = val("wLgh");
         s.pkl = val("wPkl"); s.qcNo = val("wQc"); s.driver = val("wDriver"); s.truck = val("wTruck");
         s.seal = val("wSeal"); s.warehouse = val("wWh"); s.receiver = val("wRecv");
         s.dept = val("wDept"); s.receiverAddr = val("wAddr"); s.condition = val("wCond");
       };
-      document.getElementById("wSearch").addEventListener("input", e => { collect(); wiz.search = e.target.value; renderWizard(); });
-      document.getElementById("wOnly").addEventListener("change", e => { collect(); wiz.onlyAvail = e.target.checked; renderWizard(); });
-      document.querySelectorAll("#wList input[type=checkbox]").forEach(c => c.addEventListener("change", () => {
-        const ord = c.dataset.ord;
-        if (c.checked) { if (!s.orders.includes(ord)) s.orders.push(ord); }
-        else s.orders = s.orders.filter(x => x !== ord);
-        document.getElementById("wCount").textContent = s.orders.length;
-        c.closest(".chkline").classList.toggle("sel", c.checked);
-      }));
+      const renderCandList = () => {
+        const q = wiz.search.trim().toLowerCase();
+        const cands = U.ORDER_INDEX.filter(o =>
+          (!wiz.onlyAvail || (o.recvPrs - o.shipPrs) > 0 || s.orders.includes(o.ord)) &&
+          (!q || o.ord.toLowerCase().includes(q) || o.ctry.toLowerCase().includes(q) || (o.po || "").toLowerCase().includes(q)));
+        const listEl = document.getElementById("wList");
+        if (!listEl) return;
+        listEl.innerHTML = cands.map(o => {
+          const avail = o.recvPrs - o.shipPrs;
+          const bal = o.recvPrs - o.prs;
+          return `<label class="chkline ${s.orders.includes(o.ord) ? "sel" : ""}">
+            <input type="checkbox" data-ord="${o.ord}" ${s.orders.includes(o.ord) ? "checked" : ""}>
+            <b style="width:96px">${o.ord}</b>
+            <span style="width:20px">${Store.hasPacking(o.ord) ? "📦" : ""}</span>
+            <span style="width:128px">${U.flag(o.ctry)} ${U.esc(o.ctry)}</span>
+            <span class="note" style="width:78px">${o.col}</span>
+            <span class="note" style="width:104px">${U.fmtDate(o.d)}</span>
+            <span class="num-col">${U.fmt(o.prs)}</span>
+            <span class="num-col">${U.fmt(o.recvPrs)}</span>
+            <span class="num-col ${bal < 0 ? "neg" : "pos"}">${bal < 0 ? "thiếu " + U.fmt(-bal) : (bal === 0 ? "đủ" : "+" + U.fmt(bal))}</span>
+            <span class="num-col ${avail > 0 ? "pos" : "note"}">${U.fmt(avail)}</span>
+          </label>`;
+        }).join("") || `<div class="note" style="padding:14px">Không có chỉ thị phù hợp — hãy nhập kho trước hoặc bỏ lọc "tồn khả dụng".</div>`;
+        listEl.querySelectorAll("input[type=checkbox]").forEach(c => c.addEventListener("change", () => {
+          const ord = c.dataset.ord;
+          if (c.checked) { if (!s.orders.includes(ord)) s.orders.push(ord); }
+          else s.orders = s.orders.filter(x => x !== ord);
+          const cnt = document.getElementById("wCount");
+          if (cnt) cnt.textContent = s.orders.length;
+          c.closest(".chkline").classList.toggle("sel", c.checked);
+        }));
+      };
+      renderCandList();
+      document.getElementById("wSearch").addEventListener("input", e => { wiz.search = e.target.value; renderCandList(); });
+      document.getElementById("wOnly").addEventListener("change", e => { wiz.onlyAvail = e.target.checked; renderCandList(); });
       document.getElementById("wNext").onclick = () => {
         collect();
         if (!s.orders.length) { document.getElementById("wHint").innerHTML = `<span style="color:var(--bad);font-weight:700">Chọn ít nhất 1 chỉ thị!</span>`; return; }
+        if (s.lines && s.lines.length) {
+          buildLines(s); wiz.step = 2; renderWizard();
+          return;
+        }
         App.openModal(`<div class="modal-b" style="text-align:center;padding:56px 20px">
           <div class="spin"></div>
           <div style="font-weight:800;margin-top:16px">Đang tải số lượng thực nhập từ màn hình Nhập kho…</div>
           <div class="note" style="margin-top:6px">Đối chiếu ${s.orders.length} chỉ thị × tồn khả dụng × packing list (thùng nguyên / thùng MIX)</div>
         </div>`);
-        setTimeout(() => { buildLines(s); wiz.step = 2; renderWizard(); }, 700);
+        setTimeout(() => { buildLines(s); wiz.step = 2; renderWizard(); }, 350);
       };
       return;
     }
@@ -615,7 +656,7 @@
           <button class="btn" id="wBack">← Quay lại</button>
           <button class="btn" id="wDraft">${App.icon("doc", "ico")} Lưu nháp</button>
           <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
-            <label class="note">Ngày thực xuất <input type="date" id="wShipDate" value="${TVS_META.today}" style="margin-left:4px"></label>
+            <label class="note">Ngày thực xuất <input type="date" id="wShipDate" value="${s.actualDate || (U.todayISO ? U.todayISO() : TVS_META.today)}" style="margin-left:4px"></label>
             <button class="btn primary" id="wShip">✓ Xác nhận XUẤT KHO</button>
           </span>
         </div>
@@ -683,8 +724,64 @@
   }
 
   /* ═════════ HÀNH ĐỘNG TRÊN PHIẾU ═════════ */
+  /* Sửa nhanh thông tin hành chính / vận chuyển của phiếu (Tài xế, Biển số, Seal, QC Release, Số phiếu…)
+     mà không cần hủy xuất kho hay tạo lại dòng hàng */
+  window.Views._pxkEditInfo = function (id, fromPreview) {
+    const s = Store.getShipment(id); if (!s) return;
+    App.openModal(`
+      <div class="modal-h"><h3>Sửa thông tin vận chuyển & phiếu — ${U.esc(s.code)}</h3>
+        ${stBdg(s)}
+        <button class="modal-x" onclick="${fromPreview ? `Views._pxkView('${s.id}')` : `App.closeModal()`}">✕</button></div>
+      <div class="modal-b">
+        <div class="note" style="margin-bottom:12px">Cập nhật thông tin hành chính, tài xế, biển số xe, số Seal, QC Release… mà <b>không làm thay đổi số lượng hàng hóa</b> hay trạng thái xuất kho của phiếu.</div>
+        <div class="frm grid g-3" style="gap:10px">
+          <label>Số phiếu<input id="eiCode" value="${U.esc(s.code)}"></label>
+          <label>Ngày phiếu<input id="eiDate" type="date" value="${s.date || ""}"></label>
+          <label>Ngày thực xuất<input id="eiActual" type="date" value="${s.actualDate || ""}"></label>
+          <label>Lệnh giao hàng số<input id="eiLgh" value="${U.esc(s.lgh)}"></label>
+          <label>Packing List số<input id="eiPkl" value="${U.esc(s.pkl)}"></label>
+          <label>QC Release số<input id="eiQc" value="${U.esc(s.qcNo)}" placeholder="—"></label>
+          <label>Người nhận / Tài xế<input id="eiDriver" value="${U.esc(s.driver)}" placeholder="Họ tên tài xế"></label>
+          <label>Biển số xe<input id="eiTruck" value="${U.esc(s.truck)}" placeholder="60C-xxxxx"></label>
+          <label>Seal No.<input id="eiSeal" value="${U.esc(s.seal)}" placeholder="—"></label>
+          <label>Kho xuất<input id="eiWh" value="${U.esc(s.warehouse)}"></label>
+          <label style="grid-column:span 2">Xuất cho<input id="eiRecv" value="${U.esc(s.receiver)}"></label>
+          <label>Bộ phận yêu cầu<input id="eiDept" value="${U.esc(s.dept)}"></label>
+          <label style="grid-column:1/-1">Địa chỉ nhận<input id="eiAddr" value="${U.esc(s.receiverAddr)}"></label>
+          <label style="grid-column:1/-1">Ghi chú tình trạng hàng<input id="eiCond" value="${U.esc(s.condition)}"></label>
+        </div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center">
+          <button class="btn primary" id="eiSave">✓ Lưu thông tin phiếu</button>
+          <button class="btn" onclick="${fromPreview ? `Views._pxkView('${s.id}')` : `App.closeModal()`}">Huỷ</button>
+        </div>
+      </div>`);
+    document.getElementById("eiSave").onclick = () => {
+      const r = Store.updateShipmentMeta(id, {
+        code: val("eiCode") || s.code,
+        date: val("eiDate") || s.date,
+        actualDate: val("eiActual") || null,
+        lgh: val("eiLgh"),
+        pkl: val("eiPkl"),
+        qcNo: val("eiQc"),
+        driver: val("eiDriver"),
+        truck: val("eiTruck"),
+        seal: val("eiSeal"),
+        warehouse: val("eiWh"),
+        receiver: val("eiRecv"),
+        dept: val("eiDept"),
+        receiverAddr: val("eiAddr"),
+        condition: val("eiCond"),
+      });
+      if (!r || !r.ok) return;
+      App.toast(`✓ Đã cập nhật thông tin phiếu <b>${U.esc(r.s.code)}</b>`, "ok");
+      if (fromPreview) Views._pxkView(id);
+      else App.closeModal();
+    };
+  };
+
   window.Views._pxkConfirm = function (id) {
     const s = Store.getShipment(id); if (!s) return;
+    const defDate = s.actualDate || (U.todayISO ? U.todayISO() : TVS_META.today);
     App.openModal(`
       <div class="modal-h"><h3>Xác nhận xuất kho — ${U.esc(s.code)}</h3>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div>
@@ -692,14 +789,14 @@
         <p style="font-size:13.5px">Xuất <b>${U.fmt(U.sum(s.lines, l => l.qty))} đôi</b> = ${U.fmt(U.sum(s.lines, l => l.ctn))} thùng
         cho <b>${U.esc(s.receiver)}</b> (${s.orders.join(", ")}).</p>
         <div class="frm mt"><label>Ngày thực xuất (ghi nhận đối chiếu đúng hạn)
-          <input type="date" id="cShipDate" value="${s.actualDate || TVS_META.today}"></label></div>
+          <input type="date" id="cShipDate" value="${defDate}"></label></div>
         <div class="mt" style="display:flex;gap:8px">
           <button class="btn primary" id="cGo">✓ Xuất kho & ghi ngày thực xuất</button>
           <button class="btn" onclick="App.closeModal()">Huỷ</button>
         </div><div class="note mt" id="cErr"></div>
       </div>`);
     document.getElementById("cGo").onclick = () => {
-      const r = Store.confirmShip(id, val("cShipDate") || TVS_META.today);
+      const r = Store.confirmShip(id, val("cShipDate") || defDate);
       if (!r.ok) { document.getElementById("cErr").innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
       App.closeModal();
       App.toast(`✓ Phiếu <b>${U.esc(s.code)}</b> đã xuất kho — hệ thống đã ghi ngày thực xuất & cập nhật % đúng hạn`, "ok");
@@ -1062,7 +1159,8 @@
         </span>
         <span class="bdg neu plain">${n} trang A4 ${orient === "landscape" ? "ngang" : "đứng"}</span>
         ${hasCompact ? `<span class="bdg acc plain" title="Trang cuối ít dòng — hệ thống tự co dòng để vừa đủ trang, không lấn tờ sau">tự co dòng vừa trang</span>` : ""}
-        <button class="btn small" style="margin-left:auto" onclick="App.printModal()">${App.icon("print", "ico")} In phiếu (${n} trang)</button>
+        <button class="btn small need-edit" style="margin-left:auto" onclick="Views._pxkEditInfo('${s.id}', true)" title="Sửa thông tin phiếu, tài xế, biển số xe, seal…">✎ Sửa TT</button>
+        <button class="btn small primary" onclick="App.printModal()">${App.icon("print", "ico")} In phiếu (${n} trang)</button>
         <button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div>
       <div class="modal-b phieu-wrap">${pagesHTML}</div>`, true);

@@ -36,12 +36,15 @@
       const bats = Object.keys(S.byBat).map(Number).sort((a, b) => a - b);
       const noPk = (U.ORDER_INDEX || []).filter(o => !(window.TVS_PACKING || {})[o.ord]);
 
-      const q = st.q.trim().toLowerCase();
-      const view = rows.filter(r =>
-        (!st.bat || String(r.bat || "") === st.bat) &&
-        (!st.src || r.src === st.src) &&
-        (!q || r.ord.toLowerCase().includes(q) || (r.p.po || "").toLowerCase().includes(q)
-          || (r.p.col || "").toLowerCase().includes(q) || (r.p.ctry || "").toLowerCase().includes(q)));
+      const filterView = () => {
+        const q = st.q.trim().toLowerCase();
+        return rows.filter(r =>
+          (!st.bat || String(r.bat || "") === st.bat) &&
+          (!st.src || r.src === st.src) &&
+          (!q || r.ord.toLowerCase().includes(q) || (r.p.po || "").toLowerCase().includes(q)
+            || (r.p.col || "").toLowerCase().includes(q) || (r.p.ctry || "").toLowerCase().includes(q)));
+      };
+      let view = filterView();
 
       root.innerHTML = `
         <div class="grid g-kpi">
@@ -86,7 +89,7 @@
               <option value="import" ${st.src === "import" ? "selected" : ""}>Đã import từ file</option>
             </select>
             <input class="f-input" id="pkQ" placeholder="Tìm chỉ thị, PO, màu, quốc gia…" value="${U.esc(st.q)}" data-testid="pk-search">
-            <span class="f-chipcount">${U.fmt(view.length)} chỉ thị · ${U.fmt(U.sum(view, r => r.prs))} đôi · ${U.fmt(U.sum(view, r => r.ctn))} thùng</span>
+            <span class="f-chipcount" id="pkCountChip">${U.fmt(view.length)} chỉ thị · ${U.fmt(U.sum(view, r => r.prs))} đôi · ${U.fmt(U.sum(view, r => r.ctn))} thùng</span>
           </div>
         </div>
 
@@ -124,44 +127,7 @@
         <div class="card mt">
           <div class="card-h"><h3>Chi tiết packing list theo chỉ thị</h3>
             <span class="sub">bấm 1 dòng để xem toàn bộ nhóm thùng & đối chiếu size</span></div>
-          <div class="tbl-wrap"><table class="tbl" data-testid="pk-detail-table">
-            <thead><tr>
-              <th>Chỉ thị</th><th>Đợt</th><th>Quốc gia</th><th>PO</th><th>Màu</th>
-              <th class="num">Đôi (PL)</th><th class="num">Đôi (đặt)</th><th class="num">Thùng</th>
-              <th class="num">Nhóm</th><th class="num">MIX</th><th>Nguồn</th><th>Đối chiếu</th><th>Thao tác</th>
-            </tr></thead>
-            <tbody>${view.length ? view.map(r => `
-              <tr>
-                <td class="clickable" onclick="Views._pkDetail('${r.ord}')"><b>${r.ord}</b></td>
-                <td>${batTxt(r.bat)}</td>
-                <td>${U.flag(r.p.ctry)} ${U.esc(r.p.ctry || "—")}</td>
-                <td class="mono">${U.esc(r.p.po || "—")}</td>
-                <td>${U.colorCell(r.p.col)}</td>
-                <td class="num"><b>${U.fmt(r.prs)}</b></td>
-                <td class="num">${r.ordPrs === null ? "—" : U.fmt(r.ordPrs)}</td>
-                <td class="num">${U.fmt(r.ctn)}</td>
-                <td class="num">${U.fmt(r.groups)}</td>
-                <td class="num">${r.mix ? U.fmt(r.mix) : "—"}</td>
-                <td>${srcBdg(r.src)}</td>
-                <td>${matchBdg(r.match)}</td>
-                <td style="white-space:nowrap">
-                  <button class="btn small" onclick="Views._pkDetail('${r.ord}')">Xem</button>
-                  <button class="btn small" onclick="Views._pkExport('${r.ord}')">CSV</button>
-                  ${r.src === "import" ? `<button class="btn small danger need-edit" onclick="Views._pkDelete('${r.ord}')">${App.icon("trash", "ico")}</button>` : ""}
-                </td>
-              </tr>`).join("") : `<tr><td colspan="13" class="note" style="text-align:center;padding:30px">
-                Không có chỉ thị nào khớp bộ lọc.</td></tr>`}
-            </tbody>
-            <tfoot><tr>
-              <td colspan="5">TỔNG (${U.fmt(view.length)} chỉ thị)</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.prs))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.ordPrs || 0))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.ctn))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.groups))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.mix))}</td>
-              <td colspan="3"></td>
-            </tr></tfoot>
-          </table></div>
+          <div class="tbl-wrap" id="pkDetailArea"></div>
         </div>
 
         <div class="card mt">
@@ -212,6 +178,53 @@
           </table></div>
         </div>`;
 
+      const renderDetailTable = () => {
+        view = filterView();
+        const chip = document.getElementById("pkCountChip");
+        if (chip) chip.textContent = `${U.fmt(view.length)} chỉ thị · ${U.fmt(U.sum(view, r => r.prs))} đôi · ${U.fmt(U.sum(view, r => r.ctn))} thùng`;
+        const area = document.getElementById("pkDetailArea");
+        if (!area) return;
+        area.innerHTML = `<table class="tbl" data-testid="pk-detail-table">
+          <thead><tr>
+            <th>Chỉ thị</th><th>Đợt</th><th>Quốc gia</th><th>PO</th><th>Màu</th>
+            <th class="num">Đôi (PL)</th><th class="num">Đôi (đặt)</th><th class="num">Thùng</th>
+            <th class="num">Nhóm</th><th class="num">MIX</th><th>Nguồn</th><th>Đối chiếu</th><th>Thao tác</th>
+          </tr></thead>
+          <tbody>${view.length ? view.map(r => `
+            <tr>
+              <td class="clickable" onclick="Views._pkDetail('${r.ord}')"><b>${r.ord}</b></td>
+              <td>${batTxt(r.bat)}</td>
+              <td>${U.flag(r.p.ctry)} ${U.esc(r.p.ctry || "—")}</td>
+              <td class="mono">${U.esc(r.p.po || "—")}</td>
+              <td>${U.colorCell(r.p.col)}</td>
+              <td class="num"><b>${U.fmt(r.prs)}</b></td>
+              <td class="num">${r.ordPrs === null ? "—" : U.fmt(r.ordPrs)}</td>
+              <td class="num">${U.fmt(r.ctn)}</td>
+              <td class="num">${U.fmt(r.groups)}</td>
+              <td class="num">${r.mix ? U.fmt(r.mix) : "—"}</td>
+              <td>${srcBdg(r.src)}</td>
+              <td>${matchBdg(r.match)}</td>
+              <td style="white-space:nowrap">
+                <button class="btn small" onclick="Views._pkDetail('${r.ord}')">Xem</button>
+                <button class="btn small" onclick="Views._pkExport('${r.ord}')">CSV</button>
+                ${r.src === "import" ? `<button class="btn small danger need-edit" onclick="Views._pkDelete('${r.ord}')">${App.icon("trash", "ico")}</button>` : ""}
+              </td>
+            </tr>`).join("") : `<tr><td colspan="13" class="note" style="text-align:center;padding:30px">
+              Không có chỉ thị nào khớp bộ lọc.</td></tr>`}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="5">TỔNG (${U.fmt(view.length)} chỉ thị)</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.prs))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.ordPrs || 0))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.ctn))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.groups))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.mix))}</td>
+            <td colspan="3"></td>
+          </tr></tfoot>
+        </table>`;
+      };
+      renderDetailTable();
+
       document.getElementById("pkImp").onclick = openImport;
       document.getElementById("pkTplX").onclick = () => { Store.templatePackingXLSX(); App.toast("Đã tải file mẫu packing list (.xlsx)", "ok"); };
       document.getElementById("pkTplC").onclick = () => { Store.templatePackingCSV(); App.toast("Đã tải file mẫu packing list (.csv)", "ok"); };
@@ -230,10 +243,10 @@
         const r = Store.clearImportedPacking(reason);
         App.toast(r.ok ? `Đã xoá packing import của ${r.n} chỉ thị` : "⚠ " + r.msg, r.ok ? "ok" : "warn");
       };
-      document.getElementById("pkBat").onchange = e => { st.bat = e.target.value; this.render(root); };
-      document.getElementById("pkSrc").onchange = e => { st.src = e.target.value; this.render(root); };
+      document.getElementById("pkBat").onchange = e => { st.bat = e.target.value; renderDetailTable(); };
+      document.getElementById("pkSrc").onchange = e => { st.src = e.target.value; renderDetailTable(); };
       const qi = document.getElementById("pkQ");
-      qi.oninput = () => { clearTimeout(qi._t); qi._t = setTimeout(() => { st.q = qi.value; this.render(root); }, 260); };
+      qi.oninput = () => { st.q = qi.value; renderDetailTable(); };
     }
   };
 

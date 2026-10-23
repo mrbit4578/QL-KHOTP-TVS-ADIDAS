@@ -382,6 +382,41 @@
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
+  /* Nén gọn các dòng thừa/đã xóa trong receiptsAdded cho 1 nhóm gk (hoặc toàn bộ) */
+  function compactReceiptGroupInLocal(targetGk) {
+    const edits = Store.local.receiptEdits || {};
+    const rows = Store.local.receiptsAdded || [];
+    const seenEdited = new Set();
+    const out = [];
+    for (const r of rows) {
+      const gk = gkOf(r);
+      if (targetGk && gk !== targetGk) { out.push(r); continue; }
+      const e = edits[gk];
+      if (e && e.deleted) continue; /* nhóm đã xóa: nhật ký lưu đầy đủ trong receiptEdits[gk].log */
+      if (e && e.sizes) {
+        if (seenEdited.has(gk)) continue;
+        seenEdited.add(gk);
+        const grp = rows.filter(x => gkOf(x) === gk);
+        const tmpl = grp[0] || r;
+        SIZES6.forEach(sz => {
+          const q = e.sizes[sz];
+          if (!q || q <= 0) return;
+          const src = grp.find(x => x.sz === sz) || tmpl;
+          const c = Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK) });
+          ["qcQty", "qcDate", "actualExp", "notProduced"].forEach(k => { if (c[k] === null) delete c[k]; });
+          out.push(c);
+        });
+        continue;
+      }
+      const c = Object.assign({}, r);
+      ["qcQty", "qcDate", "actualExp", "notProduced"].forEach(k => { if (c[k] === null) delete c[k]; });
+      out.push(c);
+    }
+    const removed = rows.length - out.length;
+    Store.local.receiptsAdded = out;
+    return removed;
+  }
+
   Store.editReceiptGroup = function (rdLabel, ord, newSizes, reason) {
     if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
     if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do sửa" };
@@ -394,6 +429,7 @@
     e.rev += 1; e.sizes = after; e.deleted = false;
     e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(), before, after });
     Store.local.receiptEdits[gk] = e;
+    compactReceiptGroupInLocal(gk);
     commit();
     return { ok: true, rev: e.rev };
   };
@@ -406,14 +442,36 @@
     e.rev += 1; e.deleted = true; e.sizes = null;
     e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(), before, after: null });
     Store.local.receiptEdits[gk] = e;
+    compactReceiptGroupInLocal(gk);
     commit();
     return { ok: true };
   };
-  /* Khôi phục nhóm về trạng thái gốc (gỡ mọi override, giữ nhật ký) */
+  /* Khôi phục nhóm về trạng thái gốc (gỡ mọi override, giữ nhật ký; tự phục hồi dòng nếu đã nén) */
   Store.restoreReceiptGroup = function (rdLabel, ord, reason) {
     if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
     const gk = rdLabel + "||" + ord;
     const e = Store.local.receiptEdits[gk]; if (!e) return { ok: false, msg: "Nhóm chưa có chỉnh sửa" };
+    const origSizes = e.log && e.log[0] && e.log[0].before;
+    if (origSizes && !SEED_RECEIPTS.some(r => gkOf(r) === gk)) {
+      const existing = (Store.local.receiptsAdded || []).find(r => gkOf(r) === gk);
+      const o = (window.U && U.orderByCode) ? U.orderByCode(ord) : null;
+      const p = rdLabel.split("/");
+      const rd = p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : rdLabel;
+      Store.local.receiptsAdded = (Store.local.receiptsAdded || []).filter(r => gkOf(r) !== gk);
+      SIZES6.forEach(sz => {
+        const q = origSizes[sz] || 0;
+        if (q <= 0) return;
+        Store.local.receiptsAdded.push(existing
+          ? Object.assign({}, existing, { sz, prs: q, ctn: Math.ceil(q / PK), _id: uid() })
+          : {
+              rd, rdLabel, ctry: o ? o.ctry : "", ord, po: o ? o.po : "", item: TVS_META.itemCode,
+              col: o ? o.col.split(",")[0].trim() : "LC1783", sz, prs: q, ctn: Math.ceil(q / PK),
+              ordered: (o && o.sizes && o.sizes[sz]) ? o.sizes[sz].ordered : q,
+              diff: 0, bat: o ? o.bat : 1, planExp: o ? o.d : rd,
+              _id: uid(), _src: "import",
+            });
+      });
+    }
     e.rev += 1; e.deleted = false; e.sizes = null;
     e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: (reason || "Khôi phục về gốc").trim(), restored: true });
     commit();
@@ -732,6 +790,17 @@
     s.actualDate = iso || null;
     commit();
   };
+  /* Cập nhật thông tin vận chuyển / hành chính của phiếu (kể cả phiếu đã xuất kho) */
+  Store.updateShipmentMeta = function (id, patch) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const s = Store.getShipment(id); if (!s) return { ok: false, msg: "Không tìm thấy phiếu" };
+    const allowed = ["code", "date", "actualDate", "lgh", "pkl", "qcNo", "driver", "truck", "seal", "warehouse", "receiver", "dept", "receiverAddr", "condition", "reason"];
+    for (const k of allowed) {
+      if (patch && k in patch) s[k] = patch[k];
+    }
+    commit();
+    return { ok: true, s };
+  };
 
   Store.counts = () => ({
     orders: (window.TVS_ORDERS || []).filter(r => r._id).length,
@@ -741,13 +810,75 @@
     packing: Object.keys(Store.local.packingAdded || {}).length,
   });
 
+  /* Định dạng JSON gọn theo từng dòng bản ghi (tiết kiệm ~35–40% dung lượng so với pretty-print
+     nhưng vẫn giữ mỗi bản ghi trên 1 dòng riêng để xem git diff rõ ràng) */
+  Store.stringifyCompact = function (obj) {
+    if (!obj || typeof obj !== "object") return JSON.stringify(obj);
+    const keys = Object.keys(obj);
+    return "{\n" + keys.map(k => {
+      const v = obj[k];
+      if (Array.isArray(v)) {
+        if (!v.length) return JSON.stringify(k) + ":[]";
+        return JSON.stringify(k) + ":[\n" + v.map(x => JSON.stringify(x)).join(",\n") + "\n]";
+      }
+      if (v && typeof v === "object") {
+        const entries = Object.entries(v);
+        if (!entries.length) return JSON.stringify(k) + ":{}";
+        return JSON.stringify(k) + ":{\n" + entries.map(([sk, sv]) => JSON.stringify(sk) + ":" + JSON.stringify(sv)).join(",\n") + "\n}";
+      }
+      return JSON.stringify(k) + ":" + JSON.stringify(v);
+    }).join(",\n") + "\n}";
+  };
+
+  /* Dọn dẹp & tối ưu bộ nhớ: loại bỏ các dòng thô đã xóa / trùng lặp lịch sử trong receiptsAdded & ordersAdded,
+     đồng thời bỏ các trường null mặc định không cần thiết nhưng giữ nguyên 100% dữ liệu hiệu lực & nhật ký */
+  Store.compactStorage = function () {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const beforeStats = Store.storageStats();
+    const removedReceipts = compactReceiptGroupInLocal(null);
+    const ordEdits = Store.local.orderEdits || {};
+    const ordRows = Store.local.ordersAdded || [];
+    const seenOrdEdited = new Set();
+    const cleanOrds = [];
+    for (const r of ordRows) {
+      const e = ordEdits[r.ord];
+      if (e && e.deleted) continue;
+      if (e && e.sizes) {
+        if (seenOrdEdited.has(r.ord)) continue;
+        seenOrdEdited.add(r.ord);
+        const grp = ordRows.filter(x => x.ord === r.ord);
+        const tmpl = grp[0] || r;
+        SIZES6.forEach(sz => {
+          const q = parseInt(e.sizes[sz], 10) || 0;
+          if (q <= 0) return;
+          const src = grp.find(x => x.sz === sz) || tmpl;
+          cleanOrds.push(headed(Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK) }), e));
+        });
+        continue;
+      }
+      cleanOrds.push(r);
+    }
+    const removedOrders = ordRows.length - cleanOrds.length;
+    Store.local.ordersAdded = cleanOrds;
+    commit();
+    const afterStats = Store.storageStats();
+    return {
+      ok: true,
+      removedRows: removedReceipts + removedOrders,
+      removedReceipts,
+      removedOrders,
+      savedBytes: Math.max(0, beforeStats.cloudBytes - afterStats.cloudBytes),
+    };
+  };
+
   /* Thống kê dung lượng bộ nhớ hệ thống (LocalStorage 5 MB & GitHub JSON 1 MB) */
   Store.storageStats = function () {
     const byteLen = str => {
       try { return new TextEncoder().encode(String(str || "")).length; }
       catch (e) { return String(str || "").length; }
     };
-    const jsonSize = obj => byteLen(JSON.stringify(obj || {}, null, 1));
+    const jsonSize = obj => byteLen(Store.stringifyCompact ? Store.stringifyCompact(obj || {}) : JSON.stringify(obj || {}));
+    const arrSize = arr => byteLen("[\n" + (arr || []).map(x => JSON.stringify(x)).join(",\n") + "\n]");
     const cloudBytes = jsonSize(Store.local);
     let lsBytes = cloudBytes;
     try {
@@ -760,6 +891,24 @@
       if (totalChars > 0) lsBytes = Math.max(cloudBytes, totalChars);
     } catch (e) {}
 
+    /* Kiểm tra số dòng thừa có thể dọn dẹp trong receiptsAdded */
+    const edits = Store.local.receiptEdits || {};
+    let redundantRows = 0;
+    const seenEd = new Set();
+    for (const r of (Store.local.receiptsAdded || [])) {
+      const gk = gkOf(r);
+      const e = edits[gk];
+      if (e && e.deleted) redundantRows++;
+      else if (e && e.sizes) {
+        if (!seenEd.has(gk)) {
+          seenEd.add(gk);
+          const grpLen = (Store.local.receiptsAdded || []).filter(x => gkOf(x) === gk).length;
+          const activeLen = Object.values(e.sizes).filter(q => q > 0).length;
+          if (grpLen > activeLen) redundantRows += (grpLen - activeLen);
+        }
+      }
+    }
+
     const quotaBytes = 5 * 1024 * 1024;       // 5.00 MB chuẩn LocalStorage trình duyệt
     const freeBytes = Math.max(0, quotaBytes - lsBytes);
     const pct = Math.min(100, (lsBytes / quotaBytes) * 100);
@@ -769,16 +918,16 @@
     const cloudPct = Math.min(100, (cloudBytes / cloudQuotaBytes) * 100);
 
     const parts = [
-      { key: "ordersAdded", label: "Đơn đặt hàng bổ sung", count: (Store.local.ordersAdded || []).length + " dòng", bytes: jsonSize(Store.local.ordersAdded || []) },
-      { key: "receiptsAdded", label: "Nhập kho bổ sung", count: (Store.local.receiptsAdded || []).length + " dòng", bytes: jsonSize(Store.local.receiptsAdded || []) },
-      { key: "shipments", label: "Phiếu xuất kho (PXK)", count: (Store.local.shipments || []).length + " phiếu", bytes: jsonSize(Store.local.shipments || []) },
+      { key: "ordersAdded", label: "Đơn đặt hàng bổ sung", count: (Store.local.ordersAdded || []).length + " dòng", bytes: arrSize(Store.local.ordersAdded || []) },
+      { key: "receiptsAdded", label: "Nhập kho bổ sung", count: (Store.local.receiptsAdded || []).length + " dòng" + (redundantRows ? ` (có ${redundantRows} dòng thừa lịch sử)` : ""), bytes: arrSize(Store.local.receiptsAdded || []) },
+      { key: "shipments", label: "Phiếu xuất kho (PXK)", count: (Store.local.shipments || []).length + " phiếu", bytes: arrSize(Store.local.shipments || []) },
       { key: "packingAdded", label: "Packing List (CLP) import", count: Object.keys(Store.local.packingAdded || {}).length + " chỉ thị", bytes: jsonSize(Store.local.packingAdded || {}) },
       { key: "editsLog", label: "Nhật ký sửa / xóa (NK + Đơn + CLP)", count: (Object.keys(Store.local.receiptEdits || {}).length + Object.keys(Store.local.orderEdits || {}).length + (Store.local.packingLog || []).length) + " mục", bytes: jsonSize({ r: Store.local.receiptEdits, o: Store.local.orderEdits, p: Store.local.packingLog }) },
     ];
     return {
       usedBytes: lsBytes, quotaBytes, freeBytes, pct,
       cloudBytes, cloudQuotaBytes, cloudFreeBytes, cloudPct,
-      parts,
+      redundantRows, parts,
     };
   };
   Store.resetAll = function () {

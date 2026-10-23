@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:26) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
-<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
+<link rel="icon" href="assets/img/logo.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0c0e12">
 <!-- Font nội dung Roboto + dự phòng tiêu đề Be Vietnam Pro (đủ dấu tiếng Việt) — dùng khi chạy online -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -646,7 +645,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 <div class="scrim" id="scrim"></div>
 
 <!-- Dữ liệu thật + lớp lưu trữ động + lõi ứng dụng -->
-<!-- ── assets/js/data.js ── -->
 <script>
 /* ===== TVS x adidas Rubber Boots — DỮ LIỆU THẬT trích xuất từ file Excel =====
    Nguồn: THEO DOI CHI TIET N-X-T ADIDAS.xlsm (sheet Data + ChitietNK)
@@ -1593,7 +1591,6 @@ window.TVS_RECEIPTS = [
 ];
 
 </script>
-<!-- ── assets/js/data-packing.js ── -->
 <script>
 /* ===== PACKING LIST (CLP) — DỮ LIỆU THẬT 3 ĐỢT ĐẶT HÀNG =====
    Nguồn (sheet CLP của từng file đơn hàng khách adidas):
@@ -1704,7 +1701,6 @@ window.TVS_PACKING = {
 };
 
 </script>
-<!-- ── assets/js/xlsx-lite.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    xlsx-lite.js — Trình đọc file Excel .xlsx thuần JavaScript (offline)
@@ -1887,7 +1883,6 @@ window.TVS_PACKING = {
 })();
 
 </script>
-<!-- ── assets/js/xlsx-write.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    xlsx-write.js — GHI FILE EXCEL .xlsx THUẦN JAVASCRIPT (v4.9)
@@ -2153,7 +2148,6 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 })();
 
 </script>
-<!-- ── assets/js/store.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    store.js — LỚP DỮ LIỆU ĐỘNG (localStorage)
@@ -2539,6 +2533,41 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
+  /* Nén gọn các dòng thừa/đã xóa trong receiptsAdded cho 1 nhóm gk (hoặc toàn bộ) */
+  function compactReceiptGroupInLocal(targetGk) {
+    const edits = Store.local.receiptEdits || {};
+    const rows = Store.local.receiptsAdded || [];
+    const seenEdited = new Set();
+    const out = [];
+    for (const r of rows) {
+      const gk = gkOf(r);
+      if (targetGk && gk !== targetGk) { out.push(r); continue; }
+      const e = edits[gk];
+      if (e && e.deleted) continue; /* nhóm đã xóa: nhật ký lưu đầy đủ trong receiptEdits[gk].log */
+      if (e && e.sizes) {
+        if (seenEdited.has(gk)) continue;
+        seenEdited.add(gk);
+        const grp = rows.filter(x => gkOf(x) === gk);
+        const tmpl = grp[0] || r;
+        SIZES6.forEach(sz => {
+          const q = e.sizes[sz];
+          if (!q || q <= 0) return;
+          const src = grp.find(x => x.sz === sz) || tmpl;
+          const c = Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK) });
+          ["qcQty", "qcDate", "actualExp", "notProduced"].forEach(k => { if (c[k] === null) delete c[k]; });
+          out.push(c);
+        });
+        continue;
+      }
+      const c = Object.assign({}, r);
+      ["qcQty", "qcDate", "actualExp", "notProduced"].forEach(k => { if (c[k] === null) delete c[k]; });
+      out.push(c);
+    }
+    const removed = rows.length - out.length;
+    Store.local.receiptsAdded = out;
+    return removed;
+  }
+
   Store.editReceiptGroup = function (rdLabel, ord, newSizes, reason) {
     if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
     if (!reason || !reason.trim()) return { ok: false, msg: "Vui lòng nhập lý do sửa" };
@@ -2551,6 +2580,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     e.rev += 1; e.sizes = after; e.deleted = false;
     e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(), before, after });
     Store.local.receiptEdits[gk] = e;
+    compactReceiptGroupInLocal(gk);
     commit();
     return { ok: true, rev: e.rev };
   };
@@ -2563,14 +2593,36 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     e.rev += 1; e.deleted = true; e.sizes = null;
     e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: reason.trim(), before, after: null });
     Store.local.receiptEdits[gk] = e;
+    compactReceiptGroupInLocal(gk);
     commit();
     return { ok: true };
   };
-  /* Khôi phục nhóm về trạng thái gốc (gỡ mọi override, giữ nhật ký) */
+  /* Khôi phục nhóm về trạng thái gốc (gỡ mọi override, giữ nhật ký; tự phục hồi dòng nếu đã nén) */
   Store.restoreReceiptGroup = function (rdLabel, ord, reason) {
     if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
     const gk = rdLabel + "||" + ord;
     const e = Store.local.receiptEdits[gk]; if (!e) return { ok: false, msg: "Nhóm chưa có chỉnh sửa" };
+    const origSizes = e.log && e.log[0] && e.log[0].before;
+    if (origSizes && !SEED_RECEIPTS.some(r => gkOf(r) === gk)) {
+      const existing = (Store.local.receiptsAdded || []).find(r => gkOf(r) === gk);
+      const o = (window.U && U.orderByCode) ? U.orderByCode(ord) : null;
+      const p = rdLabel.split("/");
+      const rd = p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : rdLabel;
+      Store.local.receiptsAdded = (Store.local.receiptsAdded || []).filter(r => gkOf(r) !== gk);
+      SIZES6.forEach(sz => {
+        const q = origSizes[sz] || 0;
+        if (q <= 0) return;
+        Store.local.receiptsAdded.push(existing
+          ? Object.assign({}, existing, { sz, prs: q, ctn: Math.ceil(q / PK), _id: uid() })
+          : {
+              rd, rdLabel, ctry: o ? o.ctry : "", ord, po: o ? o.po : "", item: TVS_META.itemCode,
+              col: o ? o.col.split(",")[0].trim() : "LC1783", sz, prs: q, ctn: Math.ceil(q / PK),
+              ordered: (o && o.sizes && o.sizes[sz]) ? o.sizes[sz].ordered : q,
+              diff: 0, bat: o ? o.bat : 1, planExp: o ? o.d : rd,
+              _id: uid(), _src: "import",
+            });
+      });
+    }
     e.rev += 1; e.deleted = false; e.sizes = null;
     e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), reason: (reason || "Khôi phục về gốc").trim(), restored: true });
     commit();
@@ -2889,6 +2941,17 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     s.actualDate = iso || null;
     commit();
   };
+  /* Cập nhật thông tin vận chuyển / hành chính của phiếu (kể cả phiếu đã xuất kho) */
+  Store.updateShipmentMeta = function (id, patch) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const s = Store.getShipment(id); if (!s) return { ok: false, msg: "Không tìm thấy phiếu" };
+    const allowed = ["code", "date", "actualDate", "lgh", "pkl", "qcNo", "driver", "truck", "seal", "warehouse", "receiver", "dept", "receiverAddr", "condition", "reason"];
+    for (const k of allowed) {
+      if (patch && k in patch) s[k] = patch[k];
+    }
+    commit();
+    return { ok: true, s };
+  };
 
   Store.counts = () => ({
     orders: (window.TVS_ORDERS || []).filter(r => r._id).length,
@@ -2898,13 +2961,75 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     packing: Object.keys(Store.local.packingAdded || {}).length,
   });
 
+  /* Định dạng JSON gọn theo từng dòng bản ghi (tiết kiệm ~35–40% dung lượng so với pretty-print
+     nhưng vẫn giữ mỗi bản ghi trên 1 dòng riêng để xem git diff rõ ràng) */
+  Store.stringifyCompact = function (obj) {
+    if (!obj || typeof obj !== "object") return JSON.stringify(obj);
+    const keys = Object.keys(obj);
+    return "{\n" + keys.map(k => {
+      const v = obj[k];
+      if (Array.isArray(v)) {
+        if (!v.length) return JSON.stringify(k) + ":[]";
+        return JSON.stringify(k) + ":[\n" + v.map(x => JSON.stringify(x)).join(",\n") + "\n]";
+      }
+      if (v && typeof v === "object") {
+        const entries = Object.entries(v);
+        if (!entries.length) return JSON.stringify(k) + ":{}";
+        return JSON.stringify(k) + ":{\n" + entries.map(([sk, sv]) => JSON.stringify(sk) + ":" + JSON.stringify(sv)).join(",\n") + "\n}";
+      }
+      return JSON.stringify(k) + ":" + JSON.stringify(v);
+    }).join(",\n") + "\n}";
+  };
+
+  /* Dọn dẹp & tối ưu bộ nhớ: loại bỏ các dòng thô đã xóa / trùng lặp lịch sử trong receiptsAdded & ordersAdded,
+     đồng thời bỏ các trường null mặc định không cần thiết nhưng giữ nguyên 100% dữ liệu hiệu lực & nhật ký */
+  Store.compactStorage = function () {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const beforeStats = Store.storageStats();
+    const removedReceipts = compactReceiptGroupInLocal(null);
+    const ordEdits = Store.local.orderEdits || {};
+    const ordRows = Store.local.ordersAdded || [];
+    const seenOrdEdited = new Set();
+    const cleanOrds = [];
+    for (const r of ordRows) {
+      const e = ordEdits[r.ord];
+      if (e && e.deleted) continue;
+      if (e && e.sizes) {
+        if (seenOrdEdited.has(r.ord)) continue;
+        seenOrdEdited.add(r.ord);
+        const grp = ordRows.filter(x => x.ord === r.ord);
+        const tmpl = grp[0] || r;
+        SIZES6.forEach(sz => {
+          const q = parseInt(e.sizes[sz], 10) || 0;
+          if (q <= 0) return;
+          const src = grp.find(x => x.sz === sz) || tmpl;
+          cleanOrds.push(headed(Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK) }), e));
+        });
+        continue;
+      }
+      cleanOrds.push(r);
+    }
+    const removedOrders = ordRows.length - cleanOrds.length;
+    Store.local.ordersAdded = cleanOrds;
+    commit();
+    const afterStats = Store.storageStats();
+    return {
+      ok: true,
+      removedRows: removedReceipts + removedOrders,
+      removedReceipts,
+      removedOrders,
+      savedBytes: Math.max(0, beforeStats.cloudBytes - afterStats.cloudBytes),
+    };
+  };
+
   /* Thống kê dung lượng bộ nhớ hệ thống (LocalStorage 5 MB & GitHub JSON 1 MB) */
   Store.storageStats = function () {
     const byteLen = str => {
       try { return new TextEncoder().encode(String(str || "")).length; }
       catch (e) { return String(str || "").length; }
     };
-    const jsonSize = obj => byteLen(JSON.stringify(obj || {}, null, 1));
+    const jsonSize = obj => byteLen(Store.stringifyCompact ? Store.stringifyCompact(obj || {}) : JSON.stringify(obj || {}));
+    const arrSize = arr => byteLen("[\n" + (arr || []).map(x => JSON.stringify(x)).join(",\n") + "\n]");
     const cloudBytes = jsonSize(Store.local);
     let lsBytes = cloudBytes;
     try {
@@ -2917,6 +3042,24 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       if (totalChars > 0) lsBytes = Math.max(cloudBytes, totalChars);
     } catch (e) {}
 
+    /* Kiểm tra số dòng thừa có thể dọn dẹp trong receiptsAdded */
+    const edits = Store.local.receiptEdits || {};
+    let redundantRows = 0;
+    const seenEd = new Set();
+    for (const r of (Store.local.receiptsAdded || [])) {
+      const gk = gkOf(r);
+      const e = edits[gk];
+      if (e && e.deleted) redundantRows++;
+      else if (e && e.sizes) {
+        if (!seenEd.has(gk)) {
+          seenEd.add(gk);
+          const grpLen = (Store.local.receiptsAdded || []).filter(x => gkOf(x) === gk).length;
+          const activeLen = Object.values(e.sizes).filter(q => q > 0).length;
+          if (grpLen > activeLen) redundantRows += (grpLen - activeLen);
+        }
+      }
+    }
+
     const quotaBytes = 5 * 1024 * 1024;       // 5.00 MB chuẩn LocalStorage trình duyệt
     const freeBytes = Math.max(0, quotaBytes - lsBytes);
     const pct = Math.min(100, (lsBytes / quotaBytes) * 100);
@@ -2926,16 +3069,16 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     const cloudPct = Math.min(100, (cloudBytes / cloudQuotaBytes) * 100);
 
     const parts = [
-      { key: "ordersAdded", label: "Đơn đặt hàng bổ sung", count: (Store.local.ordersAdded || []).length + " dòng", bytes: jsonSize(Store.local.ordersAdded || []) },
-      { key: "receiptsAdded", label: "Nhập kho bổ sung", count: (Store.local.receiptsAdded || []).length + " dòng", bytes: jsonSize(Store.local.receiptsAdded || []) },
-      { key: "shipments", label: "Phiếu xuất kho (PXK)", count: (Store.local.shipments || []).length + " phiếu", bytes: jsonSize(Store.local.shipments || []) },
+      { key: "ordersAdded", label: "Đơn đặt hàng bổ sung", count: (Store.local.ordersAdded || []).length + " dòng", bytes: arrSize(Store.local.ordersAdded || []) },
+      { key: "receiptsAdded", label: "Nhập kho bổ sung", count: (Store.local.receiptsAdded || []).length + " dòng" + (redundantRows ? ` (có ${redundantRows} dòng thừa lịch sử)` : ""), bytes: arrSize(Store.local.receiptsAdded || []) },
+      { key: "shipments", label: "Phiếu xuất kho (PXK)", count: (Store.local.shipments || []).length + " phiếu", bytes: arrSize(Store.local.shipments || []) },
       { key: "packingAdded", label: "Packing List (CLP) import", count: Object.keys(Store.local.packingAdded || {}).length + " chỉ thị", bytes: jsonSize(Store.local.packingAdded || {}) },
       { key: "editsLog", label: "Nhật ký sửa / xóa (NK + Đơn + CLP)", count: (Object.keys(Store.local.receiptEdits || {}).length + Object.keys(Store.local.orderEdits || {}).length + (Store.local.packingLog || []).length) + " mục", bytes: jsonSize({ r: Store.local.receiptEdits, o: Store.local.orderEdits, p: Store.local.packingLog }) },
     ];
     return {
       usedBytes: lsBytes, quotaBytes, freeBytes, pct,
       cloudBytes, cloudQuotaBytes, cloudFreeBytes, cloudPct,
-      parts,
+      redundantRows, parts,
     };
   };
   Store.resetAll = function () {
@@ -3762,7 +3905,6 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 })();
 
 </script>
-<!-- ── assets/js/auth-config.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    auth-config.js — CẤU HÌNH TÀI KHOẢN & PHÂN QUYỀN
@@ -3793,7 +3935,6 @@ window.TVS_GH = {
 };
 
 </script>
-<!-- ── assets/js/auth.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    auth.js — ĐĂNG NHẬP & PHÂN QUYỀN
@@ -3943,7 +4084,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/github-sync.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    github-sync.js — LƯU DỮ LIỆU THẬT TRÊN GITHUB
@@ -4053,9 +4193,12 @@ window.TVS_GH = {
       const payload = Object.assign({}, Store.local, {
         meta: { updatedAt: new Date().toISOString(), updatedBy: Auth.current.u, app: "TVS N-X-T v4" }
       });
+      const jsonStr = (window.Store && Store.stringifyCompact)
+        ? Store.stringifyCompact(payload)
+        : JSON.stringify(payload, null, 1);
       const body = {
         message: `Cập nhật dữ liệu bởi ${Auth.current.u} (${Auth.current.name}) — ${new Date().toLocaleString("vi-VN")}`,
-        content: b64encodeUtf8(JSON.stringify(payload, null, 1)),
+        content: b64encodeUtf8(jsonStr),
         branch: CFG.branch,
       };
       if (Sync.state.sha) body.sha = Sync.state.sha;
@@ -4114,7 +4257,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/utils.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    utils.js — Lõi nghiệp vụ N-X-T (Nhập – Xuất – Tồn)
@@ -4409,7 +4551,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/charts.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    charts.js — Bộ biểu đồ SVG thuần (offline, không CDN)
@@ -4563,7 +4704,6 @@ window.TVS_GH = {
 
 </script>
 <!-- Các module giao diện (Dashboard / OMS / WMS / PXK / N-X-T / TMS / Kiến trúc / AI) -->
-<!-- ── assets/js/views/dashboard.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/dashboard.js — BẢNG ĐIỀU KHIỂN (Analytics & Dashboard)
@@ -4721,7 +4861,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/orders.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/orders.js — OMS · ĐƠN ĐẶT HÀNG KHÁCH HÀNG (sheet Data)
@@ -5361,7 +5500,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/warehouse.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/warehouse.js — WMS · NHẬP KHO THÀNH PHẨM (sheet ChitietNK)
@@ -6045,7 +6183,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/delivery.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/delivery.js — LỆNH GIAO HÀNG / PHIẾU XUẤT KHO THÀNH PHẨM
@@ -6299,7 +6436,8 @@ window.TVS_GH = {
                     ? `<button class="btn small primary need-edit" onclick="Views._pxkConfirm('${s.id}')">Xuất kho</button>
                        <button class="btn small need-edit" onclick="Views._pxkEdit('${s.id}')">Sửa</button>
                        <button class="btn small danger need-edit" onclick="Views._pxkDel('${s.id}')">${App.icon("trash", "ico")}</button>`
-                    : `<button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
+                    : `<button class="btn small need-edit" onclick="Views._pxkEditInfo('${s.id}')" title="Sửa thông tin vận chuyển: Tài xế, Biển số, Seal, QC Release, Số phiếu…">Sửa TT</button>
+                       <button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
                        <button class="btn small danger need-edit" onclick="Views._pxkRevert('${s.id}')">Hủy xuất</button>`}
                 </td>
               </tr>`;
@@ -6449,11 +6587,30 @@ window.TVS_GH = {
 
   const val = id => (document.getElementById(id) || {}).value?.trim() ?? "";
 
-  /* Sinh dòng phiếu từ PACKING LIST của các chỉ thị đã chọn */
+  /* Sinh dòng phiếu từ PACKING LIST của các chỉ thị đã chọn.
+     Bảo toàn SL tùy chỉnh (qty) và ghi chú (note) của các dòng đã lưu khi sửa phiếu nháp. */
   function buildLines(s) {
+    const prevLines = Array.isArray(s.lines) ? s.lines.slice() : [];
+    const prevOrds = new Set(prevLines.map(p => p.ord));
+    const usedPrev = new Set();
+    const findPrev = (ord, g, sz) => {
+      const kind = g.mix ? "mix" : "run";
+      let m = prevLines.find(p => !usedPrev.has(p) && p.ord === ord && p.kind === kind && p.gi !== undefined && p.gi === g.gi);
+      if (!m) {
+        m = prevLines.find(p => !usedPrev.has(p) && p.ord === ord && p.kind === kind &&
+          (g.mix || p.sz === sz) && (p.from || null) === (g.from || null) && (p.to || null) === (g.to || null));
+      }
+      if (!m && !g.mix) {
+        m = prevLines.find(p => !usedPrev.has(p) && p.ord === ord && p.kind === "run" && p.sz === sz);
+      }
+      if (m) usedPrev.add(m);
+      return m;
+    };
+
     const lines = [];
     for (const ord of s.orders) {
       const o = U.orderByCode(ord); if (!o) continue;
+      const hadOrdBefore = prevOrds.has(ord);
       const rem = {};
       U.SIZES.forEach(sz => { rem[sz] = U.avail(ord, sz); });
       for (const g of Store.packingGroups(ord)) {
@@ -6463,14 +6620,27 @@ window.TVS_GH = {
           box: g.box || "", gi: g.gi, synthetic: !!g.synthetic, note: "",
         };
         if (g.mix) {
+          const prev = findPrev(ord, g, null);
           const can = Object.entries(g.sizes).every(([sz, q]) => (rem[sz] || 0) >= q);
-          if (can) Object.entries(g.sizes).forEach(([sz, q]) => { rem[sz] -= q; });
-          lines.push({ ...base, kind: "mix", sizes: { ...g.sizes }, qty: can ? g.prs : 0, ctn: can ? g.ctn : 0, canShip: can });
+          const wantShip = prev ? (prev.qty > 0 && can) : (hadOrdBefore ? false : can);
+          if (wantShip) Object.entries(g.sizes).forEach(([sz, q]) => { rem[sz] -= q; });
+          lines.push({
+            ...base, note: (prev && prev.note) || "",
+            kind: "mix", sizes: { ...g.sizes },
+            qty: wantShip ? g.prs : 0, ctn: wantShip ? g.ctn : 0, canShip: can,
+          });
         } else {
           const sz = Object.keys(g.sizes)[0];
-          const take = Math.max(0, Math.min(rem[sz] || 0, g.prs));
+          const prev = findPrev(ord, g, sz);
+          const maxTake = Math.max(0, Math.min(rem[sz] || 0, g.prs));
+          const take = prev
+            ? Math.max(0, Math.min(typeof prev.qty === "number" ? prev.qty : maxTake, maxTake))
+            : (hadOrdBefore ? 0 : maxTake);
           rem[sz] = (rem[sz] || 0) - take;
-          lines.push({ ...base, kind: "run", sz, qty: take, ctn: ctnFor(take, base), maxQty: take });
+          lines.push({
+            ...base, note: (prev && prev.note) || "",
+            kind: "run", sz, qty: take, ctn: ctnFor(take, base), maxQty: maxTake,
+          });
         }
       }
     }
@@ -6487,11 +6657,6 @@ window.TVS_GH = {
       </div>`;
 
     if (wiz.step === 1) {
-      const q = wiz.search.trim().toLowerCase();
-      const cands = U.ORDER_INDEX.filter(o =>
-        (!wiz.onlyAvail || (o.recvPrs - o.shipPrs) > 0 || s.orders.includes(o.ord)) &&
-        (!q || o.ord.toLowerCase().includes(q) || o.ctry.toLowerCase().includes(q) || o.po.toLowerCase().includes(q)));
-
       App.openModal(`
         <div class="modal-h"><h3>${s.id ? "Sửa" : "Tạo"} lệnh giao hàng — ${U.esc(s.code)}</h3>
           <span class="bdg warn">nháp</span>
@@ -6531,57 +6696,70 @@ window.TVS_GH = {
             <span class="num-col">SL thiếu/đủ</span>
             <span class="num-col">Tồn KD</span>
           </div>
-          <div class="chk-list" id="wList">
-            ${cands.map(o => {
-              const avail = o.recvPrs - o.shipPrs;
-              const bal = o.recvPrs - o.prs;          /* nhập kho SX so với đặt hàng KD */
-              return `<label class="chkline ${s.orders.includes(o.ord) ? "sel" : ""}">
-                <input type="checkbox" data-ord="${o.ord}" ${s.orders.includes(o.ord) ? "checked" : ""}>
-                <b style="width:96px">${o.ord}</b>
-                <span style="width:20px">${Store.hasPacking(o.ord) ? "📦" : ""}</span>
-                <span style="width:128px">${U.flag(o.ctry)} ${U.esc(o.ctry)}</span>
-                <span class="note" style="width:78px">${o.col}</span>
-                <span class="note" style="width:104px">${U.fmtDate(o.d)}</span>
-                <span class="num-col">${U.fmt(o.prs)}</span>
-                <span class="num-col">${U.fmt(o.recvPrs)}</span>
-                <span class="num-col ${bal < 0 ? "neg" : "pos"}">${bal < 0 ? "thiếu " + U.fmt(-bal) : (bal === 0 ? "đủ" : "+" + U.fmt(bal))}</span>
-                <span class="num-col ${avail > 0 ? "pos" : "note"}">${U.fmt(avail)}</span>
-              </label>`;
-            }).join("") || `<div class="note" style="padding:14px">Không có chỉ thị phù hợp — hãy nhập kho trước hoặc bỏ lọc "tồn khả dụng".</div>`}
-          </div>
+          <div class="chk-list" id="wList"></div>
           <div class="note" style="margin-top:6px">Đơn vị: đôi · <b>SL thiếu/đủ</b> = SL nhập kho SX − SL đặt hàng KD · <b>Tồn KD</b> = đã nhập − đã xuất (số còn xuất được)</div>
 
           <div class="mt" style="display:flex;gap:8px;align-items:center">
-            <button class="btn primary" id="wNext">Tải số lượng từ Nhập kho + Packing list →</button>
+            <button class="btn primary" id="wNext">${s.lines && s.lines.length ? "Tiếp tục chỉnh số lượng thực xuất →" : "Tải số lượng từ Nhập kho + Packing list →"}</button>
             <button class="btn" onclick="App.closeModal()">Huỷ</button>
             <span class="note" id="wHint"></span>
           </div>
         </div>`, true);
 
       const collect = () => {
-        s.code = val("wCode"); s.date = val("wDate") || TVS_META.today; s.lgh = val("wLgh");
+        s.code = val("wCode"); s.date = val("wDate") || (U.todayISO ? U.todayISO() : TVS_META.today); s.lgh = val("wLgh");
         s.pkl = val("wPkl"); s.qcNo = val("wQc"); s.driver = val("wDriver"); s.truck = val("wTruck");
         s.seal = val("wSeal"); s.warehouse = val("wWh"); s.receiver = val("wRecv");
         s.dept = val("wDept"); s.receiverAddr = val("wAddr"); s.condition = val("wCond");
       };
-      document.getElementById("wSearch").addEventListener("input", e => { collect(); wiz.search = e.target.value; renderWizard(); });
-      document.getElementById("wOnly").addEventListener("change", e => { collect(); wiz.onlyAvail = e.target.checked; renderWizard(); });
-      document.querySelectorAll("#wList input[type=checkbox]").forEach(c => c.addEventListener("change", () => {
-        const ord = c.dataset.ord;
-        if (c.checked) { if (!s.orders.includes(ord)) s.orders.push(ord); }
-        else s.orders = s.orders.filter(x => x !== ord);
-        document.getElementById("wCount").textContent = s.orders.length;
-        c.closest(".chkline").classList.toggle("sel", c.checked);
-      }));
+      const renderCandList = () => {
+        const q = wiz.search.trim().toLowerCase();
+        const cands = U.ORDER_INDEX.filter(o =>
+          (!wiz.onlyAvail || (o.recvPrs - o.shipPrs) > 0 || s.orders.includes(o.ord)) &&
+          (!q || o.ord.toLowerCase().includes(q) || o.ctry.toLowerCase().includes(q) || (o.po || "").toLowerCase().includes(q)));
+        const listEl = document.getElementById("wList");
+        if (!listEl) return;
+        listEl.innerHTML = cands.map(o => {
+          const avail = o.recvPrs - o.shipPrs;
+          const bal = o.recvPrs - o.prs;
+          return `<label class="chkline ${s.orders.includes(o.ord) ? "sel" : ""}">
+            <input type="checkbox" data-ord="${o.ord}" ${s.orders.includes(o.ord) ? "checked" : ""}>
+            <b style="width:96px">${o.ord}</b>
+            <span style="width:20px">${Store.hasPacking(o.ord) ? "📦" : ""}</span>
+            <span style="width:128px">${U.flag(o.ctry)} ${U.esc(o.ctry)}</span>
+            <span class="note" style="width:78px">${o.col}</span>
+            <span class="note" style="width:104px">${U.fmtDate(o.d)}</span>
+            <span class="num-col">${U.fmt(o.prs)}</span>
+            <span class="num-col">${U.fmt(o.recvPrs)}</span>
+            <span class="num-col ${bal < 0 ? "neg" : "pos"}">${bal < 0 ? "thiếu " + U.fmt(-bal) : (bal === 0 ? "đủ" : "+" + U.fmt(bal))}</span>
+            <span class="num-col ${avail > 0 ? "pos" : "note"}">${U.fmt(avail)}</span>
+          </label>`;
+        }).join("") || `<div class="note" style="padding:14px">Không có chỉ thị phù hợp — hãy nhập kho trước hoặc bỏ lọc "tồn khả dụng".</div>`;
+        listEl.querySelectorAll("input[type=checkbox]").forEach(c => c.addEventListener("change", () => {
+          const ord = c.dataset.ord;
+          if (c.checked) { if (!s.orders.includes(ord)) s.orders.push(ord); }
+          else s.orders = s.orders.filter(x => x !== ord);
+          const cnt = document.getElementById("wCount");
+          if (cnt) cnt.textContent = s.orders.length;
+          c.closest(".chkline").classList.toggle("sel", c.checked);
+        }));
+      };
+      renderCandList();
+      document.getElementById("wSearch").addEventListener("input", e => { wiz.search = e.target.value; renderCandList(); });
+      document.getElementById("wOnly").addEventListener("change", e => { wiz.onlyAvail = e.target.checked; renderCandList(); });
       document.getElementById("wNext").onclick = () => {
         collect();
         if (!s.orders.length) { document.getElementById("wHint").innerHTML = `<span style="color:var(--bad);font-weight:700">Chọn ít nhất 1 chỉ thị!</span>`; return; }
+        if (s.lines && s.lines.length) {
+          buildLines(s); wiz.step = 2; renderWizard();
+          return;
+        }
         App.openModal(`<div class="modal-b" style="text-align:center;padding:56px 20px">
           <div class="spin"></div>
           <div style="font-weight:800;margin-top:16px">Đang tải số lượng thực nhập từ màn hình Nhập kho…</div>
           <div class="note" style="margin-top:6px">Đối chiếu ${s.orders.length} chỉ thị × tồn khả dụng × packing list (thùng nguyên / thùng MIX)</div>
         </div>`);
-        setTimeout(() => { buildLines(s); wiz.step = 2; renderWizard(); }, 700);
+        setTimeout(() => { buildLines(s); wiz.step = 2; renderWizard(); }, 350);
       };
       return;
     }
@@ -6664,7 +6842,7 @@ window.TVS_GH = {
           <button class="btn" id="wBack">← Quay lại</button>
           <button class="btn" id="wDraft">${App.icon("doc", "ico")} Lưu nháp</button>
           <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
-            <label class="note">Ngày thực xuất <input type="date" id="wShipDate" value="${TVS_META.today}" style="margin-left:4px"></label>
+            <label class="note">Ngày thực xuất <input type="date" id="wShipDate" value="${s.actualDate || (U.todayISO ? U.todayISO() : TVS_META.today)}" style="margin-left:4px"></label>
             <button class="btn primary" id="wShip">✓ Xác nhận XUẤT KHO</button>
           </span>
         </div>
@@ -6732,8 +6910,64 @@ window.TVS_GH = {
   }
 
   /* ═════════ HÀNH ĐỘNG TRÊN PHIẾU ═════════ */
+  /* Sửa nhanh thông tin hành chính / vận chuyển của phiếu (Tài xế, Biển số, Seal, QC Release, Số phiếu…)
+     mà không cần hủy xuất kho hay tạo lại dòng hàng */
+  window.Views._pxkEditInfo = function (id, fromPreview) {
+    const s = Store.getShipment(id); if (!s) return;
+    App.openModal(`
+      <div class="modal-h"><h3>Sửa thông tin vận chuyển & phiếu — ${U.esc(s.code)}</h3>
+        ${stBdg(s)}
+        <button class="modal-x" onclick="${fromPreview ? `Views._pxkView('${s.id}')` : `App.closeModal()`}">✕</button></div>
+      <div class="modal-b">
+        <div class="note" style="margin-bottom:12px">Cập nhật thông tin hành chính, tài xế, biển số xe, số Seal, QC Release… mà <b>không làm thay đổi số lượng hàng hóa</b> hay trạng thái xuất kho của phiếu.</div>
+        <div class="frm grid g-3" style="gap:10px">
+          <label>Số phiếu<input id="eiCode" value="${U.esc(s.code)}"></label>
+          <label>Ngày phiếu<input id="eiDate" type="date" value="${s.date || ""}"></label>
+          <label>Ngày thực xuất<input id="eiActual" type="date" value="${s.actualDate || ""}"></label>
+          <label>Lệnh giao hàng số<input id="eiLgh" value="${U.esc(s.lgh)}"></label>
+          <label>Packing List số<input id="eiPkl" value="${U.esc(s.pkl)}"></label>
+          <label>QC Release số<input id="eiQc" value="${U.esc(s.qcNo)}" placeholder="—"></label>
+          <label>Người nhận / Tài xế<input id="eiDriver" value="${U.esc(s.driver)}" placeholder="Họ tên tài xế"></label>
+          <label>Biển số xe<input id="eiTruck" value="${U.esc(s.truck)}" placeholder="60C-xxxxx"></label>
+          <label>Seal No.<input id="eiSeal" value="${U.esc(s.seal)}" placeholder="—"></label>
+          <label>Kho xuất<input id="eiWh" value="${U.esc(s.warehouse)}"></label>
+          <label style="grid-column:span 2">Xuất cho<input id="eiRecv" value="${U.esc(s.receiver)}"></label>
+          <label>Bộ phận yêu cầu<input id="eiDept" value="${U.esc(s.dept)}"></label>
+          <label style="grid-column:1/-1">Địa chỉ nhận<input id="eiAddr" value="${U.esc(s.receiverAddr)}"></label>
+          <label style="grid-column:1/-1">Ghi chú tình trạng hàng<input id="eiCond" value="${U.esc(s.condition)}"></label>
+        </div>
+        <div class="mt" style="display:flex;gap:8px;align-items:center">
+          <button class="btn primary" id="eiSave">✓ Lưu thông tin phiếu</button>
+          <button class="btn" onclick="${fromPreview ? `Views._pxkView('${s.id}')` : `App.closeModal()`}">Huỷ</button>
+        </div>
+      </div>`);
+    document.getElementById("eiSave").onclick = () => {
+      const r = Store.updateShipmentMeta(id, {
+        code: val("eiCode") || s.code,
+        date: val("eiDate") || s.date,
+        actualDate: val("eiActual") || null,
+        lgh: val("eiLgh"),
+        pkl: val("eiPkl"),
+        qcNo: val("eiQc"),
+        driver: val("eiDriver"),
+        truck: val("eiTruck"),
+        seal: val("eiSeal"),
+        warehouse: val("eiWh"),
+        receiver: val("eiRecv"),
+        dept: val("eiDept"),
+        receiverAddr: val("eiAddr"),
+        condition: val("eiCond"),
+      });
+      if (!r || !r.ok) return;
+      App.toast(`✓ Đã cập nhật thông tin phiếu <b>${U.esc(r.s.code)}</b>`, "ok");
+      if (fromPreview) Views._pxkView(id);
+      else App.closeModal();
+    };
+  };
+
   window.Views._pxkConfirm = function (id) {
     const s = Store.getShipment(id); if (!s) return;
+    const defDate = s.actualDate || (U.todayISO ? U.todayISO() : TVS_META.today);
     App.openModal(`
       <div class="modal-h"><h3>Xác nhận xuất kho — ${U.esc(s.code)}</h3>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div>
@@ -6741,14 +6975,14 @@ window.TVS_GH = {
         <p style="font-size:13.5px">Xuất <b>${U.fmt(U.sum(s.lines, l => l.qty))} đôi</b> = ${U.fmt(U.sum(s.lines, l => l.ctn))} thùng
         cho <b>${U.esc(s.receiver)}</b> (${s.orders.join(", ")}).</p>
         <div class="frm mt"><label>Ngày thực xuất (ghi nhận đối chiếu đúng hạn)
-          <input type="date" id="cShipDate" value="${s.actualDate || TVS_META.today}"></label></div>
+          <input type="date" id="cShipDate" value="${defDate}"></label></div>
         <div class="mt" style="display:flex;gap:8px">
           <button class="btn primary" id="cGo">✓ Xuất kho & ghi ngày thực xuất</button>
           <button class="btn" onclick="App.closeModal()">Huỷ</button>
         </div><div class="note mt" id="cErr"></div>
       </div>`);
     document.getElementById("cGo").onclick = () => {
-      const r = Store.confirmShip(id, val("cShipDate") || TVS_META.today);
+      const r = Store.confirmShip(id, val("cShipDate") || defDate);
       if (!r.ok) { document.getElementById("cErr").innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(r.msg)}</span>`; return; }
       App.closeModal();
       App.toast(`✓ Phiếu <b>${U.esc(s.code)}</b> đã xuất kho — hệ thống đã ghi ngày thực xuất & cập nhật % đúng hạn`, "ok");
@@ -7111,7 +7345,8 @@ window.TVS_GH = {
         </span>
         <span class="bdg neu plain">${n} trang A4 ${orient === "landscape" ? "ngang" : "đứng"}</span>
         ${hasCompact ? `<span class="bdg acc plain" title="Trang cuối ít dòng — hệ thống tự co dòng để vừa đủ trang, không lấn tờ sau">tự co dòng vừa trang</span>` : ""}
-        <button class="btn small" style="margin-left:auto" onclick="App.printModal()">${App.icon("print", "ico")} In phiếu (${n} trang)</button>
+        <button class="btn small need-edit" style="margin-left:auto" onclick="Views._pxkEditInfo('${s.id}', true)" title="Sửa thông tin phiếu, tài xế, biển số xe, seal…">✎ Sửa TT</button>
+        <button class="btn small primary" onclick="App.printModal()">${App.icon("print", "ico")} In phiếu (${n} trang)</button>
         <button class="btn small" onclick="Views._pxkCSV('${s.id}')">CSV</button>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div>
       <div class="modal-b phieu-wrap">${pagesHTML}</div>`, true);
@@ -7119,7 +7354,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/packing.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/packing.js — PACKING LIST (CLP) · v5.0
@@ -7159,12 +7393,15 @@ window.TVS_GH = {
       const bats = Object.keys(S.byBat).map(Number).sort((a, b) => a - b);
       const noPk = (U.ORDER_INDEX || []).filter(o => !(window.TVS_PACKING || {})[o.ord]);
 
-      const q = st.q.trim().toLowerCase();
-      const view = rows.filter(r =>
-        (!st.bat || String(r.bat || "") === st.bat) &&
-        (!st.src || r.src === st.src) &&
-        (!q || r.ord.toLowerCase().includes(q) || (r.p.po || "").toLowerCase().includes(q)
-          || (r.p.col || "").toLowerCase().includes(q) || (r.p.ctry || "").toLowerCase().includes(q)));
+      const filterView = () => {
+        const q = st.q.trim().toLowerCase();
+        return rows.filter(r =>
+          (!st.bat || String(r.bat || "") === st.bat) &&
+          (!st.src || r.src === st.src) &&
+          (!q || r.ord.toLowerCase().includes(q) || (r.p.po || "").toLowerCase().includes(q)
+            || (r.p.col || "").toLowerCase().includes(q) || (r.p.ctry || "").toLowerCase().includes(q)));
+      };
+      let view = filterView();
 
       root.innerHTML = `
         <div class="grid g-kpi">
@@ -7209,7 +7446,7 @@ window.TVS_GH = {
               <option value="import" ${st.src === "import" ? "selected" : ""}>Đã import từ file</option>
             </select>
             <input class="f-input" id="pkQ" placeholder="Tìm chỉ thị, PO, màu, quốc gia…" value="${U.esc(st.q)}" data-testid="pk-search">
-            <span class="f-chipcount">${U.fmt(view.length)} chỉ thị · ${U.fmt(U.sum(view, r => r.prs))} đôi · ${U.fmt(U.sum(view, r => r.ctn))} thùng</span>
+            <span class="f-chipcount" id="pkCountChip">${U.fmt(view.length)} chỉ thị · ${U.fmt(U.sum(view, r => r.prs))} đôi · ${U.fmt(U.sum(view, r => r.ctn))} thùng</span>
           </div>
         </div>
 
@@ -7247,44 +7484,7 @@ window.TVS_GH = {
         <div class="card mt">
           <div class="card-h"><h3>Chi tiết packing list theo chỉ thị</h3>
             <span class="sub">bấm 1 dòng để xem toàn bộ nhóm thùng & đối chiếu size</span></div>
-          <div class="tbl-wrap"><table class="tbl" data-testid="pk-detail-table">
-            <thead><tr>
-              <th>Chỉ thị</th><th>Đợt</th><th>Quốc gia</th><th>PO</th><th>Màu</th>
-              <th class="num">Đôi (PL)</th><th class="num">Đôi (đặt)</th><th class="num">Thùng</th>
-              <th class="num">Nhóm</th><th class="num">MIX</th><th>Nguồn</th><th>Đối chiếu</th><th>Thao tác</th>
-            </tr></thead>
-            <tbody>${view.length ? view.map(r => `
-              <tr>
-                <td class="clickable" onclick="Views._pkDetail('${r.ord}')"><b>${r.ord}</b></td>
-                <td>${batTxt(r.bat)}</td>
-                <td>${U.flag(r.p.ctry)} ${U.esc(r.p.ctry || "—")}</td>
-                <td class="mono">${U.esc(r.p.po || "—")}</td>
-                <td>${U.colorCell(r.p.col)}</td>
-                <td class="num"><b>${U.fmt(r.prs)}</b></td>
-                <td class="num">${r.ordPrs === null ? "—" : U.fmt(r.ordPrs)}</td>
-                <td class="num">${U.fmt(r.ctn)}</td>
-                <td class="num">${U.fmt(r.groups)}</td>
-                <td class="num">${r.mix ? U.fmt(r.mix) : "—"}</td>
-                <td>${srcBdg(r.src)}</td>
-                <td>${matchBdg(r.match)}</td>
-                <td style="white-space:nowrap">
-                  <button class="btn small" onclick="Views._pkDetail('${r.ord}')">Xem</button>
-                  <button class="btn small" onclick="Views._pkExport('${r.ord}')">CSV</button>
-                  ${r.src === "import" ? `<button class="btn small danger need-edit" onclick="Views._pkDelete('${r.ord}')">${App.icon("trash", "ico")}</button>` : ""}
-                </td>
-              </tr>`).join("") : `<tr><td colspan="13" class="note" style="text-align:center;padding:30px">
-                Không có chỉ thị nào khớp bộ lọc.</td></tr>`}
-            </tbody>
-            <tfoot><tr>
-              <td colspan="5">TỔNG (${U.fmt(view.length)} chỉ thị)</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.prs))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.ordPrs || 0))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.ctn))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.groups))}</td>
-              <td class="num">${U.fmt(U.sum(view, r => r.mix))}</td>
-              <td colspan="3"></td>
-            </tr></tfoot>
-          </table></div>
+          <div class="tbl-wrap" id="pkDetailArea"></div>
         </div>
 
         <div class="card mt">
@@ -7335,6 +7535,53 @@ window.TVS_GH = {
           </table></div>
         </div>`;
 
+      const renderDetailTable = () => {
+        view = filterView();
+        const chip = document.getElementById("pkCountChip");
+        if (chip) chip.textContent = `${U.fmt(view.length)} chỉ thị · ${U.fmt(U.sum(view, r => r.prs))} đôi · ${U.fmt(U.sum(view, r => r.ctn))} thùng`;
+        const area = document.getElementById("pkDetailArea");
+        if (!area) return;
+        area.innerHTML = `<table class="tbl" data-testid="pk-detail-table">
+          <thead><tr>
+            <th>Chỉ thị</th><th>Đợt</th><th>Quốc gia</th><th>PO</th><th>Màu</th>
+            <th class="num">Đôi (PL)</th><th class="num">Đôi (đặt)</th><th class="num">Thùng</th>
+            <th class="num">Nhóm</th><th class="num">MIX</th><th>Nguồn</th><th>Đối chiếu</th><th>Thao tác</th>
+          </tr></thead>
+          <tbody>${view.length ? view.map(r => `
+            <tr>
+              <td class="clickable" onclick="Views._pkDetail('${r.ord}')"><b>${r.ord}</b></td>
+              <td>${batTxt(r.bat)}</td>
+              <td>${U.flag(r.p.ctry)} ${U.esc(r.p.ctry || "—")}</td>
+              <td class="mono">${U.esc(r.p.po || "—")}</td>
+              <td>${U.colorCell(r.p.col)}</td>
+              <td class="num"><b>${U.fmt(r.prs)}</b></td>
+              <td class="num">${r.ordPrs === null ? "—" : U.fmt(r.ordPrs)}</td>
+              <td class="num">${U.fmt(r.ctn)}</td>
+              <td class="num">${U.fmt(r.groups)}</td>
+              <td class="num">${r.mix ? U.fmt(r.mix) : "—"}</td>
+              <td>${srcBdg(r.src)}</td>
+              <td>${matchBdg(r.match)}</td>
+              <td style="white-space:nowrap">
+                <button class="btn small" onclick="Views._pkDetail('${r.ord}')">Xem</button>
+                <button class="btn small" onclick="Views._pkExport('${r.ord}')">CSV</button>
+                ${r.src === "import" ? `<button class="btn small danger need-edit" onclick="Views._pkDelete('${r.ord}')">${App.icon("trash", "ico")}</button>` : ""}
+              </td>
+            </tr>`).join("") : `<tr><td colspan="13" class="note" style="text-align:center;padding:30px">
+              Không có chỉ thị nào khớp bộ lọc.</td></tr>`}
+          </tbody>
+          <tfoot><tr>
+            <td colspan="5">TỔNG (${U.fmt(view.length)} chỉ thị)</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.prs))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.ordPrs || 0))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.ctn))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.groups))}</td>
+            <td class="num">${U.fmt(U.sum(view, r => r.mix))}</td>
+            <td colspan="3"></td>
+          </tr></tfoot>
+        </table>`;
+      };
+      renderDetailTable();
+
       document.getElementById("pkImp").onclick = openImport;
       document.getElementById("pkTplX").onclick = () => { Store.templatePackingXLSX(); App.toast("Đã tải file mẫu packing list (.xlsx)", "ok"); };
       document.getElementById("pkTplC").onclick = () => { Store.templatePackingCSV(); App.toast("Đã tải file mẫu packing list (.csv)", "ok"); };
@@ -7353,10 +7600,10 @@ window.TVS_GH = {
         const r = Store.clearImportedPacking(reason);
         App.toast(r.ok ? `Đã xoá packing import của ${r.n} chỉ thị` : "⚠ " + r.msg, r.ok ? "ok" : "warn");
       };
-      document.getElementById("pkBat").onchange = e => { st.bat = e.target.value; this.render(root); };
-      document.getElementById("pkSrc").onchange = e => { st.src = e.target.value; this.render(root); };
+      document.getElementById("pkBat").onchange = e => { st.bat = e.target.value; renderDetailTable(); };
+      document.getElementById("pkSrc").onchange = e => { st.src = e.target.value; renderDetailTable(); };
       const qi = document.getElementById("pkQ");
-      qi.oninput = () => { clearTimeout(qi._t); qi._t = setTimeout(() => { st.q = qi.value; this.render(root); }, 260); };
+      qi.oninput = () => { st.q = qi.value; renderDetailTable(); };
     }
   };
 
@@ -7587,7 +7834,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/nxt-report.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    nxt-report.js — BÁO CÁO N-X-T THEO KỲ + XUẤT FILE EXCEL (.xlsx) — v4.9
@@ -8022,7 +8268,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/inventory.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/inventory.js — N-X-T · NHẬP – XUẤT – TỒN KHO THÀNH PHẨM
@@ -8158,7 +8403,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/shipping.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/shipping.js — TMS · KẾ HOẠCH XUẤT HÀNG KINH DOANH
@@ -8246,7 +8490,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/architecture.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/architecture.js — KIẾN TRÚC HỆ THỐNG
@@ -8378,7 +8621,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/views/assistant.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/assistant.js — TRỢ LÝ AI TVS (mô phỏng Agentic RAG — hình ②)
@@ -8656,7 +8898,6 @@ window.TVS_GH = {
 })();
 
 </script>
-<!-- ── assets/js/app.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    app.js — Điều phối ứng dụng TVS × adidas N-X-T
@@ -9063,9 +9304,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
             <td class="num">100%</td>
           </tr></tfoot>
         </table></div>
-        <div class="note mt">Hệ thống tự động đo dung lượng thực tế mỗi khi bạn thêm, sửa, xóa hoặc đồng bộ dữ liệu với GitHub.</div>
-        <div class="mt" style="display:flex;justify-content:flex-end"><button class="btn" onclick="App.closeModal()">Đóng</button></div>
+        <div class="note mt">Hệ thống tự động đo dung lượng thực tế mỗi khi bạn thêm, sửa, xóa hoặc đồng bộ dữ liệu với GitHub. Nút <b>“Dọn dẹp & Tối ưu bộ nhớ”</b> giúp loại bỏ các bản ghi thừa / đã xóa trong mảng thô và nén định dạng JSON nhưng vẫn giữ nguyên 100% số liệu & nhật ký sửa/xóa.</div>
+        <div class="mt" style="display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+          <button class="btn primary need-edit" id="btnCompactStorage">🧹 Dọn dẹp & Tối ưu bộ nhớ${st.redundantRows ? ` (${st.redundantRows} dòng thừa)` : ""}</button>
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
       </div>`, true);
+    const btnC = document.getElementById("btnCompactStorage");
+    if (btnC) btnC.onclick = () => {
+      if (!Store.compactStorage) return;
+      const r = Store.compactStorage();
+      if (!r || !r.ok) return;
+      App.openStorageModal();
+      App.toast(`🧹 Đã tối ưu bộ nhớ: dọn ${r.removedRows} dòng thừa · tiết kiệm ${U.fmt(r.savedBytes)} B (giữ nguyên 100% dữ liệu & nhật ký)`, "ok");
+    };
   };
 
   /* ── Chip trạng thái đồng bộ GitHub ── */
@@ -9123,7 +9375,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 })();
 
 </script>
-<!-- ── assets/js/collapsible.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    collapsible.js — SỔ XUỐNG / THU GỌN CÁC KHỐI TRÊN MỌI MÀN HÌNH (v4.10)
