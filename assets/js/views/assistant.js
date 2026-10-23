@@ -20,6 +20,9 @@
     "tho nhi ky": "TURKIYE", "turkiye": "TURKIYE", "turkey": "TURKIYE",
     "uae": "UNITED ARAB EMIRATES", "a rap": "UNITED ARAB EMIRATES",
     "colombia": "COLOMBIA", "nam phi": "SOUTH AFRICA", "south africa": "SOUTH AFRICA", "mexico": "MEXICO",
+    "brazil": "BRAZIL", "thai lan": "THAILAND", "thailand": "THAILAND",
+    "trung quoc": "CHINA", "china": "CHINA", "dai loan": "TAIWAN", "taiwan": "TAIWAN",
+    "han quoc": "SOUTH KOREA", "korea": "SOUTH KOREA", "south korea": "SOUTH KOREA",
   };
 
   const steps = arr => `<div class="steps">${arr.map((s, i) =>
@@ -30,7 +33,7 @@
   /* ── Các "công cụ" truy xuất (mô phỏng Agentic RAG tools) ── */
   function ansOrder(code) {
     const o = U.orderByCode(code);
-    if (!o) return { s: ["🧠 Planner", "🔍 Order Lookup Tool", "⚠ CRAG: không thấy → hỏi lại"], h: `Không tìm thấy đơn <b>${U.esc(code)}</b> trong 95 đơn hàng. Bạn kiểm tra lại mã (ví dụ: <b>AE2607131</b>, <b>AE2607172</b>)?` };
+    if (!o) return { s: ["🧠 Planner", "🔍 Order Lookup Tool", "⚠ CRAG: không thấy → hỏi lại"], h: `Không tìm thấy đơn <b>${U.esc(code)}</b> trong ${U.ORDER_INDEX.length} đơn hàng. Bạn kiểm tra lại mã (ví dụ: <b>AE2607131</b>, <b>AD2600004</b>)?` };
     const rows = U.SIZES.filter(s => o.sizes[s]).map(s =>
       [s, U.fmt(o.sizes[s].ordered), U.fmt(o.sizes[s].received), U.fmt(o.sizes[s].received - o.sizes[s].ordered)]);
     return {
@@ -68,11 +71,19 @@
   }
 
   function ansShort() {
+    if (!U.SHORTAGES.length) {
+      return {
+        s: ["🧠 Planner", "⚖ Shortage Tool (N↔Đặt)", "✅ Answer"],
+        h: `Hiện không có đơn nào đang nhập dở bị thiếu hụt size.`
+      };
+    }
+    const partialOrds = U.ORDER_INDEX.filter(o => o.recvPrs > 0 && o.short > 0).sort((a, b) => a.d.localeCompare(b.d));
+    const prio = partialOrds[0];
     return {
       s: ["🧠 Planner", "⚖ Shortage Tool (N↔Đặt)", "✅ Answer"],
-      h: `Hiện có <b>${U.SHORTAGES.length} mục thiếu</b>, tổng <b>${U.fmt(U.sum(U.SHORTAGES, s => s.qty))} đôi</b>:
+      h: `Hiện có <b>${U.SHORTAGES.length} mục thiếu</b> trên các đơn đã nhập kho 1 phần, tổng <b>${U.fmt(U.sum(U.SHORTAGES, s => s.qty))} đôi</b>:
       ${tbl(["Đơn", "Size", "Thiếu", "Loại"], U.SHORTAGES.map(s => [`${s.ord} ${U.flag(s.ctry)}`, s.sz, U.fmt(s.qty), s.type]))}
-      Ưu tiên nhất: <b>AE2607131 (Ý)</b> xuất ngày <b>25/07/2026</b> — còn ${U.daysFromToday("2026-07-25")} ngày mà thiếu 15 đôi UK 9 chưa sản xuất.`
+      ${prio ? `Ưu tiên nhất: <b>${prio.ord} (${U.VN_COUNTRY[prio.ctry] || prio.ctry})</b> xuất ngày <b>${U.fmtDate(prio.d)}</b> — đã nhập ${U.fmt(prio.recvPrs)}/${U.fmt(prio.prs)} đôi, còn thiếu <b>${U.fmt(prio.short)} đôi</b>.` : ""}`
     };
   }
 
@@ -80,13 +91,13 @@
     const N = U.NXT;
     return {
       s: ["🧠 Planner", "📦 Inventory Tool (N-X-T)", "✅ Answer"],
-      h: `Tình hình <b>N-X-T</b> đến ${U.fmtDate(TVS_META.today)}:
-      ${tbl(["Chỉ tiêu", "Đôi", "Thùng"], [
+      h: `Tình hình <b>N-X-T</b> hiện tại (mapping thùng theo CLP):
+      ${tbl(["Chỉ tiêu", "Đôi", "Thùng (CLP)"], [
         ["① Tổng đặt hàng", U.fmt(N.datPrs), U.fmt(N.datCtn)],
         ["② Nhập kho (N)", U.fmt(N.nhapPrs), U.fmt(N.nhapCtn)],
         ["③ Xuất kho (X)", U.fmt(N.xuatPrs), U.fmt(N.xuatCtn)],
         ["④ Tồn kho (T)", "<b>" + U.fmt(N.tonPrs) + "</b>", "<b>" + U.fmt(N.tonCtn) + "</b>"],
-        ["⑤ Còn phải SX", U.fmt(N.conSXPrs), "—"]])}
+        ["⑤ Còn phải SX", U.fmt(N.conSXPrs), U.fmt(N.datCtn - N.nhapCtn)]])}
       Tiến độ đạt <b>${U.fmtPct(N.progress)}</b> kế hoạch. Chi tiết tại <a href="#/inventory">trang N-X-T →</a>`
     };
   }
@@ -98,7 +109,7 @@
       h: `5 mốc xuất KD gần nhất:
       ${tbl(["Ngày", "Còn", "Số đôi", "Thị trường"], up.map(p =>
         [U.fmtDate(p.d), p.days + " ngày", U.fmt(p.prs), p.ctries.map(c => U.flag(c)).join(" ")]))}
-      Toàn bộ 15 mốc xem tại <a href="#/shipping">Kế hoạch xuất →</a>`
+      Toàn bộ ${U.SHIP_PLAN.length} mốc xem tại <a href="#/shipping">Kế hoạch xuất →</a>`
     };
   }
 
@@ -122,19 +133,27 @@
   }
 
   function ansTotals() {
+    const N = U.NXT;
+    const byCtry = U.aggBy(TVS_ORDERS, r => r.ctry).slice(0, 3);
+    const byCol = U.aggBy(TVS_ORDERS, r => r.col)[0];
+    const bySz = U.aggBy(TVS_ORDERS, r => r.sz)[0];
+    const nBats = U.uniq(TVS_ORDERS, r => r.bat).length;
+    const nCtries = U.uniq(TVS_ORDERS, r => r.ctry).length;
+    const nCols = U.uniq(TVS_ORDERS, r => r.col).length;
     return {
       s: ["🧠 Planner", "∑ Aggregator", "✅ Answer"],
       h: `Chương trình <b>adidas Rubber Boots ${TVS_META.itemCode}</b> tại TVS:
-      <br>• Tổng đặt: <b>${U.fmt(TVS_META.totalPairs)} đôi</b> = <b>${U.fmt(TVS_META.totalCartons)} thùng</b> (quy cách 6 đôi/thùng)
-      <br>• <b>95 đơn hàng</b> · <b>14 quốc gia</b> · <b>5 mã màu</b> · size UK 3–9 · 3 đợt đặt hàng
-      <br>• Thị trường lớn nhất: 🇺🇸 Mỹ (10.878 đôi), 🇩🇪 Đức (7.414), 🇯🇵 Nhật (5.606)
-      <br>• Màu chủ lực: LC1783 (16.534 đôi ≈ 41,3%) · Size chạy nhất: UK 6 (11.439 đôi)
-      <br>• Đã nhập kho: <b>${U.fmt(U.NXT.nhapPrs)} đôi</b> (${U.fmtPct(U.NXT.progress)})`
+      <br>• Tổng đặt: <b>${U.fmt(N.datPrs)} đôi</b> = <b>${U.fmt(N.datCtn)} thùng</b> (mapping theo Packing List · CLP)
+      <br>• <b>${U.ORDER_INDEX.length} đơn hàng</b> · <b>${nCtries} quốc gia</b> · <b>${nCols} mã màu</b> · size UK 3–9 · <b>${nBats} đợt đặt hàng</b>
+      <br>• Thị trường lớn nhất: ${byCtry.map(x => `${U.flag(x.key)} ${U.VN_COUNTRY[x.key] || x.key} (${U.fmt(x.prs)} đôi)`).join(", ")}
+      <br>• Màu chủ lực: ${byCol ? `${byCol.key} (${U.fmt(byCol.prs)} đôi ≈ ${U.fmtPct(byCol.prs / N.datPrs)})` : "—"} · Size chạy nhất: ${bySz ? `${bySz.key} (${U.fmt(bySz.prs)} đôi)` : "—"}
+      <br>• Đã nhập kho: <b>${U.fmt(N.nhapPrs)} đôi (${U.fmt(N.nhapCtn)} thùng)</b> (${U.fmtPct(N.progress)}) · Đã xuất: <b>${U.fmt(N.xuatPrs)} đôi</b> · Tồn: <b>${U.fmt(N.tonPrs)} đôi (${U.fmt(N.tonCtn)} thùng)</b>`
     };
   }
 
   function ansBatch(b) {
     const rows = TVS_ORDERS.filter(r => r.bat === b);
+    if (!rows.length) return { s: ["🧠 Planner", "🗂 Batch Filter Tool", "⚠ CRAG"], h: `Không có đơn hàng nào thuộc <b>Đợt ${b}</b>. Các đợt hiện có: ${U.uniq(TVS_ORDERS, r => r.bat).sort((x, y) => x - y).map(x => "Đợt " + x).join(", ")}.` };
     return {
       s: ["🧠 Planner", "🗂 Batch Filter Tool", "∑ Aggregator", "✅ Answer"],
       h: `<b>Đợt đặt hàng ${b}</b>: ${U.fmt(U.sum(rows, r => r.prs))} đôi = ${U.fmt(U.sum(rows, r => r.ctn))} thùng,
@@ -146,20 +165,20 @@
   function ansHelp() {
     return {
       s: ["🧠 Planner", "💬 Help"],
-      h: `Tôi là <b>Trợ lý AI TVS</b> — truy xuất trực tiếp dữ liệu thật của 2 sheet Excel. Bạn có thể hỏi:
-      <br>• "Đơn <b>AE2607131</b> thế nào?" — tra 1 đơn + ma trận size
+      h: `Tôi là <b>Trợ lý AI TVS</b> — truy xuất trực tiếp dữ liệu thật trên hệ thống. Bạn có thể hỏi:
+      <br>• "Đơn <b>AE2607131</b> hoặc <b>AD2600004</b> thế nào?" — tra 1 đơn + ma trận size
       <br>• "Tổng hàng đi <b>Mỹ</b>?" / "đơn đi <b>Nhật</b>" — theo quốc gia
       <br>• "Màu <b>LC1783</b> bao nhiêu đôi?" — theo mã màu
       <br>• "Đang <b>thiếu</b> những gì?" — thiếu khi nhập + chưa sản xuất
       <br>• "<b>Tồn kho</b> hiện tại?" — bảng N-X-T
-      <br>• "Lịch <b>xuất hàng</b> sắp tới?" / "Đợt 2 có gì?"`
+      <br>• "Lịch <b>xuất hàng</b> sắp tới?" / "Đợt 4 có gì?"`
     };
   }
 
   /* ── Planner: định tuyến ý định ── */
   function route(q) {
     const n = norm(q);
-    const mOrd = q.match(/AE\d{6,}/i);
+    const mOrd = q.match(/\b(?:AE|AD)\d{5,}\b/i);
     if (mOrd) return ansOrder(mOrd[0].toUpperCase());
     const mPO = q.match(/\d{8,}-\d/);
     if (mPO) {
@@ -168,7 +187,7 @@
     }
     const mCol = q.match(/LC\s?17\d{2}/i);
     if (mCol) return ansColor(mCol[0].replace(/\s/, "").toUpperCase());
-    const mBat = n.match(/dot\s*([123])/);
+    const mBat = n.match(/dot\s*(\d+)/);
     if (mBat) return ansBatch(+mBat[1]);
     for (const k of Object.keys(CTRY_ALIAS).sort((a, b) => b.length - a.length)) {
       if (new RegExp(`(^|[^a-z])${k}([^a-z]|$)`).test(n)) return ansCountry(CTRY_ALIAS[k]);

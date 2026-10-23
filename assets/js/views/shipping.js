@@ -10,8 +10,9 @@
     title: "Kế hoạch xuất hàng · TMS",
     render(root) {
       const plan = U.SHIP_PLAN;
-      const next = plan.find(p => p.days >= 0);
+      const next = plan.find(p => p.days >= 0) || plan[plan.length - 1] || { d: "", days: 0, prs: 0, ctries: [] };
       const in30 = plan.filter(p => p.days >= 0 && p.days <= 30);
+      const nCtries = U.uniq(TVS_ORDERS, r => r.ctry).length;
 
       const readiness = p => {
         if (p.shipped >= p.prs && p.prs) return { cls: "ok", lab: "đã xuất đủ" };
@@ -25,9 +26,9 @@
         <div class="grid g-kpi">
           <div class="card kpi kpi-acc"><div class="k-lab">${App.icon("truck")}<span>Mốc xuất gần nhất</span></div>
             <div class="k-val">${U.fmtDate(next.d)}</div>
-            <div class="k-sub">còn ${next.days} ngày · ${U.fmt(next.prs)} đôi đi ${next.ctries.map(c => U.flag(c)).join(" ")}</div></div>
+            <div class="k-sub">${next.days >= 0 ? "còn " + next.days + " ngày" : "đã qua"} · ${U.fmt(next.prs)} đôi đi ${next.ctries.map(c => U.flag(c)).join(" ")}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("calendar")}<span>Tổng mốc xuất</span></div>
-            <div class="k-val">${plan.length}</div><div class="k-sub">${U.fmtDate(plan[0].d)} → ${U.fmtDate(plan[plan.length - 1].d)}</div></div>
+            <div class="k-val">${plan.length}</div><div class="k-sub">${plan.length ? `${U.fmtDate(plan[0].d)} → ${U.fmtDate(plan[plan.length - 1].d)}` : "—"}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("clock")}<span>Trong 30 ngày tới</span></div>
             <div class="k-val">${U.fmt(U.sum(in30, p => p.prs))} <small>đôi</small></div>
             <div class="k-sub">${in30.length} mốc · ${U.fmt(U.sum(in30, p => p.ctn))} thùng</div></div>
@@ -35,7 +36,7 @@
             <div class="k-val">${U.fmt(U.NXT.tonPrs)} <small>đôi</small></div>
             <div class="k-sub">${U.fmt(U.NXT.tonCtn)} thùng chờ xuất</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("globe")}<span>Thị trường</span></div>
-            <div class="k-val">14</div><div class="k-sub">quốc gia nhận hàng</div></div>
+            <div class="k-val">${nCtries}</div><div class="k-sub">quốc gia nhận hàng</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("check")}<span>Đã thực xuất</span></div>
             <div class="k-val">${U.fmt(U.NXT.xuatPrs)} <small>đôi</small></div>
             <div class="k-sub">${U.ONTIME.n ? `${(window.TVS_SHIPMENTS || []).filter(s => s.status === "shipped").length} phiếu XK · đúng hạn ${U.fmtPct(U.ONTIME.rate, 0)}` : `chưa có phiếu xuất kho nào`}</div></div>
@@ -47,7 +48,7 @@
         </div>
 
         <div class="card mt">
-          <div class="card-h"><h3>Lịch xuất hàng chi tiết — 15 mốc</h3>
+          <div class="card-h"><h3>Lịch xuất hàng chi tiết — ${plan.length} mốc</h3>
             <span class="sub">gom theo "Ngày xuất KD" · trạng thái so với tồn kho hiện tại</span></div>
           <div class="card-b"><div class="tl">
             ${plan.map(p => {

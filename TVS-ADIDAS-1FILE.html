@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 10:55) -->
+<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 13:44) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
@@ -2178,21 +2178,94 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   }
   Store.local = load();
 
+  /* ── Mapping quy cách đóng thùng từ nguồn PACKING LIST (CLP) ──
+     Đầu vào đơn đặt hàng & nhập kho chỉ có số đôi theo size (không có cột thùng).
+     Hệ thống tự tham chiếu TVS_PACKING (trang CLP) để lấy đúng số đôi/thùng
+     (VD: 2 đôi/thùng, 6 đôi/thùng) và tổng số thùng chuẩn (kể cả thùng lẻ / thùng MIX). */
+  Store.clpProfile = function (ord, ordSizes) {
+    const p = (window.TVS_PACKING || {})[ord];
+    const perCtn = {}, targetCtn = {};
+    SIZES6.forEach(sz => { perCtn[sz] = PK; targetCtn[sz] = 0; });
+    if (!p || !p.groups || !p.groups.length) {
+      if (ordSizes) {
+        Object.keys(ordSizes).forEach(sz => {
+          const q = ordSizes[sz] || 0;
+          targetCtn[sz] = q > 0 ? Math.ceil(q / PK) : 0;
+        });
+      }
+      return { perCtn, targetCtn, hasCLP: false, totalCtn: Object.values(targetCtn).reduce((a, b) => a + b, 0) };
+    }
+    const nonMixCtn = {}, bestPrs = {}, clpSizes = {}, mixPrs = {};
+    for (const g of p.groups) {
+      const entries = Object.entries(g.sizes || {});
+      for (const [sz, q] of entries) {
+        clpSizes[sz] = (clpSizes[sz] || 0) + q;
+        if (g.mix) mixPrs[sz] = (mixPrs[sz] || 0) + q;
+      }
+      if (!g.mix && entries.length === 1) {
+        const [sz, q] = entries[0];
+        nonMixCtn[sz] = (nonMixCtn[sz] || 0) + (g.ctn || 0);
+        if (q > (bestPrs[sz] || 0) && g.perCtn > 0) {
+          bestPrs[sz] = q;
+          perCtn[sz] = g.perCtn;
+        }
+      }
+    }
+    let domPer = PK, maxP = 0;
+    Object.keys(bestPrs).forEach(sz => { if (bestPrs[sz] > maxP) { maxP = bestPrs[sz]; domPer = perCtn[sz]; } });
+    SIZES6.forEach(sz => { if (!bestPrs[sz]) perCtn[sz] = domPer; });
+
+    const sizesMap = ordSizes || clpSizes;
+    const allKeys = new Set([...Object.keys(sizesMap), ...Object.keys(clpSizes)]);
+    let exactMatch = true;
+    for (const sz of allKeys) {
+      if ((sizesMap[sz] || 0) !== (clpSizes[sz] || 0)) { exactMatch = false; break; }
+    }
+    if (exactMatch) {
+      for (const sz of Object.keys(sizesMap)) {
+        targetCtn[sz] = (sizesMap[sz] > 0) ? (nonMixCtn[sz] || 0) : 0;
+      }
+      let rem = (p.totalCtn || 0) - Object.values(targetCtn).reduce((a, b) => a + b, 0);
+      if (rem !== 0) {
+        const cands = Object.keys(sizesMap).filter(sz => sizesMap[sz] > 0)
+          .sort((a, b) => ((mixPrs[b] || 0) - (mixPrs[a] || 0)) || ((sizesMap[b] || 0) - (sizesMap[a] || 0)));
+        let idx = 0;
+        while (rem > 0 && cands.length) { targetCtn[cands[idx % cands.length]] += 1; rem--; idx++; }
+        while (rem < 0 && cands.length) {
+          const k = cands[idx % cands.length];
+          if (targetCtn[k] > 1) { targetCtn[k] -= 1; rem++; }
+          idx++; if (idx > 100) break;
+        }
+      }
+    } else {
+      for (const sz of Object.keys(sizesMap)) {
+        const q = sizesMap[sz] || 0;
+        if (q <= 0) targetCtn[sz] = 0;
+        else if (q === (clpSizes[sz] || 0) && !mixPrs[sz] && nonMixCtn[sz]) targetCtn[sz] = nonMixCtn[sz];
+        else targetCtn[sz] = Math.ceil(q / (perCtn[sz] || domPer));
+      }
+    }
+    return { perCtn, targetCtn, hasCLP: true, totalCtn: Object.values(targetCtn).reduce((a, b) => a + b, 0) };
+  };
+  Store.clpPerCtn = function (ord, sz) {
+    const prof = Store.clpProfile(ord);
+    return (prof.perCtn && prof.perCtn[sz]) || PK;
+  };
+
   /* ── Áp override SỬA/XÓA dòng ma trận nhập kho (theo nhóm ngày+chỉ thị) ──
      Hoạt động cho cả dòng Excel gốc lẫn dòng nhập thêm. Không đụng seed gốc. */
   const gkOf = r => r.rdLabel + "||" + r.ord;
   function applyReceiptEdits(rows) {
     const edits = Store.local.receiptEdits || {};
-    if (!Object.keys(edits).length) return rows;
+    if (!Object.keys(edits).length) return rows.map(r => Object.assign({}, r));
     const byKey = {};
     rows.forEach(r => { (byKey[gkOf(r)] = byKey[gkOf(r)] || []).push(r); });
-    const out = [], editedOrders = new Set(), handled = new Set();
+    const out = [], handled = new Set();
     for (const r of rows) {
       const gk = gkOf(r), e = edits[gk];
-      if (!e) { out.push(r); continue; }
-      editedOrders.add(r.ord);
+      if (!e) { out.push(Object.assign({}, r)); continue; }
       if (e.deleted) continue;                 // đã xóa → bỏ toàn nhóm
-      if (!e.sizes) { out.push(r); continue; }  // không override size
+      if (!e.sizes) { out.push(Object.assign({}, r)); continue; }  // không override size
       if (handled.has(gk)) continue;
       handled.add(gk);
       const base = byKey[gk], tmpl = base[0];
@@ -2203,29 +2276,65 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
         out.push(Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev }));
       });
     }
-    if (editedOrders.size) {
-      for (let i = 0; i < out.length; i++)
-        if (editedOrders.has(out[i].ord)) out[i] = Object.assign({}, out[i]); // clone, tránh sửa seed
-      recomputeDiffs(out, editedOrders);
-    }
     return out;
   }
-  /* Tính lại cột Thiếu/Đủ cho các đơn có chỉnh sửa (dòng cuối mỗi size mang net) */
-  function recomputeDiffs(rows, ordSet) {
-    const ordered = {}, recv = {}, lastIdx = {};
-    for (const o of (window.TVS_ORDERS || [])) {
-      if (!ordSet.has(o.ord)) continue;
-      ordered[o.ord + "|" + o.sz] = (ordered[o.ord + "|" + o.sz] || 0) + o.prs;
+
+  /* Đồng bộ toàn bộ đơn hàng & dòng nhập kho với CLP (số thùng) và tính lại cột Thiếu/Đủ
+     (chỉ dòng nhập cuối cùng của mỗi đơn×size mang chênh lệch ròng so với SL đặt;
+      các dòng nhập từng phần trước đó mang diff = 0 để không bị cộng trùng thiếu hụt). */
+  function syncAllCartonsAndDiffs(ordRows, recRows) {
+    const ordSizesMap = {}, ordRowCount = {}, ordRowSeen = {};
+    for (const r of ordRows) {
+      if (!ordSizesMap[r.ord]) ordSizesMap[r.ord] = {};
+      ordSizesMap[r.ord][r.sz] = (ordSizesMap[r.ord][r.sz] || 0) + r.prs;
+      const k = r.ord + "|" + r.sz;
+      ordRowCount[k] = (ordRowCount[k] || 0) + 1;
     }
-    rows.forEach((r, i) => {
-      if (!ordSet.has(r.ord)) return;
-      recv[r.ord + "|" + r.sz] = (recv[r.ord + "|" + r.sz] || 0) + r.prs;
-      lastIdx[r.ord + "|" + r.sz] = i;
+    const profiles = {};
+    for (const ord of Object.keys(ordSizesMap)) {
+      profiles[ord] = Store.clpProfile(ord, ordSizesMap[ord]);
+    }
+    /* Gán số thùng chuẩn CLP cho từng dòng đơn đặt hàng */
+    for (const r of ordRows) {
+      const k = r.ord + "|" + r.sz;
+      ordRowSeen[k] = (ordRowSeen[k] || 0) + 1;
+      const prof = profiles[r.ord];
+      const tc = prof ? (prof.targetCtn[r.sz] || 0) : Math.ceil(r.prs / PK);
+      if (ordRowCount[k] === 1) r.ctn = tc;
+      else {
+        const pc = prof ? (prof.perCtn[r.sz] || PK) : PK;
+        r.ctn = Math.ceil(r.prs / pc);
+      }
+    }
+    /* Tính lại ordered, ctn (theo luỹ kế CLP) và diff (dòng cuối mỗi đơn×size) cho toàn bộ nhập kho */
+    const recvTot = {}, lastIdx = {}, cumPrs = {}, cumCtn = {};
+    recRows.forEach((r, i) => {
+      const k = r.ord + "|" + r.sz;
+      recvTot[k] = (recvTot[k] || 0) + r.prs;
+      lastIdx[k] = i;
     });
-    rows.forEach((r, i) => {
-      if (!ordSet.has(r.ord)) return;
-      const key = r.ord + "|" + r.sz;
-      r.diff = (lastIdx[key] === i) ? (recv[key] - (ordered[key] || 0)) : 0;
+    recRows.forEach((r, i) => {
+      const k = r.ord + "|" + r.sz;
+      const ordQ = (ordSizesMap[r.ord] && ordSizesMap[r.ord][r.sz]) || 0;
+      if (ordQ > 0) r.ordered = ordQ;
+      const prof = profiles[r.ord] || Store.clpProfile(r.ord);
+      const pc = (prof.perCtn && prof.perCtn[r.sz]) || PK;
+      const tc = (prof.targetCtn && prof.targetCtn[r.sz]) || Math.ceil((ordQ || r.prs) / pc);
+      const prevP = cumPrs[k] || 0, newP = prevP + r.prs;
+      cumPrs[k] = newP;
+      let newC;
+      if (ordQ > 0 && newP >= ordQ) {
+        const extraP = newP - ordQ;
+        newC = tc + (extraP > 0 ? Math.ceil(extraP / pc) : 0);
+      } else if (ordQ > 0) {
+        newC = Math.min(tc, Math.ceil(newP / pc));
+      } else {
+        newC = Math.ceil(newP / pc);
+      }
+      r.ctn = Math.max(0, newC - (cumCtn[k] || 0));
+      cumCtn[k] = newC;
+      const targetOrd = ordQ || r.ordered || 0;
+      r.diff = (lastIdx[k] === i) ? (recvTot[k] - targetOrd) : 0;
     });
   }
 
@@ -2237,14 +2346,14 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
      ══════════════════════════════════════════════════════════════ */
   function applyOrderEdits(rows) {
     const edits = Store.local.orderEdits || {};
-    if (!Object.keys(edits).length) return rows;
+    if (!Object.keys(edits).length) return rows.map(r => Object.assign({}, r));
     const out = [], handled = new Set();
     const byOrd = {};
     rows.forEach(r => { (byOrd[r.ord] = byOrd[r.ord] || []).push(r); });
 
     for (const r of rows) {
       const e = edits[r.ord];
-      if (!e) { out.push(r); continue; }
+      if (!e) { out.push(Object.assign({}, r)); continue; }
       if (e.deleted) continue;                       // đơn đã xoá → bỏ toàn bộ dòng
       if (!e.sizes) { out.push(headed(r, e)); continue; }  // chỉ sửa thông tin chung
       if (handled.has(r.ord)) continue;              // ma trận size đã dựng lại 1 lần
@@ -2263,7 +2372,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   }
   /* Ghi đè thông tin chung (ngày xuất KD / quốc gia / PO / màu / đợt) lên 1 dòng */
   function headed(r, e) {
-    if (!e || !e.head) return r;
+    if (!e || !e.head) return Object.assign({}, r);
     const h = e.head, patch = { _edited: true, _rev: e.rev };
     if (h.d) patch.d = h.d;
     if (h.ctry) patch.ctry = h.ctry;
@@ -2277,12 +2386,17 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
      seedReceiptsOff = true → KHÔNG dùng dữ liệu nhập kho gốc (đã thay thế bằng
      dữ liệu import/nhập tay). Bật/tắt được, khôi phục lại lúc nào cũng được. */
   Store.merge = function () {
-    window.TVS_ORDERS = applyOrderEdits(SEED_ORDERS.concat(Store.local.ordersAdded));
-    const base = Store.local.seedReceiptsOff ? [] : SEED_RECEIPTS;
-    window.TVS_RECEIPTS = applyReceiptEdits(base.concat(Store.local.receiptsAdded));
-    window.TVS_SHIPMENTS = Store.local.shipments;
-    /* Packing list = gốc (đợt 1–3) + packing import thêm (đợt 4, 5, 6…) */
+    /* 1. Nạp Packing List (CLP) trước để làm nguồn tham chiếu số thùng chuẩn */
     window.TVS_PACKING = Object.assign({}, SEED_PACKING, Store.local.packingAdded || {});
+    /* 2. Áp chỉnh sửa/xoá cho Đơn đặt hàng & Nhập kho */
+    const ordRows = applyOrderEdits(SEED_ORDERS.concat(Store.local.ordersAdded));
+    const baseRec = Store.local.seedReceiptsOff ? [] : SEED_RECEIPTS;
+    const recRows = applyReceiptEdits(baseRec.concat(Store.local.receiptsAdded));
+    /* 3. Đồng bộ số thùng theo CLP & tính lại chênh lệch Thiếu/Đủ ròng */
+    syncAllCartonsAndDiffs(ordRows, recRows);
+    window.TVS_ORDERS = ordRows;
+    window.TVS_RECEIPTS = recRows;
+    window.TVS_SHIPMENTS = Store.local.shipments;
   };
   Store.merge();
 
@@ -2368,6 +2482,39 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   };
   Store.receiptEditInfo = function (rdLabel, ord) {
     return (Store.local.receiptEdits || {})[rdLabel + "||" + ord] || null;
+  };
+  /* Tổng hợp toàn bộ các nhóm nhập kho đã sửa / đã xóa kèm nhật ký chi tiết */
+  Store.receiptEditSummary = function () {
+    const edits = Store.local.receiptEdits || {};
+    const list = [];
+    let editedCount = 0, deletedCount = 0, restoredCount = 0;
+    for (const [gk, e] of Object.entries(edits)) {
+      if (!e) continue;
+      const [rdLabel, ord] = gk.split("||");
+      const last = (e.log && e.log.length) ? e.log[e.log.length - 1] : null;
+      const state = e.deleted ? "deleted" : (e.sizes ? "edited" : "restored");
+      if (state === "deleted") deletedCount++;
+      else if (state === "edited") editedCount++;
+      else restoredCount++;
+      list.push({
+        gk, rdLabel, ord, rev: e.rev || 0, state,
+        deleted: !!e.deleted, sizes: e.sizes || null,
+        log: (e.log || []).slice(), last, lastLog: last,
+      });
+    }
+    list.sort((a, b) => {
+      const ta = a.last && a.last.at ? a.last.at : "";
+      const tb = b.last && b.last.at ? b.last.at : "";
+      return tb.localeCompare(ta);
+    });
+    const edited = list.filter(x => x.state === "edited");
+    const deleted = list.filter(x => x.state === "deleted");
+    const restored = list.filter(x => x.state === "restored");
+    return {
+      total: list.length,
+      editedCount: edited.length, deletedCount: deleted.length, restoredCount: restored.length,
+      edited, deleted, restored, all: list, list,
+    };
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
@@ -2556,12 +2703,14 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   Store.addOrders = function (rows, src) {
     if (!Store.guard()) return;
     rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
-    /* ⚠ Nếu mã đơn từng bị XOÁ / SỬA ma trận size, phải gỡ override — nếu không
-       dòng vừa thêm sẽ bị lớp overlay ẩn đi (tưởng như không thêm được). */
+    /* ⚠ Nếu mã đơn từng bị XOÁ / SỬA ma trận size:
+       - Dọn sạch các dòng cũ của đơn đó trong ordersAdded (tránh sống lại dòng cũ cộng dồn)
+       - Gỡ override để nhận dữ liệu mới chuẩn xác */
     const revived = [];
     for (const ord of new Set(rows.map(r => r.ord))) {
       const e = (Store.local.orderEdits || {})[ord];
       if (e && (e.deleted || e.sizes)) {
+        Store.local.ordersAdded = Store.local.ordersAdded.filter(x => x.ord !== ord);
         e.rev += 1; e.deleted = false; e.sizes = null;
         e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(), restored: true,
           reason: (src === "import" ? "Import đơn hàng mới" : "Thêm đơn hàng") +
@@ -2584,32 +2733,70 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       Store.local.receiptEdits = {};
     }
     rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
-    /* ⚠ QUAN TRỌNG: nếu nhóm (ngày + chỉ thị) từng bị XOÁ, phải gỡ cờ xoá —
-       nếu không dữ liệu vừa thêm/import sẽ bị lớp override ẩn đi (không thấy gì). */
+    /* ⚠ QUAN TRỌNG: nếu nhóm (ngày + chỉ thị) từng bị XOÁ hoặc SỬA:
+       - Phải xoá các dòng cũ của nhóm đó trong receiptsAdded trước khi gỡ cờ,
+         nếu không các dòng cũ đã xoá trong receiptsAdded sẽ sống lại và cộng dồn với dòng mới! */
     const revived = [];
     for (const gk of new Set(rows.map(r => r.rdLabel + "||" + r.ord))) {
       const e = Store.local.receiptEdits[gk];
       if (e && (e.deleted || e.sizes)) {
-        e.rev += 1; e.deleted = false; e.sizes = null;
-        e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
-          reason: (src === "import" ? "Import dữ liệu mới" : "Nhập kho mới") + " — gỡ trạng thái đã xoá/đã sửa để nhận dữ liệu mới",
-          restored: true });
+        Store.local.receiptsAdded = Store.local.receiptsAdded.filter(x => gkOf(x) !== gk);
+        const inSeed = !Store.local.seedReceiptsOff && SEED_RECEIPTS.some(x => gkOf(x) === gk);
+        if (inSeed) {
+          const newSz = {};
+          rows.filter(x => gkOf(x) === gk).forEach(x => { newSz[x.sz] = (newSz[x.sz] || 0) + x.prs; });
+          e.rev += 1; e.deleted = false; e.sizes = newSz;
+          e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+            reason: (src === "import" ? "Import dữ liệu mới" : "Nhập kho mới") + " — cập nhật đè lên nhóm gốc đã xoá/sửa",
+            before: null, after: newSz });
+          rows = rows.filter(x => gkOf(x) !== gk);
+        } else {
+          e.rev += 1; e.deleted = false; e.sizes = null;
+          e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+            reason: (src === "import" ? "Import dữ liệu mới" : "Nhập kho mới") + " — thay thế dòng cũ đã xoá/sửa bằng dữ liệu mới",
+            restored: true });
+        }
         revived.push(gk.split("||").join(" · "));
       }
     }
     Store.local.receiptsAdded.push(...rows);
     commit();
     if (revived.length && window.App && App.toast)
-      App.toast(`ℹ Đã bỏ trạng thái xoá/sửa cũ của ${revived.length} dòng để nhận dữ liệu mới: ${U.esc(revived.slice(0, 3).join("; "))}${revived.length > 3 ? "…" : ""}`, "warn");
+      App.toast(`ℹ Đã thay thế trạng thái xoá/sửa cũ của ${revived.length} nhóm để nhận dữ liệu mới: ${U.esc(revived.slice(0, 3).join("; "))}${revived.length > 3 ? "…" : ""}`, "warn");
   };
   Store.removeOrderRow = function (id) {
     if (!Store.guard()) return;
+    const target = Store.local.ordersAdded.find(r => r._id === id);
     Store.local.ordersAdded = Store.local.ordersAdded.filter(r => r._id !== id);
+    if (target) {
+      const e = (Store.local.orderEdits || {})[target.ord];
+      if (e && e.sizes && e.sizes[target.sz]) {
+        const before = Object.assign({}, e.sizes);
+        delete e.sizes[target.sz];
+        e.rev += 1;
+        if (!Object.keys(e.sizes).length) { e.deleted = true; e.sizes = null; }
+        e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+          reason: `Xoá dòng bổ sung ${target.sz}`, before, after: e.sizes ? Object.assign({}, e.sizes) : null });
+      }
+    }
     commit();
   };
   Store.removeReceiptRow = function (id) {
     if (!Store.guard()) return;
+    const target = Store.local.receiptsAdded.find(r => r._id === id);
     Store.local.receiptsAdded = Store.local.receiptsAdded.filter(r => r._id !== id);
+    if (target) {
+      const gk = gkOf(target);
+      const e = (Store.local.receiptEdits || {})[gk];
+      if (e && e.sizes && e.sizes[target.sz]) {
+        const before = Object.assign({}, e.sizes);
+        delete e.sizes[target.sz];
+        e.rev += 1;
+        if (!Object.keys(e.sizes).length) { e.deleted = true; e.sizes = null; }
+        e.log.push({ rev: e.rev, at: new Date().toISOString(), by: whoAmI(),
+          reason: `Xoá dòng nhập kho ${target.sz}`, before, after: e.sizes ? Object.assign({}, e.sizes) : null });
+      }
+    }
     commit();
   };
 
@@ -2683,8 +2870,8 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   };
 
   Store.counts = () => ({
-    orders: Store.local.ordersAdded.length,
-    receipts: Store.local.receiptsAdded.length,
+    orders: (window.TVS_ORDERS || []).filter(r => r._id).length,
+    receipts: (window.TVS_RECEIPTS || []).filter(r => r._id).length,
     shipments: Store.local.shipments.length,
     orderEdits: Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length,
     packing: Object.keys(Store.local.packingAdded || {}).length,
@@ -2804,8 +2991,9 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       if (!prs || prs <= 0) { errs.push(`Dòng ${line}: số đôi "${prs0}" phải > 0`); continue; }
       if (!ctry) { errs.push(`Dòng ${line}: thiếu quốc gia`); continue; }
       if (existsSize(ord, sz)) { errs.push(`Dòng ${line}: ${ord} đã có size ${sz} trong hệ thống`); continue; }
+      const perCtn = Store.clpPerCtn(ord, sz);
       out.push({ d, ctry: ctry.toUpperCase(), ord, po: po || "", col: col || "LC1783", sz,
-        prs, ctn: toInt(ctn0) || Math.ceil(prs / TVS_META.packing), bat });
+        prs, ctn: toInt(ctn0) || Math.ceil(prs / perCtn), bat });
     }
     return { rows: out, errs };
   };
@@ -2860,7 +3048,8 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
         hadInput = true;
         if (TVS_ORDERS.some(x => x.ord === ord && x.sz === sc.sz)) { errs.push(`Dòng ${line}: ${ord} đã có size ${sc.sz} trong hệ thống`); continue; }
         dupAll = false;
-        out.push({ d, ctry, ord, po, col, sz: sc.sz, prs: q, ctn: Math.ceil(q / PK), bat });
+        const perCtn = Store.clpPerCtn(ord, sc.sz);
+        out.push({ d, ctry, ord, po, col, sz: sc.sz, prs: q, ctn: Math.ceil(q / perCtn), bat });
         pv.sizes[sc.sz] = q; pv.total += q;
       }
       if (pv.total > 0) pivot.push(pv);
@@ -2907,9 +3096,10 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       if (!sz || !o.sizes[sz]) { errs.push(`Dòng ${line}: ${ord} không đặt size "${sz0}"`); continue; }
       if (!prs || prs <= 0) { errs.push(`Dòng ${line}: số đôi "${prs0}" phải > 0`); continue; }
       const ordered = o.sizes[sz].ordered, recvBefore = o.sizes[sz].received;
+      const perCtn = Store.clpPerCtn(ord, sz);
       out.push({
         rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
-        col: o.col.split(",")[0].trim(), sz, prs, ctn: Math.ceil(prs / TVS_META.packing),
+        col: o.col.split(",")[0].trim(), sz, prs, ctn: Math.ceil(prs / perCtn),
         qcQty: toInt(qc0), qcDate: Store.parseDate(qcd0), ordered,
         diff: (recvBefore + prs) - ordered, bat: o.bat, actualExp: null, planExp: o.d,
         notProduced: note0 || null,
@@ -2978,9 +3168,10 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
         if (!o.sizes[sc.sz]) { errs.push(`Dòng ${line}: ${ord} không đặt size ${sc.sz} (SL ${q} bị bỏ qua)`); continue; }
         const key = ord + "|" + sc.sz;
         const before = (o.sizes[sc.sz].received || 0) + (addedSoFar[key] || 0);
+        const perCtn = Store.clpPerCtn(ord, sc.sz);
         out.push({
           rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
-          col: o.col.split(",")[0].trim(), sz: sc.sz, prs: q, ctn: Math.ceil(q / TVS_META.packing),
+          col: o.col.split(",")[0].trim(), sz: sc.sz, prs: q, ctn: Math.ceil(q / perCtn),
           qcQty: null, qcDate: null, ordered: o.sizes[sc.sz].ordered,
           diff: (before + q) - o.sizes[sc.sz].ordered, bat: o.bat, actualExp: null, planExp: o.d,
           notProduced: first && note ? note : null,
@@ -3033,10 +3224,11 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       if (qty > avail) { errs.push(`Dòng ${line}: ${ord} ${sz} xuất ${qty} > tồn khả dụng ${avail}`); continue; }
       const key = code0 || "(tự sinh)";
       if (!groups.has(key)) groups.set(key, { code: code0, date: d, lines: [] });
+      const perCtn = Store.clpPerCtn(ord, sz);
       groups.get(key).lines.push({
         kind: "run", ord, ctry: o.ctry, po: o.po, style: TVS_META.itemCode, col: o.col.split(",")[0].trim(),
-        sz, perCtn: TVS_META.packing, groupPrs: o.sizes[sz].ordered, from: null, to: null,
-        req: o.sizes[sz].ordered, qty, ctn: Math.ceil(qty / TVS_META.packing), note: note0 || "",
+        sz, perCtn, groupPrs: o.sizes[sz].ordered, from: null, to: null,
+        req: o.sizes[sz].ordered, qty, ctn: Math.ceil(qty / perCtn), note: note0 || "",
       });
     }
     return { groups: [...groups.values()], errs };
@@ -3727,6 +3919,36 @@ window.TVS_GH = {
   };
   const chip = () => { if (window.App && App.renderSyncChip) App.renderSyncChip(); };
 
+  /* Gộp an toàn dữ liệu remote & local khi xảy ra xung đột 409 hoặc đang chờ lưu */
+  Sync.mergePayload = function (remote, local) {
+    if (!remote) return local;
+    if (!local) return remote;
+    const mergeArr = (a, b, keyFn) => {
+      const map = new Map();
+      (a || []).forEach(x => map.set(keyFn(x), x));
+      (b || []).forEach(x => map.set(keyFn(x), x));
+      return [...map.values()];
+    };
+    const mergeEdits = (a, b) => {
+      const out = Object.assign({}, a || {});
+      for (const [k, v] of Object.entries(b || {})) {
+        if (!out[k] || (v.rev || 0) >= (out[k].rev || 0)) out[k] = v;
+      }
+      return out;
+    };
+    return {
+      ordersAdded: mergeArr(remote.ordersAdded, local.ordersAdded, x => x._id || (x.ord + "|" + x.sz)),
+      receiptsAdded: mergeArr(remote.receiptsAdded, local.receiptsAdded, x => x._id || (x.rd + "|" + x.ord + "|" + x.sz)),
+      shipments: mergeArr(remote.shipments, local.shipments, x => x.id || x.code),
+      seq: Math.max(remote.seq || 1, local.seq || 1),
+      receiptEdits: mergeEdits(remote.receiptEdits, local.receiptEdits),
+      orderEdits: mergeEdits(remote.orderEdits, local.orderEdits),
+      seedReceiptsOff: local.seedReceiptsOff !== undefined ? local.seedReceiptsOff : !!remote.seedReceiptsOff,
+      packingAdded: Object.assign({}, remote.packingAdded || {}, local.packingAdded || {}),
+      packingLog: mergeArr(remote.packingLog, local.packingLog, x => (x.at || "") + "|" + (x.file || "")),
+    };
+  };
+
   /* ── TẢI dữ liệu chung từ GitHub ── */
   Sync.load = async function () {
     if (!CFG.owner) return;
@@ -3738,7 +3960,10 @@ window.TVS_GH = {
       const j = await r.json();
       Sync.state.sha = j.sha;
       const data = JSON.parse(b64decodeUtf8(j.content));
-      if (window.Store && Store.replaceLocal) Store.replaceLocal(data);
+      if (window.Store && Store.replaceLocal) {
+        const merged = Sync.state.pending ? Sync.mergePayload(data, Store.local) : data;
+        Store.replaceLocal(merged);
+      }
       Sync.state.lastSync = new Date();
       Sync.state.lastBy = data.meta && data.meta.updatedBy || null;
       Sync.state.offline = false;
@@ -3774,11 +3999,19 @@ window.TVS_GH = {
       if (Sync.state.sha) body.sha = Sync.state.sha;
       const r = await fetch(API(), { method: "PUT", headers: headers(), body: JSON.stringify(body) });
       if (r.status === 409 || r.status === 422) {
-        if (!retried) {   /* sha lệch (người khác vừa ghi) → lấy sha mới, ghi lại 1 lần */
+        if (!retried) {   /* sha lệch (người khác vừa ghi) → tải bản mới, gộp với bản local rồi ghi lại */
           const g = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
-          if (g.ok) { Sync.state.sha = (await g.json()).sha; }
+          if (g.ok) {
+            const gj = await g.json();
+            Sync.state.sha = gj.sha;
+            try {
+              const remoteData = JSON.parse(b64decodeUtf8(gj.content));
+              const merged = Sync.mergePayload(remoteData, Store.local);
+              if (window.Store && Store.replaceLocal) Store.replaceLocal(merged);
+            } catch (err) {}
+          }
           Sync.state.syncing = false;
-          App.toast("⚠ Có người vừa cập nhật dữ liệu — đang ghi đè bản của bạn (kiểm tra lịch sử commit nếu cần)", "warn");
+          App.toast("⚠ Có người vừa cập nhật dữ liệu — hệ thống đã tự động gộp dữ liệu và đồng bộ lại", "warn");
           return Sync.save(true);
         }
         throw new Error("Xung đột dữ liệu (409)");
@@ -3841,6 +4074,19 @@ window.TVS_GH = {
     if (!iso) return "—";
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
+  };
+  /* Ngày thực hệ thống (YYYY-MM-DD); fallback về TVS_META.today nếu đồng hồ máy sai */
+  U.todayISO = () => {
+    try {
+      const now = new Date();
+      if (now.getFullYear() >= 2026) {
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const d = String(now.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+    } catch (e) {}
+    return TVS_META.today;
   };
   U.daysFromToday = iso => {
     if (!iso) return null;
@@ -4022,15 +4268,37 @@ window.TVS_GH = {
       progress: datPrs ? nhapPrs / datPrs : 0,
     };
 
-    /* ── Thiếu hụt ── */
+    /* ── Thiếu hụt (chỉ tính các size thực sự còn thiếu sau khi tổng hợp & sửa/xóa) ── */
     const shorts = [];
-    for (const r of TVS_RECEIPTS)
-      if (r.diff < 0) shorts.push({ type: "thiếu khi nhập", ord: r.ord, ctry: r.ctry, sz: r.sz, qty: -r.diff, note: `Nhập ${r.prs}/${r.ordered} đôi` });
-    for (const o of list)
+    const notedOrdSz = new Set();
+    for (const r of TVS_RECEIPTS) {
+      if (r.diff < 0) {
+        const totRecv = recvByOrdSize[r.ord + "|" + r.sz] || r.prs;
+        shorts.push({ type: "thiếu khi nhập", ord: r.ord, ctry: r.ctry, sz: r.sz, qty: -r.diff, note: `Nhập ${totRecv}/${r.ordered} đôi` });
+      }
+    }
+    for (const o of list) {
       for (const n of o.notes) {
         const m = n.match(/UK\s*(\d+)\s*=\s*(\d+)/i);
-        if (m) shorts.push({ type: "chưa sản xuất", ord: o.ord, ctry: o.ctry, sz: "UK " + m[1], qty: +m[2], note: "Ghi chú nhập kho: " + n });
+        if (m) {
+          const sz = "UK " + m[1];
+          const szObj = o.sizes[sz];
+          const rem = szObj ? Math.max(0, szObj.ordered - (szObj.received || 0)) : +m[2];
+          if (rem > 0) {
+            notedOrdSz.add(o.ord + "|" + sz);
+            shorts.push({ type: "chưa sản xuất", ord: o.ord, ctry: o.ctry, sz, qty: rem, note: "Ghi chú nhập kho: " + n });
+          }
+        }
       }
+      if (o.recvPrs > 0 && o.recvPrs < o.prs) {
+        for (const sz of U.SIZES) {
+          const s = o.sizes[sz];
+          if (s && s.ordered > 0 && (s.received || 0) === 0 && !notedOrdSz.has(o.ord + "|" + sz)) {
+            shorts.push({ type: "chưa sản xuất", ord: o.ord, ctry: o.ctry, sz, qty: s.ordered, note: `Đơn đã nhập 1 phần (${o.recvPrs}/${o.prs}), size ${sz} chưa về kho` });
+          }
+        }
+      }
+    }
     U.SHORTAGES = shorts;
 
     /* ── Kế hoạch xuất theo mốc ngày ── */
@@ -4282,22 +4550,29 @@ window.TVS_GH = {
         </div>`;
       }
 
+      const nBats = U.uniq(TVS_ORDERS, r => r.bat).length;
+      const nCols = U.uniq(TVS_ORDERS, r => r.col).length;
+      const nCtries = U.uniq(TVS_ORDERS, r => r.ctry).length;
+      const shipRange = U.SHIP_PLAN.length
+        ? `${U.fmtDate(U.SHIP_PLAN[0].d)} → ${U.fmtDate(U.SHIP_PLAN[U.SHIP_PLAN.length - 1].d)}`
+        : "—";
+
       root.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:12px">${alerts}</div>
 
         <div class="grid g-kpi ${alerts ? "mt" : ""}">
-          ${kpi("orders", "Tổng đặt hàng", `${U.fmt(N.datPrs)} <small>đôi</small>`, `${U.fmt(N.datCtn)} thùng · mã hàng ${TVS_META.itemCode}`, true)}
-          ${kpi("clip", "Đơn hàng", `${U.fmt(U.ORDER_INDEX.length)}`, `3 đợt đặt hàng · 5 mã màu`)}
-          ${kpi("globe", "Thị trường xuất", `${U.uniq(TVS_ORDERS, r => r.ctry).length}`, `Ý, Đức, Mỹ, Nhật, Anh…`)}
-          ${kpi("box", "Đã nhập kho", `${U.fmt(N.nhapPrs)} <small>đôi</small>`, `${U.fmt(N.nhapCtn)} thùng · ${activeOrders.length} đơn đang chạy`)}
+          ${kpi("orders", "Tổng đặt hàng", `${U.fmt(N.datPrs)} <small>đôi</small>`, `${U.fmt(N.datCtn)} thùng (CLP) · mã hàng ${TVS_META.itemCode}`, true)}
+          ${kpi("clip", "Đơn hàng", `${U.fmt(U.ORDER_INDEX.length)}`, `${nBats} đợt đặt hàng · ${nCols} mã màu`)}
+          ${kpi("globe", "Thị trường xuất", `${nCtries}`, `Ý, Đức, Mỹ, Nhật, Anh…`)}
+          ${kpi("box", "Đã nhập kho", `${U.fmt(N.nhapPrs)} <small>đôi</small>`, `${U.fmt(N.nhapCtn)} thùng · ${activeOrders.length} đơn đã nhập`)}
           ${kpi("layers", "Tồn kho hiện tại", `${U.fmt(N.tonPrs)} <small>đôi</small>`,
-            `Xuất kho: ${U.fmt(N.xuatPrs)} đôi${U.ONTIME.n ? " · đúng hạn " + U.fmtPct(U.ONTIME.rate, 0) : ""}`)}
+            `${U.fmt(N.tonCtn)} thùng · Xuất: ${U.fmt(N.xuatPrs)} đôi${U.ONTIME.n ? " · đúng hạn " + U.fmtPct(U.ONTIME.rate, 0) : ""}`)}
           ${kpi("gauge", "Tiến độ sản xuất", U.fmtPct(N.progress), `Còn phải SX ${U.fmt(N.conSXPrs)} đôi`)}
         </div>
 
         <div class="grid g-23 mt">
           <div class="card">
-            <div class="card-h"><h3>Đơn đặt hàng theo thị trường</h3><span class="sub">số đôi — 14 quốc gia</span></div>
+            <div class="card-h"><h3>Đơn đặt hàng theo thị trường</h3><span class="sub">số đôi — ${nCtries} quốc gia</span></div>
             <div class="card-b" id="chCountry"></div>
           </div>
           <div class="card">
@@ -4312,7 +4587,7 @@ window.TVS_GH = {
             <div class="card-b" id="chSize"></div>
           </div>
           <div class="card">
-            <div class="card-h"><h3>Kế hoạch xuất kinh doanh theo mốc ngày</h3><span class="sub">25/07/2026 → 09/01/2027</span></div>
+            <div class="card-h"><h3>Kế hoạch xuất kinh doanh theo mốc ngày</h3><span class="sub">${shipRange}</span></div>
             <div class="card-b" id="chShip"></div>
           </div>
         </div>
@@ -4353,7 +4628,7 @@ window.TVS_GH = {
 
       Charts.columns(document.getElementById("chBatch"),
         U.aggBy(TVS_ORDERS, r => r.bat).sort((a, b) => a.key - b.key).map((x, i) => ({
-          label: "Đợt " + x.key, value: x.prs, color: ["#0050d8", "#12b5a5", "#f2a20c"][i]
+          label: "Đợt " + x.key, value: x.prs, color: Charts.PALETTE[i % Charts.PALETTE.length]
         })), { unit: "đôi", h: 220 });
 
       /* ── Tiến độ các đơn đang chạy + tổng ── */
@@ -4378,7 +4653,7 @@ window.TVS_GH = {
           <span class="bdg acc">${U.ORDER_INDEX.length - activeOrders.length} đơn chưa bắt đầu</span>
         </div>
         ${rows}
-        <div class="note" style="margin-top:10px">Quy cách đóng thùng chuẩn: <b>${TVS_META.packing} đôi/thùng</b> — số thùng = ROUNDUP(số đôi ÷ 6) đúng theo công thức trong file Excel.</div>`;
+        <div class="note" style="margin-top:10px">Quy cách đóng thùng: <b>Tự động mapping từ Packing List (CLP)</b> theo từng chỉ thị &amp; size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE).</div>`;
     }
   };
 })();
@@ -4478,6 +4753,7 @@ window.TVS_GH = {
       if (params.q !== undefined) { st.q = params.q; }
       const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
       const cols = U.uniq(TVS_ORDERS, r => r.col).sort();
+      const bats = U.uniq(TVS_ORDERS, r => r.bat).sort((a, b) => a - b);
       const dates = U.uniq(TVS_ORDERS, r => r.d).sort();
       const edN = Store.orderEditCount();          /* đơn đang khác gốc */
       const edLog = Store.orderEditLogCount();     /* đơn có nhật ký (kể cả đã khôi phục) */
@@ -4509,7 +4785,7 @@ window.TVS_GH = {
             <select class="f-select" id="fCol"><option value="">Tất cả màu</option>
               ${cols.map(c => `<option ${st.col === c ? "selected" : ""}>${c}</option>`).join("")}</select>
             <select class="f-select" id="fBat"><option value="">Tất cả đợt</option>
-              ${[1, 2, 3].map(b => `<option ${st.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select>
+              ${bats.map(b => `<option ${st.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select>
             <select class="f-select" id="fD"><option value="">Mọi ngày xuất KD</option>
               ${dates.map(d => `<option ${st.d === d ? "selected" : ""} value="${d}">${U.fmtDate(d)}</option>`).join("")}</select>
             <button class="btn" id="fReset">Xoá lọc</button>
@@ -4520,7 +4796,7 @@ window.TVS_GH = {
               <button id="mOrders" class="${st.mode === "orders" ? "on" : ""}">Theo đơn hàng</button>
               <button id="mRows" class="${st.mode === "rows" ? "on" : ""}">Chi tiết từng dòng size</button>
             </div>
-            <span class="note">Nguồn: sheet <b>Data — DATA ĐƠN ĐẶT HÀNG GỐC</b> · ${U.fmt(TVS_ORDERS.length)} dòng · ${U.fmt(U.ORDER_INDEX.length)} đơn · ${U.fmt(TVS_META.totalPairs)} đôi</span>
+            <span class="note">Tổng hợp: <b>${U.fmt(TVS_ORDERS.length)} dòng · ${U.fmt(U.ORDER_INDEX.length)} đơn · ${U.fmt(U.NXT.datPrs)} đôi · ${U.fmt(U.NXT.datCtn)} thùng (mapping CLP)</b></span>
           </div>
           <div id="tblArea"></div>
         </div>`;
@@ -4562,6 +4838,8 @@ window.TVS_GH = {
   /* ── NHẬP LIỆU: thêm đơn hàng mới (ma trận size) ── */
   function openAddOrder() {
     const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
+    const maxBat = Math.max(5, ...U.uniq(TVS_ORDERS, r => r.bat));
+    const batOpts = Array.from({ length: maxBat + 1 }, (_, i) => i + 1);
     App.openModal(`
       <div class="modal-h"><h3>${App.icon("plus", "ico")} Thêm đơn đặt hàng mới</h3>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div>
@@ -4569,13 +4847,13 @@ window.TVS_GH = {
         <div class="frm grid g-3" style="gap:10px">
           <label>Mã đơn hàng / chỉ thị *<input id="aOrd" placeholder="AE27xxxxx" style="text-transform:uppercase"></label>
           <label>PO khách hàng<input id="aPo" placeholder="09030xxxxx-1"></label>
-          <label>Ngày xuất KD *<input id="aD" type="date" value="${TVS_META.today}"></label>
+          <label>Ngày xuất KD *<input id="aD" type="date" value="${U.todayISO()}"></label>
           <label>Quốc gia *<input id="aCtry" list="ctryList" placeholder="JAPAN…" style="text-transform:uppercase">
             <datalist id="ctryList">${ctries.map(c => `<option value="${c}">`).join("")}</datalist></label>
           <label>Mã màu *<select id="aCol">${Object.keys(U.COLOR_HEX).map(c => `<option>${c}</option>`).join("")}</select></label>
-          <label>Đợt đặt hàng<select id="aBat"><option>1</option><option>2</option><option selected>3</option></select></label>
+          <label>Đợt đặt hàng<select id="aBat">${batOpts.map(b => `<option ${b === maxBat ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
         </div>
-        <h4 style="margin:14px 0 8px;font-size:13px">Số đôi theo size <span class="note">(bỏ trống size không đặt · thùng = ROUNDUP(đôi ÷ 6))</span></h4>
+        <h4 style="margin:14px 0 8px;font-size:13px">Số đôi theo size <span class="note">(bỏ trống size không đặt · số thùng tự động mapping theo CLP)</span></h4>
         <div class="size-matrix">
           ${U.SIZES.map(s => `<div class="sm-cell"><div class="s">${s}</div>
             <input class="cell-in c" type="number" min="0" placeholder="0" data-sz="${s}" style="width:100%;text-align:center;font-weight:800;font-size:15px">
@@ -4591,16 +4869,20 @@ window.TVS_GH = {
 
     const inputs = [...document.querySelectorAll(".size-matrix input[data-sz]")];
     const recalc = () => {
+      const ordCode = (document.getElementById("aOrd").value || "").trim().toUpperCase();
       let p = 0, c = 0;
       inputs.forEach(i => {
         const q = parseInt(i.value || "0", 10) || 0;
-        const ct = q ? Math.ceil(q / TVS_META.packing) : 0;
+        const perCtn = Store.clpPerCtn(ordCode, i.dataset.sz);
+        const ct = q ? Math.ceil(q / perCtn) : 0;
         i.closest(".sm-cell").querySelector(".sm-ctn").textContent = ct + " thùng";
         p += q; c += ct;
       });
       document.getElementById("aSum").innerHTML = `Tổng: <b>${U.fmt(p)} đôi</b> = <b>${U.fmt(c)} thùng</b>`;
     };
-    inputs.forEach(i => i.addEventListener("input", recalc)); recalc();
+    inputs.forEach(i => i.addEventListener("input", recalc));
+    document.getElementById("aOrd").addEventListener("input", recalc);
+    recalc();
 
     document.getElementById("aSave").onclick = () => {
       const err = document.getElementById("aErr");
@@ -4620,7 +4902,8 @@ window.TVS_GH = {
         if (q <= 0) continue;
         const sz = i.dataset.sz;
         if (TVS_ORDERS.some(r => r.ord === ord && r.sz === sz)) return bad(`${ord} đã có size ${sz} trong hệ thống`);
-        rows.push({ d, ctry, ord, po, col, sz, prs: q, ctn: Math.ceil(q / TVS_META.packing), bat });
+        const perCtn = Store.clpPerCtn(ord, sz);
+        rows.push({ d, ctry, ord, po, col, sz, prs: q, ctn: Math.ceil(q / perCtn), bat });
       }
       if (!rows.length) return bad("Nhập số đôi cho ít nhất 1 size");
       Store.addOrders(rows, "manual");
@@ -4801,7 +5084,8 @@ window.TVS_GH = {
     const showErr = m => { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(m)}</span>`; };
     const recalc = () => {
       const q = parseInt(qty.value || "0", 10) || 0;
-      ctnCell.textContent = U.fmt(q ? Math.ceil(q / TVS_META.packing) : 0);
+      const perCtn = Store.clpPerCtn(ord, sz);
+      ctnCell.textContent = U.fmt(q ? Math.ceil(q / perCtn) : 0);
     };
     qty.addEventListener("input", recalc);
     qty.focus(); qty.select();
@@ -4834,6 +5118,8 @@ window.TVS_GH = {
     const colors = U.uniq(TVS_ORDERS, r => r.col.split(",")[0].trim())
       .concat(Object.keys(U.COLOR_HEX)).filter((c, i, a) => c && a.indexOf(c) === i).sort();
     const headCol = head.col.split(",")[0].trim();
+    const maxBat = Math.max(5, head.bat || 1, ...U.uniq(TVS_ORDERS, r => r.bat));
+    const batOpts = Array.from({ length: maxBat + 1 }, (_, i) => i + 1);
 
     App.openModal(`
       <div class="modal-h"><h3>${App.icon("clip", "ico")} Sửa đơn hàng ${ord}</h3>
@@ -4848,12 +5134,12 @@ window.TVS_GH = {
             <datalist id="eCtryList">${ctries.map(c => `<option value="${U.esc(c)}">`).join("")}</datalist></label>
           <label>PO khách hàng<input id="ePo" value="${U.esc(head.po)}"></label>
           <label>Mã màu *<select id="eCol">${colors.map(c => `<option ${c === headCol ? "selected" : ""}>${U.esc(c)}</option>`).join("")}</select></label>
-          <label>Đợt đặt hàng<select id="eBat">${[1, 2, 3].map(b => `<option ${head.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
+          <label>Đợt đặt hàng<select id="eBat">${batOpts.map(b => `<option ${head.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
           <label>Mã đơn<input value="${U.esc(ord)}" disabled title="Mã đơn là khoá dữ liệu — không sửa được"></label>
         </div>
 
         <h4 style="font-size:13px;margin:16px 0 8px">② Ma trận size — số đôi đặt hàng
-          <span class="note">(thùng = ROUNDUP(đôi ÷ ${TVS_META.packing}) · để 0 nếu bỏ size)</span></h4>
+          <span class="note">(số thùng tự động mapping theo CLP · để 0 nếu bỏ size)</span></h4>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>Size</th><th class="num">SL đặt hiện tại</th><th class="num">Đã nhập kho</th><th class="num">Đã xuất kho</th>
             <th class="num" style="min-width:120px">SL đặt sửa thành</th><th class="num">Thùng</th></tr></thead>
@@ -4888,7 +5174,8 @@ window.TVS_GH = {
       const warns = [];
       inputs.forEach(i => {
         const sz = i.dataset.esz, q = parseInt(i.value || "0", 10) || 0;
-        const ct = q ? Math.ceil(q / TVS_META.packing) : 0;
+        const perCtn = Store.clpPerCtn(ord, sz);
+        const ct = q ? Math.ceil(q / perCtn) : 0;
         document.querySelector(`[data-ectn="${sz}"]`).textContent = U.fmt(ct);
         p += q; c += ct;
       });
@@ -5030,14 +5317,24 @@ window.TVS_GH = {
       const shortIn = U.sum(R.filter(r => r.diff < 0), r => -r.diff);
       const notProd = U.SHORTAGES.filter(s => s.type === "chưa sản xuất");
       const notProdQty = U.sum(notProd, s => s.qty);
-      const events = [...U.groupBy(R, r => r.rdLabel)].map(([lab, rows]) => ({
-        lab, rows,
-        prs: U.sum(rows, r => r.prs), ctn: U.sum(rows, r => r.ctn),
-        ord: rows[0].ord, ctry: rows[0].ctry, col: rows[0].col,
-        planExp: rows[0].planExp,
-        short: U.sum(rows.filter(r => r.diff < 0), r => -r.diff),
-        notes: [...new Set(rows.map(r => r.notProduced).filter(Boolean))],
-      }));
+      const events = [...U.groupBy(R, r => r.rdLabel)].map(([lab, rows]) => {
+        const ords = U.uniq(rows, r => r.ord);
+        const ctries = U.uniq(rows, r => r.ctry);
+        const cols = U.uniq(rows, r => r.col);
+        const planExps = U.uniq(rows, r => r.planExp).filter(Boolean).sort();
+        return {
+          lab, rows, ords, ctries, cols,
+          prs: U.sum(rows, r => r.prs), ctn: U.sum(rows, r => r.ctn),
+          ord: rows[0].ord, ctry: rows[0].ctry, col: rows[0].col,
+          planExp: rows[0].planExp, planExps,
+          short: U.sum(rows.filter(r => r.diff < 0), r => -r.diff),
+          notes: [...new Set(rows.map(r => r.notProduced).filter(Boolean))],
+        };
+      });
+      const ordList = U.uniq(R, r => r.ord);
+      const dateRangeSub = events.length
+        ? (events.length === 1 ? events[0].lab : `${events[0].lab} → ${events[events.length - 1].lab}`)
+        : "chưa có dữ liệu";
 
       root.innerHTML = `
         <div class="card" style="margin-bottom:16px">
@@ -5046,16 +5343,18 @@ window.TVS_GH = {
             <button class="btn" id="rTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="rImp">${App.icon("upload", "ico")} Import từ file</button>
             <button class="btn" id="rExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
-            <span class="f-chipcount">Chọn chỉ thị → hệ thống tự đối chiếu SL đặt & còn thiếu theo size</span>
+            <button class="btn" id="rEditLog">⟲ Nhật ký sửa / xóa nhập kho (${Store.receiptEditSummary ? Store.receiptEditSummary().total : 0})</button>
+            <span class="f-chipcount">Số thùng tự động mapping từ Packing List (CLP) theo chỉ thị + size</span>
           </div>
           ${(() => {
             const si = Store.seedReceiptInfo();
             const c = Store.counts();
-            return `<div class="filters" style="border-bottom:0;gap:10px">
+            const es = Store.receiptEditSummary ? Store.receiptEditSummary() : { total: 0, edited: [], deleted: [] };
+            return `<div class="filters" style="border-bottom:0;gap:10px;flex-wrap:wrap">
               <span class="bdg ${si.off ? "warn" : "ok"}">Dữ liệu gốc: ${si.off ? "ĐANG TẮT" : "đang dùng"}</span>
-              <span class="note">Gốc fix cứng: <b>${si.groups} dòng ma trận · ${U.fmt(si.prs)} đôi</b> — sửa/xoá được, có nhật ký.
-                Dữ liệu nhập thêm: <b>${c.receipts} dòng</b>.</span>
-              <span style="margin-left:auto;display:flex;gap:8px">
+              <span class="note">Đang hiệu lực: <b>${U.fmt(R.length)} dòng size · ${U.fmt(totPrs)} đôi · ${U.fmt(totCtn)} thùng (mapping CLP)</b>
+                (Gốc: ${si.groups} nhóm / ${U.fmt(si.prs)} đôi · Đã sửa SL: <b>${es.edited.length} nhóm</b> · Đã xóa: <b>${es.deleted.length} nhóm</b>).</span>
+              <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
                 ${si.off
                   ? `<button class="btn small primary need-edit" id="rSeedOn">↺ Dùng lại dữ liệu gốc</button>`
                   : `<button class="btn small need-edit" id="rSeedOff">Bỏ dùng dữ liệu gốc</button>`}
@@ -5068,36 +5367,38 @@ window.TVS_GH = {
         <div class="grid g-kpi">
           <div class="card kpi kpi-acc"><div class="k-lab">${App.icon("box")}<span>Tổng đã nhập kho</span></div>
             <div class="k-val">${U.fmt(totPrs)} <small>đôi</small></div>
-            <div class="k-sub">${U.fmt(totCtn)} thùng carton</div></div>
-          <div class="card kpi"><div class="k-lab">${App.icon("calendar")}<span>Đợt nhập kho</span></div>
-            <div class="k-val">${events.length}</div><div class="k-sub">16–17/07/2026</div></div>
+            <div class="k-sub">${U.fmt(totCtn)} thùng carton (theo CLP)</div></div>
+          <div class="card kpi"><div class="k-lab">${App.icon("calendar")}<span>Ngày nhập kho</span></div>
+            <div class="k-val">${events.length}</div><div class="k-sub">${U.esc(dateRangeSub)}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("clip")}<span>Đơn hàng đã lên kho</span></div>
-            <div class="k-val">${U.uniq(R, r => r.ord).length}</div>
-            <div class="k-sub">${U.uniq(R, r => r.ord).join(" · ")}</div></div>
+            <div class="k-val">${ordList.length} <small>/ ${U.ORDER_INDEX.length} đơn</small></div>
+            <div class="k-sub">${ordList.length <= 5 ? ordList.join(" · ") : `${ordList.slice(0, 4).join(" · ")} … (+${ordList.length - 4} đơn)`}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("alert")}<span>Thiếu khi nhập</span></div>
-            <div class="k-val" style="color:var(--bad)">−${U.fmt(shortIn)} <small>đôi</small></div>
-            <div class="k-sub">so với SL đơn đặt hàng</div></div>
+            <div class="k-val" style="color:${shortIn ? "var(--bad)" : "var(--ok)"}">${shortIn ? "−" + U.fmt(shortIn) : "0"} <small>đôi</small></div>
+            <div class="k-sub">trên các size đã nhập kho</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("gear")}<span>Chưa sản xuất</span></div>
-            <div class="k-val" style="color:var(--warn)">${U.fmt(notProdQty)} <small>đôi</small></div>
-            <div class="k-sub">${notProd.map(s => s.ord + ": " + s.sz + "=" + s.qty).join(" · ")}</div></div>
+            <div class="k-val" style="color:${notProdQty ? "var(--warn)" : "var(--ok)"}">${U.fmt(notProdQty)} <small>đôi</small></div>
+            <div class="k-sub">${notProd.length ? notProd.slice(0, 4).map(s => s.ord + ": " + s.sz + "=" + s.qty).join(" · ") + (notProd.length > 4 ? ` (+${notProd.length - 4})` : "") : "Tất cả size đã lên kho"}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("check")}<span>Kiểm đếm QC</span></div>
             <div class="k-val">0/${R.length}</div><div class="k-sub">dòng chờ kiểm (SL kiểm & ngày kiểm trống)</div></div>
         </div>
 
         <div class="grid g-32 mt">
           <div class="card">
-            <div class="card-h"><h3>Nhật ký nhập kho theo ngày</h3><span class="sub">timeline sản xuất → đóng thùng → nhập</span></div>
-            <div class="card-b"><div class="tl">
+            <div class="card-h"><h3>Nhật ký nhập kho theo ngày (${events.length} mốc ngày)</h3><span class="sub">timeline sản xuất → đóng thùng → nhập</span></div>
+            <div class="card-b" style="max-height:360px;overflow:auto"><div class="tl">
               ${events.map(ev => `
                 <div class="tl-item ${ev.short ? "late" : "done"}">
                   <div class="tl-dot"></div>
                   <div class="tl-date">${U.esc(ev.lab)}</div>
                   <div class="tl-main">
-                    <b>${U.flag(ev.ctry)} ${ev.ord}</b> · ${U.esc(ev.ctry)} · màu ${ev.col}<br>
+                    ${ev.ords.length === 1
+                      ? `<b>${U.flag(ev.ctry)} ${ev.ord}</b> · ${U.esc(ev.ctry)} · màu ${ev.col}`
+                      : `<b>${ev.ords.length} chỉ thị:</b> ${ev.ords.map(code => `<span class="clickable" onclick="Views._openOrder('${code}')"><b>${code}</b></span>`).join(", ")} · ${ev.ctries.map(c => U.flag(c) + " " + U.esc(c)).join(", ")}`}<br>
                     Nhập <b>${U.fmt(ev.prs)} đôi</b> = <b>${U.fmt(ev.ctn)} thùng</b> ·
-                    xuất KD ${U.fmtDate(ev.planExp)}
+                    xuất KD ${ev.planExps.length <= 1 ? U.fmtDate(ev.planExp) : `${U.fmtDate(ev.planExps[0])} → ${U.fmtDate(ev.planExps[ev.planExps.length - 1])}`}
                     <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">
-                      ${ev.short ? `<span class="bdg bad">thiếu khi nhập −${ev.short} đôi</span>` : `<span class="bdg ok">đủ theo size đã nhập</span>`}
+                      ${ev.short ? `<span class="bdg bad">thiếu khi nhập −${U.fmt(ev.short)} đôi</span>` : `<span class="bdg ok">đủ theo size đã nhập</span>`}
                       ${ev.notes.map(n => `<span class="bdg warn">chưa SX: ${U.esc(n)}</span>`).join("")}
                     </div>
                   </div>
@@ -5106,7 +5407,7 @@ window.TVS_GH = {
           </div>
 
           <div class="card">
-            <div class="card-h"><h3>Quy cách đóng thùng & mã hàng</h3></div>
+            <div class="card-h"><h3>Quy cách đóng thùng (Mapping CLP) & mã hàng</h3></div>
             <div class="card-b">
               <div class="grid g-2">
                 <div class="card" style="box-shadow:none">
@@ -5118,18 +5419,18 @@ window.TVS_GH = {
                 </div>
                 <div class="card" style="box-shadow:none">
                   <div class="card-b" style="padding:14px">
-                    <div class="note">QUY CÁCH ĐÓNG THÙNG</div>
-                    <div style="font-size:22px;font-weight:800">${TVS_META.packing} đôi / thùng</div>
-                    <div class="note">Số thùng = <code style="font-family:var(--mono)">ROUNDUP(Số đôi ÷ 6)</code> — đúng công thức cột I sheet ChitietNK</div>
+                    <div class="note">MAPPING THÙNG TỪ PACKING LIST (CLP)</div>
+                    <div style="font-size:20px;font-weight:800">Tự động theo CLP</div>
+                    <div class="note">Tham chiếu trực tiếp từ <b>Packing List (CLP)</b> theo từng chỉ thị + size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE)</div>
                   </div>
                 </div>
               </div>
               <div class="mt legend">
                 <span class="l-i"><span class="sw" style="background:var(--ok)"></span>Nhập đủ so với đặt</span>
-                <span class="l-i"><span class="sw" style="background:var(--bad)"></span>Thiếu khi nhập (cột SL đôi thiếu/đủ &lt; 0)</span>
+                <span class="l-i"><span class="sw" style="background:var(--bad)"></span>Thiếu khi nhập (tổng đã nhập của size &lt; SL đặt)</span>
                 <span class="l-i"><span class="sw" style="background:var(--warn)"></span>Size chưa sản xuất (cột SL thiếu chưa sx)</span>
               </div>
-              <div class="note mt">Trường <b>Số lượng kiểm / Ngày kiểm</b> đang trống trong file gốc → hệ thống hiển thị trạng thái <b>“Chờ QC kiểm đếm”</b>. Trường <b>Ngày thực xuất</b> trống → chưa có lô nào xuất kho.</div>
+              <div class="note mt">Đầu vào nhập kho không cần cột số thùng — hệ thống tự động mapping chính xác số thùng của từng chỉ thị &amp; từng size từ trang <b>Packing List · CLP</b>. Các lần sửa/xóa số lượng nhập kho đều đã được cập nhật trực tiếp vào tổng N-X-T và lưu đầy đủ trong <b>Nhật ký sửa / xóa nhập kho</b>.</div>
             </div>
           </div>
         </div>
@@ -5215,7 +5516,7 @@ window.TVS_GH = {
                 <td class="note">${(() => { const o = U.orderByCode(r.ord); return o && o.lastShipDate ? "<b>" + U.fmtDate(o.lastShipDate) + "</b>" : "chưa xuất"; })()}</td>
                 <td>${U.fmtDate(r.planExp)}</td>
                 <td>${r.notProduced ? `<span class="bdg warn">${U.esc(r.notProduced)}</span>` : "—"}</td>
-                <td>${r._id
+                <td>${r._edited ? `<span class="bdg acc plain">đã sửa (${r._rev}×)</span> ` : ""}${r._id
                   ? `<span class="bdg acc plain">${r._src === "import" ? "import" : "nhập tay"}</span>
                      <button class="btn small danger need-edit" title="Xoá dòng" onclick="if(confirm('Xoá dòng nhập kho ${r.ord} ${r.sz}?')){Store.removeReceiptRow('${r._id}');App.toast('Đã xoá dòng nhập kho bổ sung','warn')}">✕</button>`
                   : `<span class="note">Excel gốc</span>`}</td>
@@ -5245,6 +5546,7 @@ window.TVS_GH = {
         if (confirm("XOÁ SẠCH toàn bộ dữ liệu nhập kho (kể cả dữ liệu gốc)?\n\nDùng khi bạn muốn nạp lại một bộ dữ liệu mới hoàn toàn từ file. Có thể khôi phục gốc lại sau."))
         { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
       });
+      bind("rEditLog", () => Views._whEditLogModal());
       document.getElementById("rAdd").onclick = openAddReceipt;
       document.getElementById("rTpl").onclick = () => { Store.templateReceipts(); App.toast("Đã tải file mẫu theo ngày (cột size 3→10). Hệ thống nhận cả file .xlsx gốc lẫn .csv theo mẫu này", "ok"); };
       document.getElementById("rImp").onclick = importReceipts;
@@ -5271,7 +5573,7 @@ window.TVS_GH = {
               ${cands.map(o => `<option value="${o.ord}">${o.ord} · ${o.ctry} · còn thiếu ${U.fmt(o.short)} đôi</option>`).join("")}
               <optgroup label="Đơn đã đủ hàng">${U.ORDER_INDEX.filter(o => o.recvPrs >= o.prs).map(o => `<option value="${o.ord}">${o.ord} · ${o.ctry} · đã đủ</option>`).join("")}</optgroup>
             </select></label>
-          <label>Ngày nhập kho *<input id="nD" type="date" value="${TVS_META.today}"></label>
+          <label>Ngày nhập kho *<input id="nD" type="date" value="${U.todayISO()}"></label>
           <label>Ghi chú size chưa SX<input id="nNote" placeholder="VD: UK 9 = 11"></label>
         </div>
         <div id="nGrid" class="mt"><div class="note">Chọn chỉ thị để hệ thống đối chiếu SL đặt hàng & còn thiếu theo từng size.</div></div>
@@ -5308,7 +5610,8 @@ window.TVS_GH = {
         let p = 0, ct = 0;
         grid.querySelectorAll("input[data-sz]").forEach(x => {
           const q = parseInt(x.value || "0", 10) || 0;
-          const c = q ? Math.ceil(q / TVS_META.packing) : 0;
+          const perCtn = Store.clpPerCtn(o.ord, x.dataset.sz);
+          const c = q ? Math.ceil(q / perCtn) : 0;
           x.closest("tr").querySelector(".nk-ctn").textContent = U.fmt(c);
           p += q; ct += c;
         });
@@ -5330,9 +5633,10 @@ window.TVS_GH = {
         const q = parseInt(i.value || "0", 10) || 0;
         if (q <= 0) return;
         const sz = i.dataset.sz, c = o.sizes[sz];
+        const perCtn = Store.clpPerCtn(o.ord, sz);
         rows.push({
           rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord: o.ord, po: o.po, item: TVS_META.itemCode,
-          col: o.col.split(",")[0].trim(), sz, prs: q, ctn: Math.ceil(q / TVS_META.packing),
+          col: o.col.split(",")[0].trim(), sz, prs: q, ctn: Math.ceil(q / perCtn),
           qcQty: null, qcDate: null, ordered: c.ordered, diff: (c.received + q) - c.ordered,
           bat: o.bat, actualExp: null, planExp: o.d, notProduced: first ? (note || null) : null,
         });
@@ -5513,6 +5817,67 @@ window.TVS_GH = {
       App.closeModal();
       App.toast(`✓ Đã khôi phục dòng <b>${g.ord}</b> (${U.esc(g.rdLabel)}) về số liệu gốc`, "ok");
     };
+  };
+
+  /* ═════════ TỔNG HỢP NHẬT KÝ SỬA / XÓA NHẬP KHO (HIỂN THỊ CẢ DÒNG ĐÃ XÓA) ═════════ */
+  Views._whEditLogModal = function () {
+    const es = Store.receiptEditSummary ? Store.receiptEditSummary() : { total: 0, edited: [], deleted: [], restored: [], all: [] };
+    const szTxt = m => m ? U.SIZES.filter(s => m[s]).map(s => `${s.replace("UK ", "")}×${U.fmt(m[s])}`).join(" · ") || "0" : "(đã xóa)";
+    const sumMap = m => m ? Object.values(m).reduce((a, b) => a + (+b || 0), 0) : 0;
+    const renderRows = list => list.map(item => {
+      const last = item.lastLog || {};
+      const befSum = sumMap(last.before);
+      const aftSum = item.deleted ? 0 : sumMap(item.sizes || last.after);
+      const delta = aftSum - befSum;
+      return `<tr>
+        <td><b>${U.esc(item.rdLabel)}</b></td>
+        <td><b class="clickable" onclick="App.closeModal();Views._openOrder('${item.ord}')">${U.esc(item.ord)}</b></td>
+        <td class="num"><b>${item.rev}</b></td>
+        <td>${item.deleted
+          ? '<span class="bdg bad plain">ĐÃ XÓA</span>'
+          : (item.sizes ? '<span class="bdg acc plain">ĐÃ SỬA SL</span>' : '<span class="bdg neu plain">KHÔI PHỤC GỐC</span>')}</td>
+        <td class="note">${szTxt(last.before)} ${befSum ? `<b>(${U.fmt(befSum)} đôi)</b>` : ""}</td>
+        <td class="note">${item.deleted ? '<span style="color:var(--bad);font-weight:700">0 đôi (đã xóa khỏi kho)</span>' : `${szTxt(item.sizes || last.after)} <b>(${U.fmt(aftSum)} đôi)</b>`}</td>
+        <td class="num ${delta < 0 ? "neg" : "pos"}"><b>${delta > 0 ? "+" : ""}${U.fmt(delta)}</b></td>
+        <td><b>${U.esc(last.by || "—")}</b><br><span class="note">${last.at ? new Date(last.at).toLocaleString("vi-VN") : "—"}</span></td>
+        <td>${U.esc(last.reason || "—")}</td>
+        <td style="white-space:nowrap">
+          <button class="btn small need-edit" onclick="Views._whRestoreGroup('${U.esc(item.rdLabel)}','${U.esc(item.ord)}')">↺ Khôi phục gốc</button>
+        </td>
+      </tr>`;
+    }).join("");
+
+    App.openModal(`
+      <div class="modal-h">
+        <h3>⟲ Nhật ký sửa / xóa số lượng nhập kho (${es.total} nhóm)</h3>
+        <span class="bdg acc plain">Đã sửa SL: ${es.edited.length} · Đã xóa: ${es.deleted.length}</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b">
+        <div class="alert ok" style="margin-bottom:12px"><div class="a-t">
+          <b>✓ Trạng thái áp dụng:</b> Tất cả <b>${es.edited.length} nhóm sửa số lượng</b> và <b>${es.deleted.length} nhóm đã xóa</b> dưới đây đều <b>đã được trừ/cập nhật trực tiếp</b> vào tổng Nhập – Xuất – Tồn (Hiện tại: <b>${U.fmt(U.NXT.nhapPrs)} đôi · ${U.fmt(U.NXT.nhapCtn)} thùng</b>).
+        </div></div>
+        ${!es.all.length ? `<div class="note">Chưa có lịch sử sửa/xóa nhập kho nào.</div>` : `
+        <div class="tbl-wrap" style="max-height:58vh;overflow:auto"><table class="tbl">
+          <thead><tr>
+            <th>Ngày NK</th><th>Chỉ thị</th><th class="num">Lần sửa</th><th>Trạng thái</th>
+            <th>Số lượng trước sửa/xóa</th><th>Số lượng sau sửa (hiện hành)</th><th class="num">Chênh lệch</th>
+            <th>Người sửa / Thời điểm</th><th>Lý do ghi nhận</th><th>Thao tác</th>
+          </tr></thead>
+          <tbody>${renderRows(es.all)}</tbody>
+        </table></div>`}
+        <div class="mt" style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+  };
+
+  Views._whRestoreGroup = function (rdLabel, ord) {
+    if (!confirm(`Khôi phục lần nhập kho ngày ${rdLabel} của chỉ thị ${ord} về số liệu gốc trước khi sửa/xóa?`)) return;
+    const r = Store.restoreReceiptGroup(rdLabel, ord, "Khôi phục từ bảng tổng hợp nhật ký sửa/xóa");
+    if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+    App.toast(`✓ Đã khôi phục ${ord} (${rdLabel}) về số liệu gốc`, "ok");
+    Views._whEditLogModal();
   };
 })();
 
@@ -6981,9 +7346,10 @@ window.TVS_GH = {
   /* Khoảng ngày mặc định: từ lần nhập kho sớm nhất → hôm nay */
   R.defaultRange = function () {
     const mv = movements();
-    const from = mv.length ? mv[0].d : TVS_META.today;
-    const last = mv.length ? mv[mv.length - 1].d : TVS_META.today;
-    const to = last > TVS_META.today ? last : TVS_META.today;
+    const today = U.todayISO ? U.todayISO() : TVS_META.today;
+    const from = mv.length ? mv[0].d : today;
+    const last = mv.length ? mv[mv.length - 1].d : today;
+    const to = last > today ? last : today;
     return { from, to };
   };
 
@@ -7104,9 +7470,9 @@ window.TVS_GH = {
     const setRange = (a, b) => { st.from = a; st.to = b; st.touched = true; draw(host); };
     document.getElementById("rpFrom").onchange = e => { st.from = e.target.value || st.from; if (st.from > st.to) st.to = st.from; st.touched = true; draw(host); };
     document.getElementById("rpTo").onchange = e => { st.to = e.target.value || st.to; if (st.to < st.from) st.from = st.to; st.touched = true; draw(host); };
-    on("rpThisMonth", () => { const t = TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
+    on("rpThisMonth", () => { const t = U.todayISO ? U.todayISO() : TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
       setRange(firstDay(y, m), lastDay(y, m)); });
-    on("rpThisQuarter", () => { const t = TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
+    on("rpThisQuarter", () => { const t = U.todayISO ? U.todayISO() : TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
       const q0 = Math.floor((m - 1) / 3) * 3 + 1;
       setRange(firstDay(y, q0), lastDay(y, q0 + 2)); });
     on("rpAll", () => { const d = R.defaultRange(); st.touched = false; setRange(d.from, d.to); st.touched = false; });
@@ -7404,9 +7770,11 @@ window.TVS_GH = {
 
       const rowsToShow = st.showAll ? U.ORDER_INDEX : active;
 
+      const totalOrds = U.ORDER_INDEX.length;
+
       root.innerHTML = `
         <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:16px">
-          ${flowCard("① SL ĐẶT HÀNG", N.datPrs, N.datCtn, "#0050d8", "95 đơn")}
+          ${flowCard("① SL ĐẶT HÀNG", N.datPrs, N.datCtn, "#0050d8", `${totalOrds} đơn · theo CLP`)}
           ${flowCard("② ĐÃ NHẬP KHO (N)", N.nhapPrs, N.nhapCtn, "#12b5a5", U.fmtPct(N.progress) + " kế hoạch")}
           ${flowCard("③ ĐÃ XUẤT KHO (X)", N.xuatPrs, N.xuatCtn, "#f2a20c",
             N.xuatPrs ? `đúng hạn ${U.ONTIME.rate === null ? "—" : U.fmtPct(U.ONTIME.rate, 0)}` : "chưa có ngày thực xuất")}
@@ -7442,9 +7810,9 @@ window.TVS_GH = {
         <div class="card mt">
           <div class="card-h">
             <h3>Bảng N-X-T theo đơn hàng</h3>
-            <span class="sub">${st.showAll ? "toàn bộ 95 đơn" : "đơn có phát sinh nhập kho"}</span>
+            <span class="sub">${st.showAll ? `toàn bộ ${totalOrds} đơn` : `đơn có phát sinh nhập kho (${active.length}/${totalOrds} đơn)`}</span>
             <span class="spacer"></span>
-            <button class="btn" id="btnToggleAll">${st.showAll ? "Chỉ hiện đơn có phát sinh" : "Hiện toàn bộ 95 đơn"}</button>
+            <button class="btn" id="btnToggleAll">${st.showAll ? "Chỉ hiện đơn có phát sinh" : `Hiện toàn bộ ${totalOrds} đơn`}</button>
           </div>
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr>
@@ -7470,7 +7838,7 @@ window.TVS_GH = {
               </tr>`;
             }).join("")}</tbody>
             <tfoot><tr>
-              <td colspan="4">TỔNG ${st.showAll ? "(95 đơn)" : "(" + rowsToShow.length + " đơn có phát sinh)"}</td>
+              <td colspan="4">TỔNG ${st.showAll ? `(${totalOrds} đơn)` : "(" + rowsToShow.length + " đơn có phát sinh)"}</td>
               <td class="num">${U.fmt(U.sum(rowsToShow, o => o.prs))}</td>
               <td class="num">${U.fmt(U.sum(rowsToShow, o => o.recvPrs))}</td>
               <td class="num">${U.fmt(U.sum(rowsToShow, o => o.shipPrs))}</td>
@@ -7478,7 +7846,7 @@ window.TVS_GH = {
               <td class="num neg">${U.fmt(U.sum(rowsToShow, o => o.short))}</td><td></td>
             </tr></tfoot>
           </table></div>
-          ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ 95 đơn” để xem đầy đủ.</div>`}
+          ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ ${totalOrds} đơn” để xem đầy đủ.</div>`}
         </div>
 
         <!-- v4.9: Báo cáo N-X-T theo kỳ + xuất Excel (assets/js/nxt-report.js) -->
@@ -7505,8 +7873,9 @@ window.TVS_GH = {
     title: "Kế hoạch xuất hàng · TMS",
     render(root) {
       const plan = U.SHIP_PLAN;
-      const next = plan.find(p => p.days >= 0);
+      const next = plan.find(p => p.days >= 0) || plan[plan.length - 1] || { d: "", days: 0, prs: 0, ctries: [] };
       const in30 = plan.filter(p => p.days >= 0 && p.days <= 30);
+      const nCtries = U.uniq(TVS_ORDERS, r => r.ctry).length;
 
       const readiness = p => {
         if (p.shipped >= p.prs && p.prs) return { cls: "ok", lab: "đã xuất đủ" };
@@ -7520,9 +7889,9 @@ window.TVS_GH = {
         <div class="grid g-kpi">
           <div class="card kpi kpi-acc"><div class="k-lab">${App.icon("truck")}<span>Mốc xuất gần nhất</span></div>
             <div class="k-val">${U.fmtDate(next.d)}</div>
-            <div class="k-sub">còn ${next.days} ngày · ${U.fmt(next.prs)} đôi đi ${next.ctries.map(c => U.flag(c)).join(" ")}</div></div>
+            <div class="k-sub">${next.days >= 0 ? "còn " + next.days + " ngày" : "đã qua"} · ${U.fmt(next.prs)} đôi đi ${next.ctries.map(c => U.flag(c)).join(" ")}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("calendar")}<span>Tổng mốc xuất</span></div>
-            <div class="k-val">${plan.length}</div><div class="k-sub">${U.fmtDate(plan[0].d)} → ${U.fmtDate(plan[plan.length - 1].d)}</div></div>
+            <div class="k-val">${plan.length}</div><div class="k-sub">${plan.length ? `${U.fmtDate(plan[0].d)} → ${U.fmtDate(plan[plan.length - 1].d)}` : "—"}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("clock")}<span>Trong 30 ngày tới</span></div>
             <div class="k-val">${U.fmt(U.sum(in30, p => p.prs))} <small>đôi</small></div>
             <div class="k-sub">${in30.length} mốc · ${U.fmt(U.sum(in30, p => p.ctn))} thùng</div></div>
@@ -7530,7 +7899,7 @@ window.TVS_GH = {
             <div class="k-val">${U.fmt(U.NXT.tonPrs)} <small>đôi</small></div>
             <div class="k-sub">${U.fmt(U.NXT.tonCtn)} thùng chờ xuất</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("globe")}<span>Thị trường</span></div>
-            <div class="k-val">14</div><div class="k-sub">quốc gia nhận hàng</div></div>
+            <div class="k-val">${nCtries}</div><div class="k-sub">quốc gia nhận hàng</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("check")}<span>Đã thực xuất</span></div>
             <div class="k-val">${U.fmt(U.NXT.xuatPrs)} <small>đôi</small></div>
             <div class="k-sub">${U.ONTIME.n ? `${(window.TVS_SHIPMENTS || []).filter(s => s.status === "shipped").length} phiếu XK · đúng hạn ${U.fmtPct(U.ONTIME.rate, 0)}` : `chưa có phiếu xuất kho nào`}</div></div>
@@ -7542,7 +7911,7 @@ window.TVS_GH = {
         </div>
 
         <div class="card mt">
-          <div class="card-h"><h3>Lịch xuất hàng chi tiết — 15 mốc</h3>
+          <div class="card-h"><h3>Lịch xuất hàng chi tiết — ${plan.length} mốc</h3>
             <span class="sub">gom theo "Ngày xuất KD" · trạng thái so với tồn kho hiện tại</span></div>
           <div class="card-b"><div class="tl">
             ${plan.map(p => {
@@ -7734,6 +8103,9 @@ window.TVS_GH = {
     "tho nhi ky": "TURKIYE", "turkiye": "TURKIYE", "turkey": "TURKIYE",
     "uae": "UNITED ARAB EMIRATES", "a rap": "UNITED ARAB EMIRATES",
     "colombia": "COLOMBIA", "nam phi": "SOUTH AFRICA", "south africa": "SOUTH AFRICA", "mexico": "MEXICO",
+    "brazil": "BRAZIL", "thai lan": "THAILAND", "thailand": "THAILAND",
+    "trung quoc": "CHINA", "china": "CHINA", "dai loan": "TAIWAN", "taiwan": "TAIWAN",
+    "han quoc": "SOUTH KOREA", "korea": "SOUTH KOREA", "south korea": "SOUTH KOREA",
   };
 
   const steps = arr => `<div class="steps">${arr.map((s, i) =>
@@ -7744,7 +8116,7 @@ window.TVS_GH = {
   /* ── Các "công cụ" truy xuất (mô phỏng Agentic RAG tools) ── */
   function ansOrder(code) {
     const o = U.orderByCode(code);
-    if (!o) return { s: ["🧠 Planner", "🔍 Order Lookup Tool", "⚠ CRAG: không thấy → hỏi lại"], h: `Không tìm thấy đơn <b>${U.esc(code)}</b> trong 95 đơn hàng. Bạn kiểm tra lại mã (ví dụ: <b>AE2607131</b>, <b>AE2607172</b>)?` };
+    if (!o) return { s: ["🧠 Planner", "🔍 Order Lookup Tool", "⚠ CRAG: không thấy → hỏi lại"], h: `Không tìm thấy đơn <b>${U.esc(code)}</b> trong ${U.ORDER_INDEX.length} đơn hàng. Bạn kiểm tra lại mã (ví dụ: <b>AE2607131</b>, <b>AD2600004</b>)?` };
     const rows = U.SIZES.filter(s => o.sizes[s]).map(s =>
       [s, U.fmt(o.sizes[s].ordered), U.fmt(o.sizes[s].received), U.fmt(o.sizes[s].received - o.sizes[s].ordered)]);
     return {
@@ -7782,11 +8154,19 @@ window.TVS_GH = {
   }
 
   function ansShort() {
+    if (!U.SHORTAGES.length) {
+      return {
+        s: ["🧠 Planner", "⚖ Shortage Tool (N↔Đặt)", "✅ Answer"],
+        h: `Hiện không có đơn nào đang nhập dở bị thiếu hụt size.`
+      };
+    }
+    const partialOrds = U.ORDER_INDEX.filter(o => o.recvPrs > 0 && o.short > 0).sort((a, b) => a.d.localeCompare(b.d));
+    const prio = partialOrds[0];
     return {
       s: ["🧠 Planner", "⚖ Shortage Tool (N↔Đặt)", "✅ Answer"],
-      h: `Hiện có <b>${U.SHORTAGES.length} mục thiếu</b>, tổng <b>${U.fmt(U.sum(U.SHORTAGES, s => s.qty))} đôi</b>:
+      h: `Hiện có <b>${U.SHORTAGES.length} mục thiếu</b> trên các đơn đã nhập kho 1 phần, tổng <b>${U.fmt(U.sum(U.SHORTAGES, s => s.qty))} đôi</b>:
       ${tbl(["Đơn", "Size", "Thiếu", "Loại"], U.SHORTAGES.map(s => [`${s.ord} ${U.flag(s.ctry)}`, s.sz, U.fmt(s.qty), s.type]))}
-      Ưu tiên nhất: <b>AE2607131 (Ý)</b> xuất ngày <b>25/07/2026</b> — còn ${U.daysFromToday("2026-07-25")} ngày mà thiếu 15 đôi UK 9 chưa sản xuất.`
+      ${prio ? `Ưu tiên nhất: <b>${prio.ord} (${U.VN_COUNTRY[prio.ctry] || prio.ctry})</b> xuất ngày <b>${U.fmtDate(prio.d)}</b> — đã nhập ${U.fmt(prio.recvPrs)}/${U.fmt(prio.prs)} đôi, còn thiếu <b>${U.fmt(prio.short)} đôi</b>.` : ""}`
     };
   }
 
@@ -7794,13 +8174,13 @@ window.TVS_GH = {
     const N = U.NXT;
     return {
       s: ["🧠 Planner", "📦 Inventory Tool (N-X-T)", "✅ Answer"],
-      h: `Tình hình <b>N-X-T</b> đến ${U.fmtDate(TVS_META.today)}:
-      ${tbl(["Chỉ tiêu", "Đôi", "Thùng"], [
+      h: `Tình hình <b>N-X-T</b> hiện tại (mapping thùng theo CLP):
+      ${tbl(["Chỉ tiêu", "Đôi", "Thùng (CLP)"], [
         ["① Tổng đặt hàng", U.fmt(N.datPrs), U.fmt(N.datCtn)],
         ["② Nhập kho (N)", U.fmt(N.nhapPrs), U.fmt(N.nhapCtn)],
         ["③ Xuất kho (X)", U.fmt(N.xuatPrs), U.fmt(N.xuatCtn)],
         ["④ Tồn kho (T)", "<b>" + U.fmt(N.tonPrs) + "</b>", "<b>" + U.fmt(N.tonCtn) + "</b>"],
-        ["⑤ Còn phải SX", U.fmt(N.conSXPrs), "—"]])}
+        ["⑤ Còn phải SX", U.fmt(N.conSXPrs), U.fmt(N.datCtn - N.nhapCtn)]])}
       Tiến độ đạt <b>${U.fmtPct(N.progress)}</b> kế hoạch. Chi tiết tại <a href="#/inventory">trang N-X-T →</a>`
     };
   }
@@ -7812,7 +8192,7 @@ window.TVS_GH = {
       h: `5 mốc xuất KD gần nhất:
       ${tbl(["Ngày", "Còn", "Số đôi", "Thị trường"], up.map(p =>
         [U.fmtDate(p.d), p.days + " ngày", U.fmt(p.prs), p.ctries.map(c => U.flag(c)).join(" ")]))}
-      Toàn bộ 15 mốc xem tại <a href="#/shipping">Kế hoạch xuất →</a>`
+      Toàn bộ ${U.SHIP_PLAN.length} mốc xem tại <a href="#/shipping">Kế hoạch xuất →</a>`
     };
   }
 
@@ -7836,19 +8216,27 @@ window.TVS_GH = {
   }
 
   function ansTotals() {
+    const N = U.NXT;
+    const byCtry = U.aggBy(TVS_ORDERS, r => r.ctry).slice(0, 3);
+    const byCol = U.aggBy(TVS_ORDERS, r => r.col)[0];
+    const bySz = U.aggBy(TVS_ORDERS, r => r.sz)[0];
+    const nBats = U.uniq(TVS_ORDERS, r => r.bat).length;
+    const nCtries = U.uniq(TVS_ORDERS, r => r.ctry).length;
+    const nCols = U.uniq(TVS_ORDERS, r => r.col).length;
     return {
       s: ["🧠 Planner", "∑ Aggregator", "✅ Answer"],
       h: `Chương trình <b>adidas Rubber Boots ${TVS_META.itemCode}</b> tại TVS:
-      <br>• Tổng đặt: <b>${U.fmt(TVS_META.totalPairs)} đôi</b> = <b>${U.fmt(TVS_META.totalCartons)} thùng</b> (quy cách 6 đôi/thùng)
-      <br>• <b>95 đơn hàng</b> · <b>14 quốc gia</b> · <b>5 mã màu</b> · size UK 3–9 · 3 đợt đặt hàng
-      <br>• Thị trường lớn nhất: 🇺🇸 Mỹ (10.878 đôi), 🇩🇪 Đức (7.414), 🇯🇵 Nhật (5.606)
-      <br>• Màu chủ lực: LC1783 (16.534 đôi ≈ 41,3%) · Size chạy nhất: UK 6 (11.439 đôi)
-      <br>• Đã nhập kho: <b>${U.fmt(U.NXT.nhapPrs)} đôi</b> (${U.fmtPct(U.NXT.progress)})`
+      <br>• Tổng đặt: <b>${U.fmt(N.datPrs)} đôi</b> = <b>${U.fmt(N.datCtn)} thùng</b> (mapping theo Packing List · CLP)
+      <br>• <b>${U.ORDER_INDEX.length} đơn hàng</b> · <b>${nCtries} quốc gia</b> · <b>${nCols} mã màu</b> · size UK 3–9 · <b>${nBats} đợt đặt hàng</b>
+      <br>• Thị trường lớn nhất: ${byCtry.map(x => `${U.flag(x.key)} ${U.VN_COUNTRY[x.key] || x.key} (${U.fmt(x.prs)} đôi)`).join(", ")}
+      <br>• Màu chủ lực: ${byCol ? `${byCol.key} (${U.fmt(byCol.prs)} đôi ≈ ${U.fmtPct(byCol.prs / N.datPrs)})` : "—"} · Size chạy nhất: ${bySz ? `${bySz.key} (${U.fmt(bySz.prs)} đôi)` : "—"}
+      <br>• Đã nhập kho: <b>${U.fmt(N.nhapPrs)} đôi (${U.fmt(N.nhapCtn)} thùng)</b> (${U.fmtPct(N.progress)}) · Đã xuất: <b>${U.fmt(N.xuatPrs)} đôi</b> · Tồn: <b>${U.fmt(N.tonPrs)} đôi (${U.fmt(N.tonCtn)} thùng)</b>`
     };
   }
 
   function ansBatch(b) {
     const rows = TVS_ORDERS.filter(r => r.bat === b);
+    if (!rows.length) return { s: ["🧠 Planner", "🗂 Batch Filter Tool", "⚠ CRAG"], h: `Không có đơn hàng nào thuộc <b>Đợt ${b}</b>. Các đợt hiện có: ${U.uniq(TVS_ORDERS, r => r.bat).sort((x, y) => x - y).map(x => "Đợt " + x).join(", ")}.` };
     return {
       s: ["🧠 Planner", "🗂 Batch Filter Tool", "∑ Aggregator", "✅ Answer"],
       h: `<b>Đợt đặt hàng ${b}</b>: ${U.fmt(U.sum(rows, r => r.prs))} đôi = ${U.fmt(U.sum(rows, r => r.ctn))} thùng,
@@ -7860,20 +8248,20 @@ window.TVS_GH = {
   function ansHelp() {
     return {
       s: ["🧠 Planner", "💬 Help"],
-      h: `Tôi là <b>Trợ lý AI TVS</b> — truy xuất trực tiếp dữ liệu thật của 2 sheet Excel. Bạn có thể hỏi:
-      <br>• "Đơn <b>AE2607131</b> thế nào?" — tra 1 đơn + ma trận size
+      h: `Tôi là <b>Trợ lý AI TVS</b> — truy xuất trực tiếp dữ liệu thật trên hệ thống. Bạn có thể hỏi:
+      <br>• "Đơn <b>AE2607131</b> hoặc <b>AD2600004</b> thế nào?" — tra 1 đơn + ma trận size
       <br>• "Tổng hàng đi <b>Mỹ</b>?" / "đơn đi <b>Nhật</b>" — theo quốc gia
       <br>• "Màu <b>LC1783</b> bao nhiêu đôi?" — theo mã màu
       <br>• "Đang <b>thiếu</b> những gì?" — thiếu khi nhập + chưa sản xuất
       <br>• "<b>Tồn kho</b> hiện tại?" — bảng N-X-T
-      <br>• "Lịch <b>xuất hàng</b> sắp tới?" / "Đợt 2 có gì?"`
+      <br>• "Lịch <b>xuất hàng</b> sắp tới?" / "Đợt 4 có gì?"`
     };
   }
 
   /* ── Planner: định tuyến ý định ── */
   function route(q) {
     const n = norm(q);
-    const mOrd = q.match(/AE\d{6,}/i);
+    const mOrd = q.match(/\b(?:AE|AD)\d{5,}\b/i);
     if (mOrd) return ansOrder(mOrd[0].toUpperCase());
     const mPO = q.match(/\d{8,}-\d/);
     if (mPO) {
@@ -7882,7 +8270,7 @@ window.TVS_GH = {
     }
     const mCol = q.match(/LC\s?17\d{2}/i);
     if (mCol) return ansColor(mCol[0].replace(/\s/, "").toUpperCase());
-    const mBat = n.match(/dot\s*([123])/);
+    const mBat = n.match(/dot\s*(\d+)/);
     if (mBat) return ansBatch(+mBat[1]);
     for (const k of Object.keys(CTRY_ALIAS).sort((a, b) => b.length - a.length)) {
       if (new RegExp(`(^|[^a-z])${k}([^a-z]|$)`).test(n)) return ansCountry(CTRY_ALIAS[k]);

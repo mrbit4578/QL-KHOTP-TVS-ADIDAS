@@ -54,9 +54,10 @@
   /* Khoảng ngày mặc định: từ lần nhập kho sớm nhất → hôm nay */
   R.defaultRange = function () {
     const mv = movements();
-    const from = mv.length ? mv[0].d : TVS_META.today;
-    const last = mv.length ? mv[mv.length - 1].d : TVS_META.today;
-    const to = last > TVS_META.today ? last : TVS_META.today;
+    const today = U.todayISO ? U.todayISO() : TVS_META.today;
+    const from = mv.length ? mv[0].d : today;
+    const last = mv.length ? mv[mv.length - 1].d : today;
+    const to = last > today ? last : today;
     return { from, to };
   };
 
@@ -177,9 +178,9 @@
     const setRange = (a, b) => { st.from = a; st.to = b; st.touched = true; draw(host); };
     document.getElementById("rpFrom").onchange = e => { st.from = e.target.value || st.from; if (st.from > st.to) st.to = st.from; st.touched = true; draw(host); };
     document.getElementById("rpTo").onchange = e => { st.to = e.target.value || st.to; if (st.to < st.from) st.from = st.to; st.touched = true; draw(host); };
-    on("rpThisMonth", () => { const t = TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
+    on("rpThisMonth", () => { const t = U.todayISO ? U.todayISO() : TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
       setRange(firstDay(y, m), lastDay(y, m)); });
-    on("rpThisQuarter", () => { const t = TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
+    on("rpThisQuarter", () => { const t = U.todayISO ? U.todayISO() : TVS_META.today, y = +t.slice(0, 4), m = +t.slice(5, 7);
       const q0 = Math.floor((m - 1) / 3) * 3 + 1;
       setRange(firstDay(y, q0), lastDay(y, q0 + 2)); });
     on("rpAll", () => { const d = R.defaultRange(); st.touched = false; setRange(d.from, d.to); st.touched = false; });

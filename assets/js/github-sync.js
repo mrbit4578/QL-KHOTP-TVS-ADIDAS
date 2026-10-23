@@ -34,6 +34,36 @@
   };
   const chip = () => { if (window.App && App.renderSyncChip) App.renderSyncChip(); };
 
+  /* Gộp an toàn dữ liệu remote & local khi xảy ra xung đột 409 hoặc đang chờ lưu */
+  Sync.mergePayload = function (remote, local) {
+    if (!remote) return local;
+    if (!local) return remote;
+    const mergeArr = (a, b, keyFn) => {
+      const map = new Map();
+      (a || []).forEach(x => map.set(keyFn(x), x));
+      (b || []).forEach(x => map.set(keyFn(x), x));
+      return [...map.values()];
+    };
+    const mergeEdits = (a, b) => {
+      const out = Object.assign({}, a || {});
+      for (const [k, v] of Object.entries(b || {})) {
+        if (!out[k] || (v.rev || 0) >= (out[k].rev || 0)) out[k] = v;
+      }
+      return out;
+    };
+    return {
+      ordersAdded: mergeArr(remote.ordersAdded, local.ordersAdded, x => x._id || (x.ord + "|" + x.sz)),
+      receiptsAdded: mergeArr(remote.receiptsAdded, local.receiptsAdded, x => x._id || (x.rd + "|" + x.ord + "|" + x.sz)),
+      shipments: mergeArr(remote.shipments, local.shipments, x => x.id || x.code),
+      seq: Math.max(remote.seq || 1, local.seq || 1),
+      receiptEdits: mergeEdits(remote.receiptEdits, local.receiptEdits),
+      orderEdits: mergeEdits(remote.orderEdits, local.orderEdits),
+      seedReceiptsOff: local.seedReceiptsOff !== undefined ? local.seedReceiptsOff : !!remote.seedReceiptsOff,
+      packingAdded: Object.assign({}, remote.packingAdded || {}, local.packingAdded || {}),
+      packingLog: mergeArr(remote.packingLog, local.packingLog, x => (x.at || "") + "|" + (x.file || "")),
+    };
+  };
+
   /* ── TẢI dữ liệu chung từ GitHub ── */
   Sync.load = async function () {
     if (!CFG.owner) return;
@@ -45,7 +75,10 @@
       const j = await r.json();
       Sync.state.sha = j.sha;
       const data = JSON.parse(b64decodeUtf8(j.content));
-      if (window.Store && Store.replaceLocal) Store.replaceLocal(data);
+      if (window.Store && Store.replaceLocal) {
+        const merged = Sync.state.pending ? Sync.mergePayload(data, Store.local) : data;
+        Store.replaceLocal(merged);
+      }
       Sync.state.lastSync = new Date();
       Sync.state.lastBy = data.meta && data.meta.updatedBy || null;
       Sync.state.offline = false;
@@ -81,11 +114,19 @@
       if (Sync.state.sha) body.sha = Sync.state.sha;
       const r = await fetch(API(), { method: "PUT", headers: headers(), body: JSON.stringify(body) });
       if (r.status === 409 || r.status === 422) {
-        if (!retried) {   /* sha lệch (người khác vừa ghi) → lấy sha mới, ghi lại 1 lần */
+        if (!retried) {   /* sha lệch (người khác vừa ghi) → tải bản mới, gộp với bản local rồi ghi lại */
           const g = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
-          if (g.ok) { Sync.state.sha = (await g.json()).sha; }
+          if (g.ok) {
+            const gj = await g.json();
+            Sync.state.sha = gj.sha;
+            try {
+              const remoteData = JSON.parse(b64decodeUtf8(gj.content));
+              const merged = Sync.mergePayload(remoteData, Store.local);
+              if (window.Store && Store.replaceLocal) Store.replaceLocal(merged);
+            } catch (err) {}
+          }
           Sync.state.syncing = false;
-          App.toast("⚠ Có người vừa cập nhật dữ liệu — đang ghi đè bản của bạn (kiểm tra lịch sử commit nếu cần)", "warn");
+          App.toast("⚠ Có người vừa cập nhật dữ liệu — hệ thống đã tự động gộp dữ liệu và đồng bộ lại", "warn");
           return Sync.save(true);
         }
         throw new Error("Xung đột dữ liệu (409)");

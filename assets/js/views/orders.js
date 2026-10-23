@@ -90,6 +90,7 @@
       if (params.q !== undefined) { st.q = params.q; }
       const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
       const cols = U.uniq(TVS_ORDERS, r => r.col).sort();
+      const bats = U.uniq(TVS_ORDERS, r => r.bat).sort((a, b) => a - b);
       const dates = U.uniq(TVS_ORDERS, r => r.d).sort();
       const edN = Store.orderEditCount();          /* đơn đang khác gốc */
       const edLog = Store.orderEditLogCount();     /* đơn có nhật ký (kể cả đã khôi phục) */
@@ -121,7 +122,7 @@
             <select class="f-select" id="fCol"><option value="">Tất cả màu</option>
               ${cols.map(c => `<option ${st.col === c ? "selected" : ""}>${c}</option>`).join("")}</select>
             <select class="f-select" id="fBat"><option value="">Tất cả đợt</option>
-              ${[1, 2, 3].map(b => `<option ${st.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select>
+              ${bats.map(b => `<option ${st.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select>
             <select class="f-select" id="fD"><option value="">Mọi ngày xuất KD</option>
               ${dates.map(d => `<option ${st.d === d ? "selected" : ""} value="${d}">${U.fmtDate(d)}</option>`).join("")}</select>
             <button class="btn" id="fReset">Xoá lọc</button>
@@ -132,7 +133,7 @@
               <button id="mOrders" class="${st.mode === "orders" ? "on" : ""}">Theo đơn hàng</button>
               <button id="mRows" class="${st.mode === "rows" ? "on" : ""}">Chi tiết từng dòng size</button>
             </div>
-            <span class="note">Nguồn: sheet <b>Data — DATA ĐƠN ĐẶT HÀNG GỐC</b> · ${U.fmt(TVS_ORDERS.length)} dòng · ${U.fmt(U.ORDER_INDEX.length)} đơn · ${U.fmt(TVS_META.totalPairs)} đôi</span>
+            <span class="note">Tổng hợp: <b>${U.fmt(TVS_ORDERS.length)} dòng · ${U.fmt(U.ORDER_INDEX.length)} đơn · ${U.fmt(U.NXT.datPrs)} đôi · ${U.fmt(U.NXT.datCtn)} thùng (mapping CLP)</b></span>
           </div>
           <div id="tblArea"></div>
         </div>`;
@@ -174,6 +175,8 @@
   /* ── NHẬP LIỆU: thêm đơn hàng mới (ma trận size) ── */
   function openAddOrder() {
     const ctries = U.uniq(TVS_ORDERS, r => r.ctry).sort();
+    const maxBat = Math.max(5, ...U.uniq(TVS_ORDERS, r => r.bat));
+    const batOpts = Array.from({ length: maxBat + 1 }, (_, i) => i + 1);
     App.openModal(`
       <div class="modal-h"><h3>${App.icon("plus", "ico")} Thêm đơn đặt hàng mới</h3>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div>
@@ -181,13 +184,13 @@
         <div class="frm grid g-3" style="gap:10px">
           <label>Mã đơn hàng / chỉ thị *<input id="aOrd" placeholder="AE27xxxxx" style="text-transform:uppercase"></label>
           <label>PO khách hàng<input id="aPo" placeholder="09030xxxxx-1"></label>
-          <label>Ngày xuất KD *<input id="aD" type="date" value="${TVS_META.today}"></label>
+          <label>Ngày xuất KD *<input id="aD" type="date" value="${U.todayISO()}"></label>
           <label>Quốc gia *<input id="aCtry" list="ctryList" placeholder="JAPAN…" style="text-transform:uppercase">
             <datalist id="ctryList">${ctries.map(c => `<option value="${c}">`).join("")}</datalist></label>
           <label>Mã màu *<select id="aCol">${Object.keys(U.COLOR_HEX).map(c => `<option>${c}</option>`).join("")}</select></label>
-          <label>Đợt đặt hàng<select id="aBat"><option>1</option><option>2</option><option selected>3</option></select></label>
+          <label>Đợt đặt hàng<select id="aBat">${batOpts.map(b => `<option ${b === maxBat ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
         </div>
-        <h4 style="margin:14px 0 8px;font-size:13px">Số đôi theo size <span class="note">(bỏ trống size không đặt · thùng = ROUNDUP(đôi ÷ 6))</span></h4>
+        <h4 style="margin:14px 0 8px;font-size:13px">Số đôi theo size <span class="note">(bỏ trống size không đặt · số thùng tự động mapping theo CLP)</span></h4>
         <div class="size-matrix">
           ${U.SIZES.map(s => `<div class="sm-cell"><div class="s">${s}</div>
             <input class="cell-in c" type="number" min="0" placeholder="0" data-sz="${s}" style="width:100%;text-align:center;font-weight:800;font-size:15px">
@@ -203,16 +206,20 @@
 
     const inputs = [...document.querySelectorAll(".size-matrix input[data-sz]")];
     const recalc = () => {
+      const ordCode = (document.getElementById("aOrd").value || "").trim().toUpperCase();
       let p = 0, c = 0;
       inputs.forEach(i => {
         const q = parseInt(i.value || "0", 10) || 0;
-        const ct = q ? Math.ceil(q / TVS_META.packing) : 0;
+        const perCtn = Store.clpPerCtn(ordCode, i.dataset.sz);
+        const ct = q ? Math.ceil(q / perCtn) : 0;
         i.closest(".sm-cell").querySelector(".sm-ctn").textContent = ct + " thùng";
         p += q; c += ct;
       });
       document.getElementById("aSum").innerHTML = `Tổng: <b>${U.fmt(p)} đôi</b> = <b>${U.fmt(c)} thùng</b>`;
     };
-    inputs.forEach(i => i.addEventListener("input", recalc)); recalc();
+    inputs.forEach(i => i.addEventListener("input", recalc));
+    document.getElementById("aOrd").addEventListener("input", recalc);
+    recalc();
 
     document.getElementById("aSave").onclick = () => {
       const err = document.getElementById("aErr");
@@ -232,7 +239,8 @@
         if (q <= 0) continue;
         const sz = i.dataset.sz;
         if (TVS_ORDERS.some(r => r.ord === ord && r.sz === sz)) return bad(`${ord} đã có size ${sz} trong hệ thống`);
-        rows.push({ d, ctry, ord, po, col, sz, prs: q, ctn: Math.ceil(q / TVS_META.packing), bat });
+        const perCtn = Store.clpPerCtn(ord, sz);
+        rows.push({ d, ctry, ord, po, col, sz, prs: q, ctn: Math.ceil(q / perCtn), bat });
       }
       if (!rows.length) return bad("Nhập số đôi cho ít nhất 1 size");
       Store.addOrders(rows, "manual");
@@ -413,7 +421,8 @@
     const showErr = m => { err.innerHTML = `<span style="color:var(--bad);font-weight:700">⚠ ${U.esc(m)}</span>`; };
     const recalc = () => {
       const q = parseInt(qty.value || "0", 10) || 0;
-      ctnCell.textContent = U.fmt(q ? Math.ceil(q / TVS_META.packing) : 0);
+      const perCtn = Store.clpPerCtn(ord, sz);
+      ctnCell.textContent = U.fmt(q ? Math.ceil(q / perCtn) : 0);
     };
     qty.addEventListener("input", recalc);
     qty.focus(); qty.select();
@@ -446,6 +455,8 @@
     const colors = U.uniq(TVS_ORDERS, r => r.col.split(",")[0].trim())
       .concat(Object.keys(U.COLOR_HEX)).filter((c, i, a) => c && a.indexOf(c) === i).sort();
     const headCol = head.col.split(",")[0].trim();
+    const maxBat = Math.max(5, head.bat || 1, ...U.uniq(TVS_ORDERS, r => r.bat));
+    const batOpts = Array.from({ length: maxBat + 1 }, (_, i) => i + 1);
 
     App.openModal(`
       <div class="modal-h"><h3>${App.icon("clip", "ico")} Sửa đơn hàng ${ord}</h3>
@@ -460,12 +471,12 @@
             <datalist id="eCtryList">${ctries.map(c => `<option value="${U.esc(c)}">`).join("")}</datalist></label>
           <label>PO khách hàng<input id="ePo" value="${U.esc(head.po)}"></label>
           <label>Mã màu *<select id="eCol">${colors.map(c => `<option ${c === headCol ? "selected" : ""}>${U.esc(c)}</option>`).join("")}</select></label>
-          <label>Đợt đặt hàng<select id="eBat">${[1, 2, 3].map(b => `<option ${head.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
+          <label>Đợt đặt hàng<select id="eBat">${batOpts.map(b => `<option ${head.bat == b ? "selected" : ""} value="${b}">Đợt ${b}</option>`).join("")}</select></label>
           <label>Mã đơn<input value="${U.esc(ord)}" disabled title="Mã đơn là khoá dữ liệu — không sửa được"></label>
         </div>
 
         <h4 style="font-size:13px;margin:16px 0 8px">② Ma trận size — số đôi đặt hàng
-          <span class="note">(thùng = ROUNDUP(đôi ÷ ${TVS_META.packing}) · để 0 nếu bỏ size)</span></h4>
+          <span class="note">(số thùng tự động mapping theo CLP · để 0 nếu bỏ size)</span></h4>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>Size</th><th class="num">SL đặt hiện tại</th><th class="num">Đã nhập kho</th><th class="num">Đã xuất kho</th>
             <th class="num" style="min-width:120px">SL đặt sửa thành</th><th class="num">Thùng</th></tr></thead>
@@ -500,7 +511,8 @@
       const warns = [];
       inputs.forEach(i => {
         const sz = i.dataset.esz, q = parseInt(i.value || "0", 10) || 0;
-        const ct = q ? Math.ceil(q / TVS_META.packing) : 0;
+        const perCtn = Store.clpPerCtn(ord, sz);
+        const ct = q ? Math.ceil(q / perCtn) : 0;
         document.querySelector(`[data-ectn="${sz}"]`).textContent = U.fmt(ct);
         p += q; c += ct;
       });

@@ -45,22 +45,29 @@
         </div>`;
       }
 
+      const nBats = U.uniq(TVS_ORDERS, r => r.bat).length;
+      const nCols = U.uniq(TVS_ORDERS, r => r.col).length;
+      const nCtries = U.uniq(TVS_ORDERS, r => r.ctry).length;
+      const shipRange = U.SHIP_PLAN.length
+        ? `${U.fmtDate(U.SHIP_PLAN[0].d)} → ${U.fmtDate(U.SHIP_PLAN[U.SHIP_PLAN.length - 1].d)}`
+        : "—";
+
       root.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:12px">${alerts}</div>
 
         <div class="grid g-kpi ${alerts ? "mt" : ""}">
-          ${kpi("orders", "Tổng đặt hàng", `${U.fmt(N.datPrs)} <small>đôi</small>`, `${U.fmt(N.datCtn)} thùng · mã hàng ${TVS_META.itemCode}`, true)}
-          ${kpi("clip", "Đơn hàng", `${U.fmt(U.ORDER_INDEX.length)}`, `3 đợt đặt hàng · 5 mã màu`)}
-          ${kpi("globe", "Thị trường xuất", `${U.uniq(TVS_ORDERS, r => r.ctry).length}`, `Ý, Đức, Mỹ, Nhật, Anh…`)}
-          ${kpi("box", "Đã nhập kho", `${U.fmt(N.nhapPrs)} <small>đôi</small>`, `${U.fmt(N.nhapCtn)} thùng · ${activeOrders.length} đơn đang chạy`)}
+          ${kpi("orders", "Tổng đặt hàng", `${U.fmt(N.datPrs)} <small>đôi</small>`, `${U.fmt(N.datCtn)} thùng (CLP) · mã hàng ${TVS_META.itemCode}`, true)}
+          ${kpi("clip", "Đơn hàng", `${U.fmt(U.ORDER_INDEX.length)}`, `${nBats} đợt đặt hàng · ${nCols} mã màu`)}
+          ${kpi("globe", "Thị trường xuất", `${nCtries}`, `Ý, Đức, Mỹ, Nhật, Anh…`)}
+          ${kpi("box", "Đã nhập kho", `${U.fmt(N.nhapPrs)} <small>đôi</small>`, `${U.fmt(N.nhapCtn)} thùng · ${activeOrders.length} đơn đã nhập`)}
           ${kpi("layers", "Tồn kho hiện tại", `${U.fmt(N.tonPrs)} <small>đôi</small>`,
-            `Xuất kho: ${U.fmt(N.xuatPrs)} đôi${U.ONTIME.n ? " · đúng hạn " + U.fmtPct(U.ONTIME.rate, 0) : ""}`)}
+            `${U.fmt(N.tonCtn)} thùng · Xuất: ${U.fmt(N.xuatPrs)} đôi${U.ONTIME.n ? " · đúng hạn " + U.fmtPct(U.ONTIME.rate, 0) : ""}`)}
           ${kpi("gauge", "Tiến độ sản xuất", U.fmtPct(N.progress), `Còn phải SX ${U.fmt(N.conSXPrs)} đôi`)}
         </div>
 
         <div class="grid g-23 mt">
           <div class="card">
-            <div class="card-h"><h3>Đơn đặt hàng theo thị trường</h3><span class="sub">số đôi — 14 quốc gia</span></div>
+            <div class="card-h"><h3>Đơn đặt hàng theo thị trường</h3><span class="sub">số đôi — ${nCtries} quốc gia</span></div>
             <div class="card-b" id="chCountry"></div>
           </div>
           <div class="card">
@@ -75,7 +82,7 @@
             <div class="card-b" id="chSize"></div>
           </div>
           <div class="card">
-            <div class="card-h"><h3>Kế hoạch xuất kinh doanh theo mốc ngày</h3><span class="sub">25/07/2026 → 09/01/2027</span></div>
+            <div class="card-h"><h3>Kế hoạch xuất kinh doanh theo mốc ngày</h3><span class="sub">${shipRange}</span></div>
             <div class="card-b" id="chShip"></div>
           </div>
         </div>
@@ -116,7 +123,7 @@
 
       Charts.columns(document.getElementById("chBatch"),
         U.aggBy(TVS_ORDERS, r => r.bat).sort((a, b) => a.key - b.key).map((x, i) => ({
-          label: "Đợt " + x.key, value: x.prs, color: ["#0050d8", "#12b5a5", "#f2a20c"][i]
+          label: "Đợt " + x.key, value: x.prs, color: Charts.PALETTE[i % Charts.PALETTE.length]
         })), { unit: "đôi", h: 220 });
 
       /* ── Tiến độ các đơn đang chạy + tổng ── */
@@ -141,7 +148,7 @@
           <span class="bdg acc">${U.ORDER_INDEX.length - activeOrders.length} đơn chưa bắt đầu</span>
         </div>
         ${rows}
-        <div class="note" style="margin-top:10px">Quy cách đóng thùng chuẩn: <b>${TVS_META.packing} đôi/thùng</b> — số thùng = ROUNDUP(số đôi ÷ 6) đúng theo công thức trong file Excel.</div>`;
+        <div class="note" style="margin-top:10px">Quy cách đóng thùng: <b>Tự động mapping từ Packing List (CLP)</b> theo từng chỉ thị &amp; size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE).</div>`;
     }
   };
 })();

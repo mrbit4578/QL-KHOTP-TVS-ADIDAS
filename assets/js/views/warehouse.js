@@ -14,14 +14,24 @@
       const shortIn = U.sum(R.filter(r => r.diff < 0), r => -r.diff);
       const notProd = U.SHORTAGES.filter(s => s.type === "chưa sản xuất");
       const notProdQty = U.sum(notProd, s => s.qty);
-      const events = [...U.groupBy(R, r => r.rdLabel)].map(([lab, rows]) => ({
-        lab, rows,
-        prs: U.sum(rows, r => r.prs), ctn: U.sum(rows, r => r.ctn),
-        ord: rows[0].ord, ctry: rows[0].ctry, col: rows[0].col,
-        planExp: rows[0].planExp,
-        short: U.sum(rows.filter(r => r.diff < 0), r => -r.diff),
-        notes: [...new Set(rows.map(r => r.notProduced).filter(Boolean))],
-      }));
+      const events = [...U.groupBy(R, r => r.rdLabel)].map(([lab, rows]) => {
+        const ords = U.uniq(rows, r => r.ord);
+        const ctries = U.uniq(rows, r => r.ctry);
+        const cols = U.uniq(rows, r => r.col);
+        const planExps = U.uniq(rows, r => r.planExp).filter(Boolean).sort();
+        return {
+          lab, rows, ords, ctries, cols,
+          prs: U.sum(rows, r => r.prs), ctn: U.sum(rows, r => r.ctn),
+          ord: rows[0].ord, ctry: rows[0].ctry, col: rows[0].col,
+          planExp: rows[0].planExp, planExps,
+          short: U.sum(rows.filter(r => r.diff < 0), r => -r.diff),
+          notes: [...new Set(rows.map(r => r.notProduced).filter(Boolean))],
+        };
+      });
+      const ordList = U.uniq(R, r => r.ord);
+      const dateRangeSub = events.length
+        ? (events.length === 1 ? events[0].lab : `${events[0].lab} → ${events[events.length - 1].lab}`)
+        : "chưa có dữ liệu";
 
       root.innerHTML = `
         <div class="card" style="margin-bottom:16px">
@@ -30,16 +40,18 @@
             <button class="btn" id="rTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="rImp">${App.icon("upload", "ico")} Import từ file</button>
             <button class="btn" id="rExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
-            <span class="f-chipcount">Chọn chỉ thị → hệ thống tự đối chiếu SL đặt & còn thiếu theo size</span>
+            <button class="btn" id="rEditLog">⟲ Nhật ký sửa / xóa nhập kho (${Store.receiptEditSummary ? Store.receiptEditSummary().total : 0})</button>
+            <span class="f-chipcount">Số thùng tự động mapping từ Packing List (CLP) theo chỉ thị + size</span>
           </div>
           ${(() => {
             const si = Store.seedReceiptInfo();
             const c = Store.counts();
-            return `<div class="filters" style="border-bottom:0;gap:10px">
+            const es = Store.receiptEditSummary ? Store.receiptEditSummary() : { total: 0, edited: [], deleted: [] };
+            return `<div class="filters" style="border-bottom:0;gap:10px;flex-wrap:wrap">
               <span class="bdg ${si.off ? "warn" : "ok"}">Dữ liệu gốc: ${si.off ? "ĐANG TẮT" : "đang dùng"}</span>
-              <span class="note">Gốc fix cứng: <b>${si.groups} dòng ma trận · ${U.fmt(si.prs)} đôi</b> — sửa/xoá được, có nhật ký.
-                Dữ liệu nhập thêm: <b>${c.receipts} dòng</b>.</span>
-              <span style="margin-left:auto;display:flex;gap:8px">
+              <span class="note">Đang hiệu lực: <b>${U.fmt(R.length)} dòng size · ${U.fmt(totPrs)} đôi · ${U.fmt(totCtn)} thùng (mapping CLP)</b>
+                (Gốc: ${si.groups} nhóm / ${U.fmt(si.prs)} đôi · Đã sửa SL: <b>${es.edited.length} nhóm</b> · Đã xóa: <b>${es.deleted.length} nhóm</b>).</span>
+              <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
                 ${si.off
                   ? `<button class="btn small primary need-edit" id="rSeedOn">↺ Dùng lại dữ liệu gốc</button>`
                   : `<button class="btn small need-edit" id="rSeedOff">Bỏ dùng dữ liệu gốc</button>`}
@@ -52,36 +64,38 @@
         <div class="grid g-kpi">
           <div class="card kpi kpi-acc"><div class="k-lab">${App.icon("box")}<span>Tổng đã nhập kho</span></div>
             <div class="k-val">${U.fmt(totPrs)} <small>đôi</small></div>
-            <div class="k-sub">${U.fmt(totCtn)} thùng carton</div></div>
-          <div class="card kpi"><div class="k-lab">${App.icon("calendar")}<span>Đợt nhập kho</span></div>
-            <div class="k-val">${events.length}</div><div class="k-sub">16–17/07/2026</div></div>
+            <div class="k-sub">${U.fmt(totCtn)} thùng carton (theo CLP)</div></div>
+          <div class="card kpi"><div class="k-lab">${App.icon("calendar")}<span>Ngày nhập kho</span></div>
+            <div class="k-val">${events.length}</div><div class="k-sub">${U.esc(dateRangeSub)}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("clip")}<span>Đơn hàng đã lên kho</span></div>
-            <div class="k-val">${U.uniq(R, r => r.ord).length}</div>
-            <div class="k-sub">${U.uniq(R, r => r.ord).join(" · ")}</div></div>
+            <div class="k-val">${ordList.length} <small>/ ${U.ORDER_INDEX.length} đơn</small></div>
+            <div class="k-sub">${ordList.length <= 5 ? ordList.join(" · ") : `${ordList.slice(0, 4).join(" · ")} … (+${ordList.length - 4} đơn)`}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("alert")}<span>Thiếu khi nhập</span></div>
-            <div class="k-val" style="color:var(--bad)">−${U.fmt(shortIn)} <small>đôi</small></div>
-            <div class="k-sub">so với SL đơn đặt hàng</div></div>
+            <div class="k-val" style="color:${shortIn ? "var(--bad)" : "var(--ok)"}">${shortIn ? "−" + U.fmt(shortIn) : "0"} <small>đôi</small></div>
+            <div class="k-sub">trên các size đã nhập kho</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("gear")}<span>Chưa sản xuất</span></div>
-            <div class="k-val" style="color:var(--warn)">${U.fmt(notProdQty)} <small>đôi</small></div>
-            <div class="k-sub">${notProd.map(s => s.ord + ": " + s.sz + "=" + s.qty).join(" · ")}</div></div>
+            <div class="k-val" style="color:${notProdQty ? "var(--warn)" : "var(--ok)"}">${U.fmt(notProdQty)} <small>đôi</small></div>
+            <div class="k-sub">${notProd.length ? notProd.slice(0, 4).map(s => s.ord + ": " + s.sz + "=" + s.qty).join(" · ") + (notProd.length > 4 ? ` (+${notProd.length - 4})` : "") : "Tất cả size đã lên kho"}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("check")}<span>Kiểm đếm QC</span></div>
             <div class="k-val">0/${R.length}</div><div class="k-sub">dòng chờ kiểm (SL kiểm & ngày kiểm trống)</div></div>
         </div>
 
         <div class="grid g-32 mt">
           <div class="card">
-            <div class="card-h"><h3>Nhật ký nhập kho theo ngày</h3><span class="sub">timeline sản xuất → đóng thùng → nhập</span></div>
-            <div class="card-b"><div class="tl">
+            <div class="card-h"><h3>Nhật ký nhập kho theo ngày (${events.length} mốc ngày)</h3><span class="sub">timeline sản xuất → đóng thùng → nhập</span></div>
+            <div class="card-b" style="max-height:360px;overflow:auto"><div class="tl">
               ${events.map(ev => `
                 <div class="tl-item ${ev.short ? "late" : "done"}">
                   <div class="tl-dot"></div>
                   <div class="tl-date">${U.esc(ev.lab)}</div>
                   <div class="tl-main">
-                    <b>${U.flag(ev.ctry)} ${ev.ord}</b> · ${U.esc(ev.ctry)} · màu ${ev.col}<br>
+                    ${ev.ords.length === 1
+                      ? `<b>${U.flag(ev.ctry)} ${ev.ord}</b> · ${U.esc(ev.ctry)} · màu ${ev.col}`
+                      : `<b>${ev.ords.length} chỉ thị:</b> ${ev.ords.map(code => `<span class="clickable" onclick="Views._openOrder('${code}')"><b>${code}</b></span>`).join(", ")} · ${ev.ctries.map(c => U.flag(c) + " " + U.esc(c)).join(", ")}`}<br>
                     Nhập <b>${U.fmt(ev.prs)} đôi</b> = <b>${U.fmt(ev.ctn)} thùng</b> ·
-                    xuất KD ${U.fmtDate(ev.planExp)}
+                    xuất KD ${ev.planExps.length <= 1 ? U.fmtDate(ev.planExp) : `${U.fmtDate(ev.planExps[0])} → ${U.fmtDate(ev.planExps[ev.planExps.length - 1])}`}
                     <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">
-                      ${ev.short ? `<span class="bdg bad">thiếu khi nhập −${ev.short} đôi</span>` : `<span class="bdg ok">đủ theo size đã nhập</span>`}
+                      ${ev.short ? `<span class="bdg bad">thiếu khi nhập −${U.fmt(ev.short)} đôi</span>` : `<span class="bdg ok">đủ theo size đã nhập</span>`}
                       ${ev.notes.map(n => `<span class="bdg warn">chưa SX: ${U.esc(n)}</span>`).join("")}
                     </div>
                   </div>
@@ -90,7 +104,7 @@
           </div>
 
           <div class="card">
-            <div class="card-h"><h3>Quy cách đóng thùng & mã hàng</h3></div>
+            <div class="card-h"><h3>Quy cách đóng thùng (Mapping CLP) & mã hàng</h3></div>
             <div class="card-b">
               <div class="grid g-2">
                 <div class="card" style="box-shadow:none">
@@ -102,18 +116,18 @@
                 </div>
                 <div class="card" style="box-shadow:none">
                   <div class="card-b" style="padding:14px">
-                    <div class="note">QUY CÁCH ĐÓNG THÙNG</div>
-                    <div style="font-size:22px;font-weight:800">${TVS_META.packing} đôi / thùng</div>
-                    <div class="note">Số thùng = <code style="font-family:var(--mono)">ROUNDUP(Số đôi ÷ 6)</code> — đúng công thức cột I sheet ChitietNK</div>
+                    <div class="note">MAPPING THÙNG TỪ PACKING LIST (CLP)</div>
+                    <div style="font-size:20px;font-weight:800">Tự động theo CLP</div>
+                    <div class="note">Tham chiếu trực tiếp từ <b>Packing List (CLP)</b> theo từng chỉ thị + size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE)</div>
                   </div>
                 </div>
               </div>
               <div class="mt legend">
                 <span class="l-i"><span class="sw" style="background:var(--ok)"></span>Nhập đủ so với đặt</span>
-                <span class="l-i"><span class="sw" style="background:var(--bad)"></span>Thiếu khi nhập (cột SL đôi thiếu/đủ &lt; 0)</span>
+                <span class="l-i"><span class="sw" style="background:var(--bad)"></span>Thiếu khi nhập (tổng đã nhập của size &lt; SL đặt)</span>
                 <span class="l-i"><span class="sw" style="background:var(--warn)"></span>Size chưa sản xuất (cột SL thiếu chưa sx)</span>
               </div>
-              <div class="note mt">Trường <b>Số lượng kiểm / Ngày kiểm</b> đang trống trong file gốc → hệ thống hiển thị trạng thái <b>“Chờ QC kiểm đếm”</b>. Trường <b>Ngày thực xuất</b> trống → chưa có lô nào xuất kho.</div>
+              <div class="note mt">Đầu vào nhập kho không cần cột số thùng — hệ thống tự động mapping chính xác số thùng của từng chỉ thị &amp; từng size từ trang <b>Packing List · CLP</b>. Các lần sửa/xóa số lượng nhập kho đều đã được cập nhật trực tiếp vào tổng N-X-T và lưu đầy đủ trong <b>Nhật ký sửa / xóa nhập kho</b>.</div>
             </div>
           </div>
         </div>
@@ -199,7 +213,7 @@
                 <td class="note">${(() => { const o = U.orderByCode(r.ord); return o && o.lastShipDate ? "<b>" + U.fmtDate(o.lastShipDate) + "</b>" : "chưa xuất"; })()}</td>
                 <td>${U.fmtDate(r.planExp)}</td>
                 <td>${r.notProduced ? `<span class="bdg warn">${U.esc(r.notProduced)}</span>` : "—"}</td>
-                <td>${r._id
+                <td>${r._edited ? `<span class="bdg acc plain">đã sửa (${r._rev}×)</span> ` : ""}${r._id
                   ? `<span class="bdg acc plain">${r._src === "import" ? "import" : "nhập tay"}</span>
                      <button class="btn small danger need-edit" title="Xoá dòng" onclick="if(confirm('Xoá dòng nhập kho ${r.ord} ${r.sz}?')){Store.removeReceiptRow('${r._id}');App.toast('Đã xoá dòng nhập kho bổ sung','warn')}">✕</button>`
                   : `<span class="note">Excel gốc</span>`}</td>
@@ -229,6 +243,7 @@
         if (confirm("XOÁ SẠCH toàn bộ dữ liệu nhập kho (kể cả dữ liệu gốc)?\n\nDùng khi bạn muốn nạp lại một bộ dữ liệu mới hoàn toàn từ file. Có thể khôi phục gốc lại sau."))
         { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
       });
+      bind("rEditLog", () => Views._whEditLogModal());
       document.getElementById("rAdd").onclick = openAddReceipt;
       document.getElementById("rTpl").onclick = () => { Store.templateReceipts(); App.toast("Đã tải file mẫu theo ngày (cột size 3→10). Hệ thống nhận cả file .xlsx gốc lẫn .csv theo mẫu này", "ok"); };
       document.getElementById("rImp").onclick = importReceipts;
@@ -255,7 +270,7 @@
               ${cands.map(o => `<option value="${o.ord}">${o.ord} · ${o.ctry} · còn thiếu ${U.fmt(o.short)} đôi</option>`).join("")}
               <optgroup label="Đơn đã đủ hàng">${U.ORDER_INDEX.filter(o => o.recvPrs >= o.prs).map(o => `<option value="${o.ord}">${o.ord} · ${o.ctry} · đã đủ</option>`).join("")}</optgroup>
             </select></label>
-          <label>Ngày nhập kho *<input id="nD" type="date" value="${TVS_META.today}"></label>
+          <label>Ngày nhập kho *<input id="nD" type="date" value="${U.todayISO()}"></label>
           <label>Ghi chú size chưa SX<input id="nNote" placeholder="VD: UK 9 = 11"></label>
         </div>
         <div id="nGrid" class="mt"><div class="note">Chọn chỉ thị để hệ thống đối chiếu SL đặt hàng & còn thiếu theo từng size.</div></div>
@@ -292,7 +307,8 @@
         let p = 0, ct = 0;
         grid.querySelectorAll("input[data-sz]").forEach(x => {
           const q = parseInt(x.value || "0", 10) || 0;
-          const c = q ? Math.ceil(q / TVS_META.packing) : 0;
+          const perCtn = Store.clpPerCtn(o.ord, x.dataset.sz);
+          const c = q ? Math.ceil(q / perCtn) : 0;
           x.closest("tr").querySelector(".nk-ctn").textContent = U.fmt(c);
           p += q; ct += c;
         });
@@ -314,9 +330,10 @@
         const q = parseInt(i.value || "0", 10) || 0;
         if (q <= 0) return;
         const sz = i.dataset.sz, c = o.sizes[sz];
+        const perCtn = Store.clpPerCtn(o.ord, sz);
         rows.push({
           rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord: o.ord, po: o.po, item: TVS_META.itemCode,
-          col: o.col.split(",")[0].trim(), sz, prs: q, ctn: Math.ceil(q / TVS_META.packing),
+          col: o.col.split(",")[0].trim(), sz, prs: q, ctn: Math.ceil(q / perCtn),
           qcQty: null, qcDate: null, ordered: c.ordered, diff: (c.received + q) - c.ordered,
           bat: o.bat, actualExp: null, planExp: o.d, notProduced: first ? (note || null) : null,
         });
@@ -497,5 +514,66 @@
       App.closeModal();
       App.toast(`✓ Đã khôi phục dòng <b>${g.ord}</b> (${U.esc(g.rdLabel)}) về số liệu gốc`, "ok");
     };
+  };
+
+  /* ═════════ TỔNG HỢP NHẬT KÝ SỬA / XÓA NHẬP KHO (HIỂN THỊ CẢ DÒNG ĐÃ XÓA) ═════════ */
+  Views._whEditLogModal = function () {
+    const es = Store.receiptEditSummary ? Store.receiptEditSummary() : { total: 0, edited: [], deleted: [], restored: [], all: [] };
+    const szTxt = m => m ? U.SIZES.filter(s => m[s]).map(s => `${s.replace("UK ", "")}×${U.fmt(m[s])}`).join(" · ") || "0" : "(đã xóa)";
+    const sumMap = m => m ? Object.values(m).reduce((a, b) => a + (+b || 0), 0) : 0;
+    const renderRows = list => list.map(item => {
+      const last = item.lastLog || {};
+      const befSum = sumMap(last.before);
+      const aftSum = item.deleted ? 0 : sumMap(item.sizes || last.after);
+      const delta = aftSum - befSum;
+      return `<tr>
+        <td><b>${U.esc(item.rdLabel)}</b></td>
+        <td><b class="clickable" onclick="App.closeModal();Views._openOrder('${item.ord}')">${U.esc(item.ord)}</b></td>
+        <td class="num"><b>${item.rev}</b></td>
+        <td>${item.deleted
+          ? '<span class="bdg bad plain">ĐÃ XÓA</span>'
+          : (item.sizes ? '<span class="bdg acc plain">ĐÃ SỬA SL</span>' : '<span class="bdg neu plain">KHÔI PHỤC GỐC</span>')}</td>
+        <td class="note">${szTxt(last.before)} ${befSum ? `<b>(${U.fmt(befSum)} đôi)</b>` : ""}</td>
+        <td class="note">${item.deleted ? '<span style="color:var(--bad);font-weight:700">0 đôi (đã xóa khỏi kho)</span>' : `${szTxt(item.sizes || last.after)} <b>(${U.fmt(aftSum)} đôi)</b>`}</td>
+        <td class="num ${delta < 0 ? "neg" : "pos"}"><b>${delta > 0 ? "+" : ""}${U.fmt(delta)}</b></td>
+        <td><b>${U.esc(last.by || "—")}</b><br><span class="note">${last.at ? new Date(last.at).toLocaleString("vi-VN") : "—"}</span></td>
+        <td>${U.esc(last.reason || "—")}</td>
+        <td style="white-space:nowrap">
+          <button class="btn small need-edit" onclick="Views._whRestoreGroup('${U.esc(item.rdLabel)}','${U.esc(item.ord)}')">↺ Khôi phục gốc</button>
+        </td>
+      </tr>`;
+    }).join("");
+
+    App.openModal(`
+      <div class="modal-h">
+        <h3>⟲ Nhật ký sửa / xóa số lượng nhập kho (${es.total} nhóm)</h3>
+        <span class="bdg acc plain">Đã sửa SL: ${es.edited.length} · Đã xóa: ${es.deleted.length}</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b">
+        <div class="alert ok" style="margin-bottom:12px"><div class="a-t">
+          <b>✓ Trạng thái áp dụng:</b> Tất cả <b>${es.edited.length} nhóm sửa số lượng</b> và <b>${es.deleted.length} nhóm đã xóa</b> dưới đây đều <b>đã được trừ/cập nhật trực tiếp</b> vào tổng Nhập – Xuất – Tồn (Hiện tại: <b>${U.fmt(U.NXT.nhapPrs)} đôi · ${U.fmt(U.NXT.nhapCtn)} thùng</b>).
+        </div></div>
+        ${!es.all.length ? `<div class="note">Chưa có lịch sử sửa/xóa nhập kho nào.</div>` : `
+        <div class="tbl-wrap" style="max-height:58vh;overflow:auto"><table class="tbl">
+          <thead><tr>
+            <th>Ngày NK</th><th>Chỉ thị</th><th class="num">Lần sửa</th><th>Trạng thái</th>
+            <th>Số lượng trước sửa/xóa</th><th>Số lượng sau sửa (hiện hành)</th><th class="num">Chênh lệch</th>
+            <th>Người sửa / Thời điểm</th><th>Lý do ghi nhận</th><th>Thao tác</th>
+          </tr></thead>
+          <tbody>${renderRows(es.all)}</tbody>
+        </table></div>`}
+        <div class="mt" style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+  };
+
+  Views._whRestoreGroup = function (rdLabel, ord) {
+    if (!confirm(`Khôi phục lần nhập kho ngày ${rdLabel} của chỉ thị ${ord} về số liệu gốc trước khi sửa/xóa?`)) return;
+    const r = Store.restoreReceiptGroup(rdLabel, ord, "Khôi phục từ bảng tổng hợp nhật ký sửa/xóa");
+    if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
+    App.toast(`✓ Đã khôi phục ${ord} (${rdLabel}) về số liệu gốc`, "ok");
+    Views._whEditLogModal();
   };
 })();

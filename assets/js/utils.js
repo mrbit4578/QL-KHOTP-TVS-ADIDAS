@@ -19,6 +19,19 @@
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
   };
+  /* Ngày thực hệ thống (YYYY-MM-DD); fallback về TVS_META.today nếu đồng hồ máy sai */
+  U.todayISO = () => {
+    try {
+      const now = new Date();
+      if (now.getFullYear() >= 2026) {
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const d = String(now.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+    } catch (e) {}
+    return TVS_META.today;
+  };
   U.daysFromToday = iso => {
     if (!iso) return null;
     const t = new Date(TVS_META.today + "T00:00:00");
@@ -199,15 +212,37 @@
       progress: datPrs ? nhapPrs / datPrs : 0,
     };
 
-    /* ── Thiếu hụt ── */
+    /* ── Thiếu hụt (chỉ tính các size thực sự còn thiếu sau khi tổng hợp & sửa/xóa) ── */
     const shorts = [];
-    for (const r of TVS_RECEIPTS)
-      if (r.diff < 0) shorts.push({ type: "thiếu khi nhập", ord: r.ord, ctry: r.ctry, sz: r.sz, qty: -r.diff, note: `Nhập ${r.prs}/${r.ordered} đôi` });
-    for (const o of list)
+    const notedOrdSz = new Set();
+    for (const r of TVS_RECEIPTS) {
+      if (r.diff < 0) {
+        const totRecv = recvByOrdSize[r.ord + "|" + r.sz] || r.prs;
+        shorts.push({ type: "thiếu khi nhập", ord: r.ord, ctry: r.ctry, sz: r.sz, qty: -r.diff, note: `Nhập ${totRecv}/${r.ordered} đôi` });
+      }
+    }
+    for (const o of list) {
       for (const n of o.notes) {
         const m = n.match(/UK\s*(\d+)\s*=\s*(\d+)/i);
-        if (m) shorts.push({ type: "chưa sản xuất", ord: o.ord, ctry: o.ctry, sz: "UK " + m[1], qty: +m[2], note: "Ghi chú nhập kho: " + n });
+        if (m) {
+          const sz = "UK " + m[1];
+          const szObj = o.sizes[sz];
+          const rem = szObj ? Math.max(0, szObj.ordered - (szObj.received || 0)) : +m[2];
+          if (rem > 0) {
+            notedOrdSz.add(o.ord + "|" + sz);
+            shorts.push({ type: "chưa sản xuất", ord: o.ord, ctry: o.ctry, sz, qty: rem, note: "Ghi chú nhập kho: " + n });
+          }
+        }
       }
+      if (o.recvPrs > 0 && o.recvPrs < o.prs) {
+        for (const sz of U.SIZES) {
+          const s = o.sizes[sz];
+          if (s && s.ordered > 0 && (s.received || 0) === 0 && !notedOrdSz.has(o.ord + "|" + sz)) {
+            shorts.push({ type: "chưa sản xuất", ord: o.ord, ctry: o.ctry, sz, qty: s.ordered, note: `Đơn đã nhập 1 phần (${o.recvPrs}/${o.prs}), size ${sz} chưa về kho` });
+          }
+        }
+      }
+    }
     U.SHORTAGES = shorts;
 
     /* ── Kế hoạch xuất theo mốc ngày ── */

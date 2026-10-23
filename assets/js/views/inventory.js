@@ -43,9 +43,11 @@
 
       const rowsToShow = st.showAll ? U.ORDER_INDEX : active;
 
+      const totalOrds = U.ORDER_INDEX.length;
+
       root.innerHTML = `
         <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:16px">
-          ${flowCard("① SL ĐẶT HÀNG", N.datPrs, N.datCtn, "#0050d8", "95 đơn")}
+          ${flowCard("① SL ĐẶT HÀNG", N.datPrs, N.datCtn, "#0050d8", `${totalOrds} đơn · theo CLP`)}
           ${flowCard("② ĐÃ NHẬP KHO (N)", N.nhapPrs, N.nhapCtn, "#12b5a5", U.fmtPct(N.progress) + " kế hoạch")}
           ${flowCard("③ ĐÃ XUẤT KHO (X)", N.xuatPrs, N.xuatCtn, "#f2a20c",
             N.xuatPrs ? `đúng hạn ${U.ONTIME.rate === null ? "—" : U.fmtPct(U.ONTIME.rate, 0)}` : "chưa có ngày thực xuất")}
@@ -81,9 +83,9 @@
         <div class="card mt">
           <div class="card-h">
             <h3>Bảng N-X-T theo đơn hàng</h3>
-            <span class="sub">${st.showAll ? "toàn bộ 95 đơn" : "đơn có phát sinh nhập kho"}</span>
+            <span class="sub">${st.showAll ? `toàn bộ ${totalOrds} đơn` : `đơn có phát sinh nhập kho (${active.length}/${totalOrds} đơn)`}</span>
             <span class="spacer"></span>
-            <button class="btn" id="btnToggleAll">${st.showAll ? "Chỉ hiện đơn có phát sinh" : "Hiện toàn bộ 95 đơn"}</button>
+            <button class="btn" id="btnToggleAll">${st.showAll ? "Chỉ hiện đơn có phát sinh" : `Hiện toàn bộ ${totalOrds} đơn`}</button>
           </div>
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr>
@@ -109,7 +111,7 @@
               </tr>`;
             }).join("")}</tbody>
             <tfoot><tr>
-              <td colspan="4">TỔNG ${st.showAll ? "(95 đơn)" : "(" + rowsToShow.length + " đơn có phát sinh)"}</td>
+              <td colspan="4">TỔNG ${st.showAll ? `(${totalOrds} đơn)` : "(" + rowsToShow.length + " đơn có phát sinh)"}</td>
               <td class="num">${U.fmt(U.sum(rowsToShow, o => o.prs))}</td>
               <td class="num">${U.fmt(U.sum(rowsToShow, o => o.recvPrs))}</td>
               <td class="num">${U.fmt(U.sum(rowsToShow, o => o.shipPrs))}</td>
@@ -117,7 +119,7 @@
               <td class="num neg">${U.fmt(U.sum(rowsToShow, o => o.short))}</td><td></td>
             </tr></tfoot>
           </table></div>
-          ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ 95 đơn” để xem đầy đủ.</div>`}
+          ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ ${totalOrds} đơn” để xem đầy đủ.</div>`}
         </div>
 
         <!-- v4.9: Báo cáo N-X-T theo kỳ + xuất Excel (assets/js/nxt-report.js) -->
