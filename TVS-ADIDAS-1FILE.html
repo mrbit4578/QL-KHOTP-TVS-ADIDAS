@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:22) -->
+<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 23/10/2026 14:26) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
@@ -161,6 +161,19 @@ svg.ico{width:14px;height:14px;flex-shrink:0;vertical-align:-2px}
 .sys-time{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:.02em;color:var(--acc);min-width:64px;display:inline-block;text-align:center}
 .theme-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--txt-2);cursor:pointer;flex-shrink:0}
 .theme-btn:hover{color:var(--acc);border-color:var(--acc)}
+.storage-chip{
+  display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);
+  border-radius:99px;padding:4.5px 11px;font-size:11.5px;font-weight:700;
+  background:var(--soft);color:var(--txt-2);cursor:pointer;white-space:nowrap;
+  font-variant-numeric:tabular-nums;transition:border-color .15s,background .15s;
+}
+.storage-chip:hover{border-color:var(--acc);color:var(--txt)}
+.storage-chip .sc-bar{width:38px;height:6px;background:var(--line-2);border-radius:99px;overflow:hidden;flex-shrink:0}
+.storage-chip .sc-bar > i{display:block;height:100%;border-radius:99px;background:var(--ok)}
+.storage-chip.warn .sc-bar > i{background:var(--warn)}
+.storage-chip.bad .sc-bar > i{background:var(--bad)}
+.storage-chip b{color:var(--txt);font-weight:800}
+@media (max-width:1100px){.storage-chip .sc-free{display:none}}
 .burger{display:none}
 
 /* ── Nội dung ──────────────────────────────────────────────── */
@@ -604,6 +617,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
       <div class="topbar-title" id="pageTitle">Bảng điều khiển</div>
       <div class="topbar-tools">
         <button class="theme-btn" id="themeBtn" title="Đổi nền sáng / tối" aria-label="Đổi nền sáng / tối"></button>
+        <span id="storageChip"></span>
         <span id="syncChip"></span>
         <span id="userChip" style="display:flex;align-items:center;gap:8px"></span>
         <div class="global-search">
@@ -2883,6 +2897,47 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     orderEdits: Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length,
     packing: Object.keys(Store.local.packingAdded || {}).length,
   });
+
+  /* Thống kê dung lượng bộ nhớ hệ thống (LocalStorage 5 MB & GitHub JSON 1 MB) */
+  Store.storageStats = function () {
+    const byteLen = str => {
+      try { return new TextEncoder().encode(String(str || "")).length; }
+      catch (e) { return String(str || "").length; }
+    };
+    const jsonSize = obj => byteLen(JSON.stringify(obj || {}, null, 1));
+    const cloudBytes = jsonSize(Store.local);
+    let lsBytes = cloudBytes;
+    try {
+      let totalChars = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || "";
+        const v = localStorage.getItem(k) || "";
+        totalChars += k.length + v.length;
+      }
+      if (totalChars > 0) lsBytes = Math.max(cloudBytes, totalChars);
+    } catch (e) {}
+
+    const quotaBytes = 5 * 1024 * 1024;       // 5.00 MB chuẩn LocalStorage trình duyệt
+    const freeBytes = Math.max(0, quotaBytes - lsBytes);
+    const pct = Math.min(100, (lsBytes / quotaBytes) * 100);
+
+    const cloudQuotaBytes = 1024 * 1024;      // 1.00 MB chuẩn GitHub Contents API PUT
+    const cloudFreeBytes = Math.max(0, cloudQuotaBytes - cloudBytes);
+    const cloudPct = Math.min(100, (cloudBytes / cloudQuotaBytes) * 100);
+
+    const parts = [
+      { key: "ordersAdded", label: "Đơn đặt hàng bổ sung", count: (Store.local.ordersAdded || []).length + " dòng", bytes: jsonSize(Store.local.ordersAdded || []) },
+      { key: "receiptsAdded", label: "Nhập kho bổ sung", count: (Store.local.receiptsAdded || []).length + " dòng", bytes: jsonSize(Store.local.receiptsAdded || []) },
+      { key: "shipments", label: "Phiếu xuất kho (PXK)", count: (Store.local.shipments || []).length + " phiếu", bytes: jsonSize(Store.local.shipments || []) },
+      { key: "packingAdded", label: "Packing List (CLP) import", count: Object.keys(Store.local.packingAdded || {}).length + " chỉ thị", bytes: jsonSize(Store.local.packingAdded || {}) },
+      { key: "editsLog", label: "Nhật ký sửa / xóa (NK + Đơn + CLP)", count: (Object.keys(Store.local.receiptEdits || {}).length + Object.keys(Store.local.orderEdits || {}).length + (Store.local.packingLog || []).length) + " mục", bytes: jsonSize({ r: Store.local.receiptEdits, o: Store.local.orderEdits, p: Store.local.packingLog }) },
+    ];
+    return {
+      usedBytes: lsBytes, quotaBytes, freeBytes, pct,
+      cloudBytes, cloudQuotaBytes, cloudFreeBytes, cloudPct,
+      parts,
+    };
+  };
   Store.resetAll = function () {
     if (!Store.guard()) return;
     Store.local = blank();
@@ -8718,7 +8773,10 @@ window.TVS_GH = {
     document.getElementById("scrim").classList.remove("show");
   }
   /* Vẽ lại màn hình hiện tại (sau khi dữ liệu đổi) */
-  App.refresh = () => { if (document.getElementById("view")) navigate(); };
+  App.refresh = () => {
+    if (App.renderStorageChip) App.renderStorageChip();
+    if (document.getElementById("view")) navigate();
+  };
 
   /* ── Modal ── */
   App.openModal = (html, wide) => {
@@ -8935,8 +8993,84 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     App.toast(t === "dark" ? "🌙 Đã chuyển nền tối" : "☀ Đã chuyển nền sáng", "ok");
   };
 
+  /* ── Chip dung lượng bộ nhớ hệ thống trên topbar ── */
+  const fmtBytes = b => {
+    if (b >= 1024 * 1024) return (b / (1024 * 1024)).toFixed(2).replace(".", ",") + " MB";
+    return Math.max(1, Math.round(b / 1024)) + " KB";
+  };
+  App.renderStorageChip = function () {
+    let el = document.getElementById("storageChip");
+    if (!el) {
+      const syncEl = document.getElementById("syncChip");
+      if (syncEl && syncEl.parentNode) {
+        el = document.createElement("span");
+        el.id = "storageChip";
+        syncEl.parentNode.insertBefore(el, syncEl);
+      }
+    }
+    if (!el || !window.Store || !Store.storageStats) return;
+    const st = Store.storageStats();
+    const cls = st.pct >= 85 ? "bad" : (st.pct >= 60 ? "warn" : "");
+    el.innerHTML = `<span class="storage-chip ${cls}" title="Dung lượng bộ nhớ hệ thống: Đã dùng ${fmtBytes(st.usedBytes)} / ${fmtBytes(st.quotaBytes)} (${st.pct.toFixed(1).replace(".", ",")}%) · Còn trống ${fmtBytes(st.freeBytes)} — Bấm để xem chi tiết">
+      <span>💾 Đã dùng <b>${fmtBytes(st.usedBytes)}</b></span>
+      <span class="sc-free">· Trống <b>${fmtBytes(st.freeBytes)}</b></span>
+      <span class="sc-bar"><i style="width:${Math.max(4, Math.min(100, st.pct)).toFixed(1)}%"></i></span>
+    </span>`;
+    el.firstElementChild.onclick = () => App.openStorageModal();
+  };
+
+  App.openStorageModal = function () {
+    if (!window.Store || !Store.storageStats) return;
+    const st = Store.storageStats();
+    const barCls = p => p >= 85 ? "bad" : (p >= 60 ? "warn" : "ok");
+    App.openModal(`
+      <div class="modal-h">
+        <h3>💾 Dung lượng bộ nhớ hệ thống</h3>
+        <span class="bdg ${barCls(st.pct)} plain">Đang dùng ${st.pct.toFixed(1).replace(".", ",")}%</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b">
+        <div class="grid g-2" style="gap:14px">
+          <div class="card kpi">
+            <div class="k-lab"><span>Bộ nhớ trình duyệt (LocalStorage — tối đa 5,00 MB)</span></div>
+            <div class="k-val" style="font-size:21px">Đã dùng: ${fmtBytes(st.usedBytes)} <small>/ ${fmtBytes(st.quotaBytes)}</small></div>
+            <div class="k-sub" style="margin-top:6px">Còn trống: <b style="color:var(--ok)">${fmtBytes(st.freeBytes)}</b> (${(100 - st.pct).toFixed(1).replace(".", ",")}%)</div>
+            <div class="pbar ${barCls(st.pct)}" style="margin-top:8px;height:9px"><i style="width:${Math.min(100, st.pct).toFixed(1)}%"></i></div>
+          </div>
+          <div class="card kpi">
+            <div class="k-lab"><span>File đồng bộ GitHub (data/tvs-data.json — khuyến nghị ≤ 1,00 MB)</span></div>
+            <div class="k-val" style="font-size:21px">Đã dùng: ${fmtBytes(st.cloudBytes)} <small>/ ${fmtBytes(st.cloudQuotaBytes)}</small></div>
+            <div class="k-sub" style="margin-top:6px">Còn trống: <b style="color:var(--ok)">${fmtBytes(st.cloudFreeBytes)}</b> (${(100 - st.cloudPct).toFixed(1).replace(".", ",")}%)</div>
+            <div class="pbar ${barCls(st.cloudPct)}" style="margin-top:8px;height:9px"><i style="width:${Math.min(100, st.cloudPct).toFixed(1)}%"></i></div>
+          </div>
+        </div>
+        <h4 style="margin:16px 0 8px;font-size:13.5px">Chi tiết dung lượng theo từng phân hệ dữ liệu</h4>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Phân hệ dữ liệu</th><th>Số lượng bản ghi</th><th class="num">Dung lượng</th><th class="num">% dữ liệu động</th></tr></thead>
+          <tbody>${st.parts.map(p => {
+            const share = st.cloudBytes ? (p.bytes / st.cloudBytes) * 100 : 0;
+            return `<tr>
+              <td><b>${U.esc(p.label)}</b></td>
+              <td>${U.esc(p.count)}</td>
+              <td class="num"><b>${fmtBytes(p.bytes)}</b> <span class="note">(${U.fmt(p.bytes)} B)</span></td>
+              <td class="num">${share.toFixed(1).replace(".", ",")}%</td>
+            </tr>`;
+          }).join("")}</tbody>
+          <tfoot><tr>
+            <td>TỔNG DỮ LIỆU ĐỘNG</td>
+            <td><code>data/tvs-data.json</code></td>
+            <td class="num"><b>${fmtBytes(st.cloudBytes)}</b> <span class="note">(${U.fmt(st.cloudBytes)} B)</span></td>
+            <td class="num">100%</td>
+          </tr></tfoot>
+        </table></div>
+        <div class="note mt">Hệ thống tự động đo dung lượng thực tế mỗi khi bạn thêm, sửa, xóa hoặc đồng bộ dữ liệu với GitHub.</div>
+        <div class="mt" style="display:flex;justify-content:flex-end"><button class="btn" onclick="App.closeModal()">Đóng</button></div>
+      </div>`, true);
+  };
+
   /* ── Chip trạng thái đồng bộ GitHub ── */
   App.renderSyncChip = function () {
+    if (App.renderStorageChip) App.renderStorageChip();
     const el = document.getElementById("syncChip");
     if (!el || !window.Sync) return;
     const s = Sync.label();

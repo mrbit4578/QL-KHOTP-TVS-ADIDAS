@@ -113,7 +113,10 @@
     document.getElementById("scrim").classList.remove("show");
   }
   /* Vẽ lại màn hình hiện tại (sau khi dữ liệu đổi) */
-  App.refresh = () => { if (document.getElementById("view")) navigate(); };
+  App.refresh = () => {
+    if (App.renderStorageChip) App.renderStorageChip();
+    if (document.getElementById("view")) navigate();
+  };
 
   /* ── Modal ── */
   App.openModal = (html, wide) => {
@@ -330,8 +333,84 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     App.toast(t === "dark" ? "🌙 Đã chuyển nền tối" : "☀ Đã chuyển nền sáng", "ok");
   };
 
+  /* ── Chip dung lượng bộ nhớ hệ thống trên topbar ── */
+  const fmtBytes = b => {
+    if (b >= 1024 * 1024) return (b / (1024 * 1024)).toFixed(2).replace(".", ",") + " MB";
+    return Math.max(1, Math.round(b / 1024)) + " KB";
+  };
+  App.renderStorageChip = function () {
+    let el = document.getElementById("storageChip");
+    if (!el) {
+      const syncEl = document.getElementById("syncChip");
+      if (syncEl && syncEl.parentNode) {
+        el = document.createElement("span");
+        el.id = "storageChip";
+        syncEl.parentNode.insertBefore(el, syncEl);
+      }
+    }
+    if (!el || !window.Store || !Store.storageStats) return;
+    const st = Store.storageStats();
+    const cls = st.pct >= 85 ? "bad" : (st.pct >= 60 ? "warn" : "");
+    el.innerHTML = `<span class="storage-chip ${cls}" title="Dung lượng bộ nhớ hệ thống: Đã dùng ${fmtBytes(st.usedBytes)} / ${fmtBytes(st.quotaBytes)} (${st.pct.toFixed(1).replace(".", ",")}%) · Còn trống ${fmtBytes(st.freeBytes)} — Bấm để xem chi tiết">
+      <span>💾 Đã dùng <b>${fmtBytes(st.usedBytes)}</b></span>
+      <span class="sc-free">· Trống <b>${fmtBytes(st.freeBytes)}</b></span>
+      <span class="sc-bar"><i style="width:${Math.max(4, Math.min(100, st.pct)).toFixed(1)}%"></i></span>
+    </span>`;
+    el.firstElementChild.onclick = () => App.openStorageModal();
+  };
+
+  App.openStorageModal = function () {
+    if (!window.Store || !Store.storageStats) return;
+    const st = Store.storageStats();
+    const barCls = p => p >= 85 ? "bad" : (p >= 60 ? "warn" : "ok");
+    App.openModal(`
+      <div class="modal-h">
+        <h3>💾 Dung lượng bộ nhớ hệ thống</h3>
+        <span class="bdg ${barCls(st.pct)} plain">Đang dùng ${st.pct.toFixed(1).replace(".", ",")}%</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b">
+        <div class="grid g-2" style="gap:14px">
+          <div class="card kpi">
+            <div class="k-lab"><span>Bộ nhớ trình duyệt (LocalStorage — tối đa 5,00 MB)</span></div>
+            <div class="k-val" style="font-size:21px">Đã dùng: ${fmtBytes(st.usedBytes)} <small>/ ${fmtBytes(st.quotaBytes)}</small></div>
+            <div class="k-sub" style="margin-top:6px">Còn trống: <b style="color:var(--ok)">${fmtBytes(st.freeBytes)}</b> (${(100 - st.pct).toFixed(1).replace(".", ",")}%)</div>
+            <div class="pbar ${barCls(st.pct)}" style="margin-top:8px;height:9px"><i style="width:${Math.min(100, st.pct).toFixed(1)}%"></i></div>
+          </div>
+          <div class="card kpi">
+            <div class="k-lab"><span>File đồng bộ GitHub (data/tvs-data.json — khuyến nghị ≤ 1,00 MB)</span></div>
+            <div class="k-val" style="font-size:21px">Đã dùng: ${fmtBytes(st.cloudBytes)} <small>/ ${fmtBytes(st.cloudQuotaBytes)}</small></div>
+            <div class="k-sub" style="margin-top:6px">Còn trống: <b style="color:var(--ok)">${fmtBytes(st.cloudFreeBytes)}</b> (${(100 - st.cloudPct).toFixed(1).replace(".", ",")}%)</div>
+            <div class="pbar ${barCls(st.cloudPct)}" style="margin-top:8px;height:9px"><i style="width:${Math.min(100, st.cloudPct).toFixed(1)}%"></i></div>
+          </div>
+        </div>
+        <h4 style="margin:16px 0 8px;font-size:13.5px">Chi tiết dung lượng theo từng phân hệ dữ liệu</h4>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Phân hệ dữ liệu</th><th>Số lượng bản ghi</th><th class="num">Dung lượng</th><th class="num">% dữ liệu động</th></tr></thead>
+          <tbody>${st.parts.map(p => {
+            const share = st.cloudBytes ? (p.bytes / st.cloudBytes) * 100 : 0;
+            return `<tr>
+              <td><b>${U.esc(p.label)}</b></td>
+              <td>${U.esc(p.count)}</td>
+              <td class="num"><b>${fmtBytes(p.bytes)}</b> <span class="note">(${U.fmt(p.bytes)} B)</span></td>
+              <td class="num">${share.toFixed(1).replace(".", ",")}%</td>
+            </tr>`;
+          }).join("")}</tbody>
+          <tfoot><tr>
+            <td>TỔNG DỮ LIỆU ĐỘNG</td>
+            <td><code>data/tvs-data.json</code></td>
+            <td class="num"><b>${fmtBytes(st.cloudBytes)}</b> <span class="note">(${U.fmt(st.cloudBytes)} B)</span></td>
+            <td class="num">100%</td>
+          </tr></tfoot>
+        </table></div>
+        <div class="note mt">Hệ thống tự động đo dung lượng thực tế mỗi khi bạn thêm, sửa, xóa hoặc đồng bộ dữ liệu với GitHub.</div>
+        <div class="mt" style="display:flex;justify-content:flex-end"><button class="btn" onclick="App.closeModal()">Đóng</button></div>
+      </div>`, true);
+  };
+
   /* ── Chip trạng thái đồng bộ GitHub ── */
   App.renderSyncChip = function () {
+    if (App.renderStorageChip) App.renderStorageChip();
     const el = document.getElementById("syncChip");
     if (!el || !window.Sync) return;
     const s = Sync.label();

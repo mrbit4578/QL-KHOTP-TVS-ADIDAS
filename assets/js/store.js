@@ -740,6 +740,47 @@
     orderEdits: Object.keys(Store.local.orderEdits || {}).filter(Store.isOrderOverridden).length,
     packing: Object.keys(Store.local.packingAdded || {}).length,
   });
+
+  /* Thống kê dung lượng bộ nhớ hệ thống (LocalStorage 5 MB & GitHub JSON 1 MB) */
+  Store.storageStats = function () {
+    const byteLen = str => {
+      try { return new TextEncoder().encode(String(str || "")).length; }
+      catch (e) { return String(str || "").length; }
+    };
+    const jsonSize = obj => byteLen(JSON.stringify(obj || {}, null, 1));
+    const cloudBytes = jsonSize(Store.local);
+    let lsBytes = cloudBytes;
+    try {
+      let totalChars = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i) || "";
+        const v = localStorage.getItem(k) || "";
+        totalChars += k.length + v.length;
+      }
+      if (totalChars > 0) lsBytes = Math.max(cloudBytes, totalChars);
+    } catch (e) {}
+
+    const quotaBytes = 5 * 1024 * 1024;       // 5.00 MB chuẩn LocalStorage trình duyệt
+    const freeBytes = Math.max(0, quotaBytes - lsBytes);
+    const pct = Math.min(100, (lsBytes / quotaBytes) * 100);
+
+    const cloudQuotaBytes = 1024 * 1024;      // 1.00 MB chuẩn GitHub Contents API PUT
+    const cloudFreeBytes = Math.max(0, cloudQuotaBytes - cloudBytes);
+    const cloudPct = Math.min(100, (cloudBytes / cloudQuotaBytes) * 100);
+
+    const parts = [
+      { key: "ordersAdded", label: "Đơn đặt hàng bổ sung", count: (Store.local.ordersAdded || []).length + " dòng", bytes: jsonSize(Store.local.ordersAdded || []) },
+      { key: "receiptsAdded", label: "Nhập kho bổ sung", count: (Store.local.receiptsAdded || []).length + " dòng", bytes: jsonSize(Store.local.receiptsAdded || []) },
+      { key: "shipments", label: "Phiếu xuất kho (PXK)", count: (Store.local.shipments || []).length + " phiếu", bytes: jsonSize(Store.local.shipments || []) },
+      { key: "packingAdded", label: "Packing List (CLP) import", count: Object.keys(Store.local.packingAdded || {}).length + " chỉ thị", bytes: jsonSize(Store.local.packingAdded || {}) },
+      { key: "editsLog", label: "Nhật ký sửa / xóa (NK + Đơn + CLP)", count: (Object.keys(Store.local.receiptEdits || {}).length + Object.keys(Store.local.orderEdits || {}).length + (Store.local.packingLog || []).length) + " mục", bytes: jsonSize({ r: Store.local.receiptEdits, o: Store.local.orderEdits, p: Store.local.packingLog }) },
+    ];
+    return {
+      usedBytes: lsBytes, quotaBytes, freeBytes, pct,
+      cloudBytes, cloudQuotaBytes, cloudFreeBytes, cloudPct,
+      parts,
+    };
+  };
   Store.resetAll = function () {
     if (!Store.guard()) return;
     Store.local = blank();
