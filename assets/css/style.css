@@ -23,7 +23,9 @@
   --card:#ffffff;
   --soft:#fafbfc;           /* nền phụ nhạt (filters, th) */
   --hover:#f6f8fb;          /* hover hàng bảng */
-  --edit:#fbf7ef;           /* dòng đã chỉnh sửa */
+  --edit:#fff8e6;           /* dòng đã chỉnh sửa (nền sáng) */
+  --edit-hover:#fff1cc;
+  --edit-border:#f59e0b;
   --line:#e4e7ec;
   --line-2:#d3d8e0;
   --txt:#101828;
@@ -52,7 +54,9 @@
   --card:#181d25;
   --soft:#1e242e;
   --hover:#222834;
-  --edit:#2c2712;
+  --edit:#2d2412;           /* dòng đã chỉnh sửa (nền tối — tương phản cao với chữ sáng) */
+  --edit-hover:#3a2e16;
+  --edit-border:#f59e0b;
   --line:#272d37;
   --line-2:#39414e;
   --txt:#e9edf3;
@@ -509,6 +513,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 .tbl tbody tr.row-editing{background:var(--acc-soft)}
 .tbl tbody tr.row-editing td{vertical-align:middle}
 .tbl tbody tr.row-editing:hover{background:var(--acc-soft)}
+.tbl tbody tr.row-edited{background:var(--edit);color:var(--txt)}
+.tbl tbody tr.row-edited:hover{background:var(--edit-hover)}
+.tbl tbody tr.row-edited td:first-child{box-shadow:inset 3px 0 0 var(--edit-border)}
 
 /* ── v4.9: Báo cáo N-X-T theo kỳ (khối cột theo size) ─────────── */
 .rp-f{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--txt-2)}

@@ -153,7 +153,7 @@
                 const info = Store.receiptEditInfo ? Store.receiptEditInfo(r0.rdLabel, r0.ord) : null;
                 const rev = info ? info.rev : 0;
                 const lastLog = info && info.log.length ? info.log[info.log.length - 1] : null;
-                return `<tr${rev ? ' style="background:#fbf7ef"' : ''}>
+                return `<tr${rev ? ' class="row-edited"' : ''}>
                   <td><b>${U.esc(r0.rdLabel)}</b></td>
                   <td>${notes.length ? `<span class="bdg warn plain">${notes.map(U.esc).join("; ")}</span>` : "—"}</td>
                   <td>${U.flag(r0.ctry)} ${U.esc(r0.ctry)}</td>
@@ -195,7 +195,7 @@
               <th class="num">Thiếu/Đủ</th><th>Đợt</th><th>Ngày thực xuất</th><th>Ngày xuất KD</th><th>SL thiếu chưa SX</th><th>Nguồn</th>
             </tr></thead>
             <tbody>${R.map(r => `
-              <tr>
+              <tr${r._edited ? ' class="row-edited"' : ''}>
                 <td><b>${U.esc(r.rdLabel)}</b></td>
                 <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
                 <td class="clickable" onclick="Views._openOrder('${r.ord}')"><b>${r.ord}</b></td>

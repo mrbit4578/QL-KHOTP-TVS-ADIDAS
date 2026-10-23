@@ -98,7 +98,7 @@
 
       root.innerHTML = `
         <div class="card">
-          <div class="filters" style="background:#fafbfc">
+          <div class="filters" style="background:var(--soft)">
             <button class="btn primary need-edit" id="oAdd">${App.icon("plus", "ico")} Thêm đơn hàng</button>
             <button class="btn" id="oTpl">${App.icon("download", "ico")} File mẫu (size hàng ngang)</button>
             <button class="btn need-edit" id="oImp">${App.icon("upload", "ico")} Import từ file</button>
@@ -310,7 +310,7 @@
           <th class="need-edit">Thao tác</th>
         </tr></thead>
         <tbody>${list.map(o => `
-          <tr class="clickable" onclick="Views._openOrder('${o.ord}')">
+          <tr class="clickable${Store.isOrderOverridden(o.ord) ? " row-edited" : ""}" onclick="Views._openOrder('${o.ord}')">
             <td><b>${o.ord}</b> ${editBdg(o.ord)}</td>
             <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
             <td class="mono">${U.esc(o.po)}</td>
@@ -372,7 +372,7 @@
             </td>
           </tr>`;
           return `
-          <tr class="clickable" onclick="Views._openOrder('${r.ord}')">
+          <tr class="clickable${r._edited ? " row-edited" : ""}" onclick="Views._openOrder('${r.ord}')">
             <td class="note">${(st.page - 1) * st.per + i + 1}</td>
             <td>${U.fmtDate(r.d)}</td>
             <td>${U.flag(r.ctry)} ${U.esc(r.ctry)}</td>
