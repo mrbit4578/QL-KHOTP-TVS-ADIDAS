@@ -2280,7 +2280,8 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       const gk = gkOf(r), e = edits[gk];
       if (!e) { out.push(Object.assign({}, r)); continue; }
       if (e.deleted) continue;                 // đã xóa → bỏ toàn nhóm
-      if (!e.sizes) { out.push(Object.assign({}, r)); continue; }  // không override size
+      const qcPatch = e.qcDate ? { qcDate: e.qcDate, qcQty: r.prs } : {};
+      if (!e.sizes) { out.push(Object.assign({}, r, qcPatch)); continue; }  // không override size
       if (handled.has(gk)) continue;
       handled.add(gk);
       const base = byKey[gk], tmpl = base[0];
@@ -2288,7 +2289,10 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
         const q = e.sizes[sz];
         if (!q || q <= 0) return;
         const src = base.find(x => x.sz === sz) || tmpl;
-        out.push(Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev }));
+        out.push(Object.assign({}, src, {
+          sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev,
+          ...(e.qcDate ? { qcDate: e.qcDate, qcQty: q } : {}),
+        }));
       });
     }
     return out;
@@ -2504,7 +2508,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     const list = [];
     let editedCount = 0, deletedCount = 0, restoredCount = 0;
     for (const [gk, e] of Object.entries(edits)) {
-      if (!e) continue;
+      if (!e || (!e.deleted && !e.sizes && !(e.log && e.log.length))) continue;
       const [rdLabel, ord] = gk.split("||");
       const last = (e.log && e.log.length) ? e.log[e.log.length - 1] : null;
       const state = e.deleted ? "deleted" : (e.sizes ? "edited" : "restored");
@@ -2530,6 +2534,37 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       editedCount: edited.length, deletedCount: deleted.length, restoredCount: restored.length,
       edited, deleted, restored, all: list, list,
     };
+  };
+  /* Ghi nhận / hủy xác nhận Kiểm hàng QC (qcQty = SL nhập, qcDate = ngày kiểm) cho 1 hoặc nhiều nhóm nhập kho */
+  Store.setReceiptGroupQC = function (rdLabel, ord, qcDate) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const gk = rdLabel + "||" + ord;
+    const e = Store.local.receiptEdits[gk] || { rev: 0, log: [] };
+    if (qcDate) e.qcDate = qcDate;
+    else delete e.qcDate;
+    if (!e.qcDate && !e.deleted && !e.sizes && !(e.log && e.log.length)) {
+      delete Store.local.receiptEdits[gk];
+    } else {
+      Store.local.receiptEdits[gk] = e;
+    }
+    commit();
+    return { ok: true, qcDate: e.qcDate || null };
+  };
+  Store.setBulkReceiptsQC = function (groups, qcDate) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    let count = 0;
+    for (const g of (groups || [])) {
+      const gk = g.rdLabel + "||" + g.ord;
+      const e = Store.local.receiptEdits[gk] || { rev: 0, log: [] };
+      if (qcDate) { e.qcDate = qcDate; Store.local.receiptEdits[gk] = e; count++; }
+      else {
+        delete e.qcDate;
+        if (!e.deleted && !e.sizes && !(e.log && e.log.length)) delete Store.local.receiptEdits[gk];
+        count++;
+      }
+    }
+    commit();
+    return { ok: true, count };
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
@@ -3901,6 +3936,109 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     ]);
   };
 
+  /* ── EXPORT EXCEL (.XLSX) CHO ĐƠN HÀNG / NHẬP KHO / LỆNH GIAO HÀNG ── */
+  Store.exportOrdersXLSX = function (rows, fname) {
+    const list = rows || window.TVS_ORDERS || [];
+    if (!window.XlsxWrite) return;
+    const S = XlsxWrite.S;
+    const head = ["Ngày xuất KD", "Quốc gia", "Đơn hàng", "PO", "Màu", "Size", "Số đôi", "Số thùng (CLP)", "Đợt đặt hàng"].map(h => ({ v: h, s: S.head }));
+    let tp = 0, tc = 0;
+    const body = list.map(r => {
+      tp += r.prs || 0; tc += r.ctn || 0;
+      return [
+        { v: U.fmtDate(r.d), s: S.txtC }, { v: r.ctry, s: S.txt }, { v: r.ord, s: S.txtB },
+        { v: r.po, s: S.txt }, { v: r.col, s: S.txtC }, { v: r.sz, s: S.txtC },
+        { v: r.prs, s: S.num }, { v: r.ctn, s: S.num }, { v: r.bat, s: S.txtC },
+      ];
+    });
+    const tot = [
+      { v: "TỔNG CỘNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: tp, s: S.totN }, { v: tc, s: S.totN }, { v: "", s: S.totT },
+    ];
+    XlsxWrite.download(fname || "DON_DAT_HANG_TVS.xlsx", [
+      { name: "Data", freeze: { r: 1, c: 3 }, cols: [{ w: 14 }, { w: 18 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 9 }, { w: 12 }, { w: 14 }, { w: 12 }], rows: [head, ...body, tot] },
+    ]);
+  };
+
+  Store.exportReceiptsXLSX = function (rows, fname) {
+    const list = rows || window.TVS_RECEIPTS || [];
+    if (!window.XlsxWrite) return;
+    const S = XlsxWrite.S;
+    const mHead = ["Ngày Nhập Kho", "Quốc gia", "Chỉ thị", "PO", "Mã hàng", "Màu sắc", ...SIZES6.map(s => s.replace("UK ", "")), "Tổng đôi", "Thùng (CLP)", "QC Kiểm", "Ghi chú"].map(h => ({ v: h, s: S.head }));
+    const groups = [...U.groupBy(list, r => r.rdLabel + "|" + r.ord)];
+    let mp = 0, mc = 0;
+    const mBody = groups.map(([k, grp]) => {
+      const r0 = grp[0], bySz = {};
+      grp.forEach(r => { bySz[r.sz] = (bySz[r.sz] || 0) + r.prs; });
+      const gp = grp.reduce((a, r) => a + r.prs, 0), gc = grp.reduce((a, r) => a + r.ctn, 0);
+      mp += gp; mc += gc;
+      const notes = [...new Set(grp.map(r => r.notProduced).filter(Boolean))].join("; ");
+      return [
+        { v: r0.rdLabel, s: S.txtC }, { v: r0.ctry, s: S.txt }, { v: r0.ord, s: S.txtB },
+        { v: r0.po, s: S.txt }, { v: r0.item, s: S.txtC }, { v: r0.col, s: S.txtC },
+        ...SIZES6.map(s => ({ v: bySz[s] || null, s: S.num })),
+        { v: gp, s: S.numB }, { v: gc, s: S.num },
+        { v: r0.qcDate ? U.fmtDate(r0.qcDate) : "Chờ kiểm", s: S.txtC },
+        { v: notes, s: S.txt },
+      ];
+    });
+    const mTot = [
+      { v: "TỔNG CỘNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      ...SIZES6.map(s => ({ v: list.filter(r => r.sz === s).reduce((a, r) => a + r.prs, 0) || null, s: S.totN })),
+      { v: mp, s: S.totN }, { v: mc, s: S.totN }, { v: "", s: S.totT }, { v: "", s: S.totT },
+    ];
+
+    const dHead = ["Ngày NK", "Quốc gia", "Đơn hàng", "PO", "Mã hàng", "Màu", "Size", "Số đôi", "Số thùng", "SL kiểm", "Ngày kiểm", "SL đơn đặt", "Thiếu/Đủ", "Đợt", "Ngày xuất KD", "SL thiếu chưa SX"].map(h => ({ v: h, s: S.head }));
+    const dBody = list.map(r => [
+      { v: r.rdLabel, s: S.txtC }, { v: r.ctry, s: S.txt }, { v: r.ord, s: S.txtB }, { v: r.po, s: S.txt },
+      { v: r.item, s: S.txtC }, { v: r.col, s: S.txtC }, { v: r.sz, s: S.txtC },
+      { v: r.prs, s: S.num }, { v: r.ctn, s: S.num },
+      { v: r.qcQty || null, s: S.num }, { v: r.qcDate ? U.fmtDate(r.qcDate) : "", s: S.txtC },
+      { v: r.ordered, s: S.num }, { v: r.diff, s: S.num }, { v: r.bat, s: S.txtC },
+      { v: U.fmtDate(r.planExp), s: S.txtC }, { v: r.notProduced || "", s: S.txt },
+    ]);
+
+    XlsxWrite.download(fname || "CHI_TIET_NHAP_KHO_TVS.xlsx", [
+      { name: "Ma tran theo ngay", freeze: { r: 1, c: 3 }, cols: [{ w: 14 }, { w: 16 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 10 }, ...SIZES6.map(() => ({ w: 8 })), { w: 12 }, { w: 12 }, { w: 14 }, { w: 20 }], rows: [mHead, ...mBody, mTot] },
+      { name: "ChitietNK", freeze: { r: 1, c: 3 }, cols: [{ w: 12 }, { w: 16 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 12 }, { w: 18 }], rows: [dHead, ...dBody] },
+    ]);
+  };
+
+  Store.exportShipmentsXLSX = function (shipments, fname) {
+    const list = shipments || (window.TVS_SHIPMENTS || []).filter(x => x.status === "shipped");
+    if (!window.XlsxWrite) return;
+    const S = XlsxWrite.S;
+    const head = ["Số phiếu", "Lệnh GH số", "Ngày phiếu", "Ngày thực xuất", "Chỉ thị", "Quốc gia", "PO", "Style", "Màu", "Size/Quy cách", "Thùng số", "SL theo PL", "SL thực xuất", "Số carton", "Ngày xuất KD", "Đúng hạn"].map(h => ({ v: h, s: S.head }));
+    const body = [];
+    let tp = 0, tc = 0;
+    for (const s of list) {
+      for (const l of (s.lines || [])) {
+        const o = U.orderByCode(l.ord);
+        tp += l.qty || 0; tc += l.ctn || 0;
+        body.push([
+          { v: s.code, s: S.txtB }, { v: s.lgh, s: S.txt }, { v: U.fmtDate(s.date), s: S.txtC },
+          { v: U.fmtDate(s.actualDate), s: S.txtC }, { v: l.ord, s: S.txtB }, { v: l.ctry, s: S.txt },
+          { v: l.po, s: S.txt }, { v: l.style, s: S.txtC }, { v: l.col, s: S.txtC },
+          { v: l.kind === "mix" ? "MIX" : l.sz, s: S.txtC },
+          { v: l.from ? (l.from === l.to ? "#" + l.from : `#${l.from}–${l.to}`) : "", s: S.txtC },
+          { v: l.groupPrs ?? l.req ?? 0, s: S.num }, { v: l.qty, s: S.numB }, { v: l.ctn, s: S.num },
+          { v: o ? U.fmtDate(o.d) : "", s: S.txtC },
+          { v: s.actualDate && o ? (s.actualDate <= o.d ? "Đúng hạn" : "Trễ") : "Nháp", s: S.txtC },
+        ]);
+      }
+    }
+    const tot = [
+      { v: "TỔNG CỘNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: tp, s: S.totN }, { v: tc, s: S.totN }, { v: "", s: S.totT }, { v: "", s: S.totT },
+    ];
+    XlsxWrite.download(fname || "NHAT_KY_XUAT_KHO_TVS.xlsx", [
+      { name: "Nhat ky xuat kho", freeze: { r: 1, c: 2 }, cols: [{ w: 18 }, { w: 16 }, { w: 12 }, { w: 14 }, { w: 12 }, { w: 16 }, { w: 15 }, { w: 9 }, { w: 9 }, { w: 12 }, { w: 12 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 12 }, { w: 12 }], rows: [head, ...body, tot] },
+    ]);
+  };
+
   window.Store = Store;
 })();
 
@@ -4713,6 +4851,8 @@ window.TVS_GH = {
   "use strict";
   window.Views = window.Views || {};
 
+  const dashSt = { showCompleted: false };
+
   function kpi(ico, lab, val, sub, accent) {
     return `<div class="card kpi${accent ? " kpi-acc" : ""}">
       <div class="k-lab">${App.icon(ico)}<span>${lab}</span></div>
@@ -4802,8 +4942,9 @@ window.TVS_GH = {
           <div class="card">
             <div class="card-h">
               <h3>Tiến độ nhập kho theo đơn hàng đang sản xuất</h3>
-              <span class="sub">đối chiếu sheet ChitietNK ↔ Data</span>
+              <span class="sub" id="pgSub">đối chiếu sheet ChitietNK ↔ Data</span>
               <span class="spacer"></span>
+              <button class="btn small" id="btnDashToggleDone"></button>
               <a class="btn ghost" href="#/inventory">Xem N-X-T →</a>
             </div>
             <div class="card-b" id="pgOrders"></div>
@@ -4833,29 +4974,50 @@ window.TVS_GH = {
           label: "Đợt " + x.key, value: x.prs, color: Charts.PALETTE[i % Charts.PALETTE.length]
         })), { unit: "đôi", h: 220 });
 
-      /* ── Tiến độ các đơn đang chạy + tổng ── */
+      /* ── Tiến độ các đơn đang chạy + tổng (mặc định ưu tiên đơn chưa đủ / còn tồn kho) ── */
       const pg = document.getElementById("pgOrders");
-      const rows = activeOrders.map(o => {
-        const pct = o.recvPrs / o.prs;
-        const cls = pct >= 1 ? "ok" : (o.daysLeft <= 7 ? "bad" : "warn");
-        return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)">
-          <div style="width:210px;font-weight:700;font-size:12.8px">${U.flag(o.ctry)} ${o.ord}
-            <span class="note" style="font-weight:600"> · ${U.esc(o.ctry)}</span></div>
-          <div class="pline" style="flex:1"><div class="pbar ${cls}" style="flex:1"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-            <span class="pv">${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi (${U.fmtPct(pct)})</span></div>
-          <span class="bdg ${o.short > 0 ? "bad" : "ok"}">${o.short > 0 ? "thiếu " + U.fmt(o.short) : "đủ hàng"}</span>
-        </div>`;
-      }).join("");
-      const pctAll = U.NXT.progress;
-      pg.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--line-2)">
-          <div style="width:210px;font-weight:800;font-size:12.8px">TOÀN BỘ CHƯƠNG TRÌNH</div>
-          <div class="pline" style="flex:1"><div class="pbar" style="flex:1"><i style="width:${(pctAll * 100).toFixed(2)}%"></i></div>
-            <span class="pv">${U.fmt(U.NXT.nhapPrs)}/${U.fmt(U.NXT.datPrs)} đôi (${U.fmtPct(pctAll)})</span></div>
-          <span class="bdg acc">${U.ORDER_INDEX.length - activeOrders.length} đơn chưa bắt đầu</span>
-        </div>
-        ${rows}
-        <div class="note" style="margin-top:10px">Quy cách đóng thùng: <b>Tự động mapping từ Packing List (CLP)</b> theo từng chỉ thị &amp; size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE).</div>`;
+      const inProgOrders = activeOrders.filter(o => o.short > 0 || o.tonPrs > 0);
+      const doneOrders = activeOrders.filter(o => o.short <= 0 && o.tonPrs <= 0);
+      const renderPgOrders = () => {
+        const list = (dashSt.showCompleted || !inProgOrders.length) ? activeOrders : inProgOrders;
+        const btnT = document.getElementById("btnDashToggleDone");
+        if (btnT) {
+          btnT.textContent = dashSt.showCompleted
+            ? `Ẩn ${doneOrders.length} đơn đã hoàn tất 100%`
+            : `Hiện cả ${doneOrders.length} đơn đã hoàn tất (${activeOrders.length})`;
+        }
+        const subEl = document.getElementById("pgSub");
+        if (subEl) {
+          subEl.textContent = dashSt.showCompleted
+            ? `toàn bộ ${activeOrders.length} đơn đã nhập kho`
+            : `${inProgOrders.length} đơn đang xử lý (thiếu hàng / còn tồn) · ẩn ${doneOrders.length} đơn đã xuất xong`;
+        }
+        const rows = list.map(o => {
+          const pct = o.recvPrs / o.prs;
+          const cls = pct >= 1 ? "ok" : (o.daysLeft <= 7 ? "bad" : "warn");
+          return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)">
+            <div style="width:210px;font-weight:700;font-size:12.8px" class="clickable" onclick="Views._openOrder('${o.ord}')">${U.flag(o.ctry)} ${o.ord}
+              <span class="note" style="font-weight:600"> · ${U.esc(o.ctry)}</span></div>
+            <div class="pline" style="flex:1"><div class="pbar ${cls}" style="flex:1"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
+              <span class="pv">${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi (${U.fmtPct(pct)})</span></div>
+            ${o.tonPrs > 0 ? `<span class="bdg acc plain">tồn ${U.fmt(o.tonPrs)}</span>` : ""}
+            <span class="bdg ${o.short > 0 ? "bad" : "ok"}">${o.short > 0 ? "thiếu " + U.fmt(o.short) : "đủ hàng"}</span>
+          </div>`;
+        }).join("");
+        const pctAll = U.NXT.progress;
+        pg.innerHTML = `
+          <div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--line-2)">
+            <div style="width:210px;font-weight:800;font-size:12.8px">TOÀN BỘ CHƯƠNG TRÌNH</div>
+            <div class="pline" style="flex:1"><div class="pbar" style="flex:1"><i style="width:${(pctAll * 100).toFixed(2)}%"></i></div>
+              <span class="pv">${U.fmt(U.NXT.nhapPrs)}/${U.fmt(U.NXT.datPrs)} đôi (${U.fmtPct(pctAll)})</span></div>
+            <span class="bdg acc">${U.ORDER_INDEX.length - activeOrders.length} đơn chưa bắt đầu</span>
+          </div>
+          <div style="max-height:420px;overflow:auto;padding-right:4px">${rows}</div>
+          <div class="note" style="margin-top:10px">Quy cách đóng thùng: <b>Tự động mapping từ Packing List (CLP)</b> theo từng chỉ thị &amp; size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE).</div>`;
+      };
+      const btnT = document.getElementById("btnDashToggleDone");
+      if (btnT) btnT.onclick = e => { e.stopPropagation(); dashSt.showCompleted = !dashSt.showCompleted; renderPgOrders(); };
+      renderPgOrders();
     }
   };
 })();
@@ -4966,7 +5128,8 @@ window.TVS_GH = {
             <button class="btn primary need-edit" id="oAdd">${App.icon("plus", "ico")} Thêm đơn hàng</button>
             <button class="btn" id="oTpl">${App.icon("download", "ico")} File mẫu (size hàng ngang)</button>
             <button class="btn need-edit" id="oImp">${App.icon("upload", "ico")} Import từ file</button>
-            <button class="btn" id="oExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
+            <button class="btn" id="oExpX">${App.icon("download", "ico")} Export (.xlsx)</button>
+            <button class="btn" id="oExp">${App.icon("download", "ico")} Export (.csv)</button>
             <span class="f-chipcount">Import file <b>size hàng ngang</b> (1 dòng = 1 đơn, cột UK 3→UK 9) — hệ thống tự chuyển sang dạng hàng dọc ·
               <a id="oTplLong" style="cursor:pointer;color:var(--acc);font-weight:700">mẫu dạng dọc</a></span>
           </div>
@@ -5025,6 +5188,11 @@ window.TVS_GH = {
         if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
         App.toast(`✓ Đã khôi phục toàn bộ đơn hàng về dữ liệu gốc (${r.n} đơn có chỉnh sửa)`, "ok");
       };
+      bind("oExpX", "click", () => {
+        const rows = applyFilterRows();
+        Store.exportOrdersXLSX(rows, "DON_DAT_HANG_TVS.xlsx");
+        App.toast(`Đã export ${U.fmt(rows.length)} dòng đơn hàng (.xlsx)`, "ok");
+      });
       bind("oExp", "click", () => {
         const rows = applyFilterRows();
         Store.downloadCSV("DON_DAT_HANG_TVS.csv", [
@@ -5541,6 +5709,8 @@ window.TVS_GH = {
       const shortIn = U.sum(R.filter(r => r.diff < 0), r => -r.diff);
       const notProd = U.SHORTAGES.filter(s => s.type === "chưa sản xuất");
       const notProdQty = U.sum(notProd, s => s.qty);
+      const qcDoneCount = R.filter(r => r.qcQty > 0 || r.qcDate).length;
+      const qcPendCount = R.length - qcDoneCount;
       const events = [...U.groupBy(R, r => r.rdLabel)].map(([lab, rows]) => {
         const ords = U.uniq(rows, r => r.ord);
         const ctries = U.uniq(rows, r => r.ctry);
@@ -5566,7 +5736,9 @@ window.TVS_GH = {
             <button class="btn primary need-edit" id="rAdd">${App.icon("plus", "ico")} Nhập kho mới</button>
             <button class="btn" id="rTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="rImp">${App.icon("upload", "ico")} Import từ file</button>
-            <button class="btn" id="rExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
+            <button class="btn" id="rExpX">${App.icon("download", "ico")} Export (.xlsx)</button>
+            <button class="btn" id="rExp">${App.icon("download", "ico")} Export (.csv)</button>
+            <button class="btn need-edit" id="rBulkQC" title="Xác nhận kiểm đếm QC cho các dòng nhập kho đang hiển thị">✓ Duyệt QC các dòng đang lọc</button>
             <button class="btn" id="rEditLog">⟲ Nhật ký sửa / xóa nhập kho (${Store.receiptEditSummary ? Store.receiptEditSummary().total : 0})</button>
             <span class="f-chipcount">Số thùng tự động mapping từ Packing List (CLP) theo chỉ thị + size</span>
           </div>
@@ -5604,7 +5776,8 @@ window.TVS_GH = {
             <div class="k-val" style="color:${notProdQty ? "var(--warn)" : "var(--ok)"}">${U.fmt(notProdQty)} <small>đôi</small></div>
             <div class="k-sub">${notProd.length ? notProd.slice(0, 4).map(s => s.ord + ": " + s.sz + "=" + s.qty).join(" · ") + (notProd.length > 4 ? ` (+${notProd.length - 4})` : "") : "Tất cả size đã lên kho"}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("check")}<span>Kiểm đếm QC</span></div>
-            <div class="k-val">0/${R.length}</div><div class="k-sub">dòng chờ kiểm (SL kiểm & ngày kiểm trống)</div></div>
+            <div class="k-val" style="color:${qcPendCount ? "var(--txt)" : "var(--ok)"}">${U.fmt(qcDoneCount)}/${U.fmt(R.length)}</div>
+            <div class="k-sub">${qcPendCount ? `${U.fmt(qcPendCount)} dòng chờ kiểm · bấm “✓ Duyệt QC” để xác nhận` : "✓ Đã kiểm đếm QC 100% dòng nhập kho"}</div></div>
         </div>
 
         <div class="grid g-32 mt">
@@ -5729,10 +5902,10 @@ window.TVS_GH = {
               <th>Ngày Nhập Kho</th><th>Ghi chú</th><th>Quốc gia</th><th>Chỉ thị</th><th>PO</th>
               <th>Mã hàng</th><th>Màu sắc</th>
               ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}
-              <th class="num">Tổng đôi</th><th class="num">Thùng</th><th>Lần sửa</th><th>Thao tác</th>
+              <th class="num">Tổng đôi</th><th class="num">Thùng</th><th>QC kiểm</th><th>Lần sửa</th><th>Thao tác</th>
             </tr></thead>
             <tbody>${!days.length
-              ? `<tr><td colspan="${11 + U.SIZES.length}" class="note" style="text-align:center;padding:18px">Không tìm thấy dòng nhập kho nào khớp bộ lọc hiện tại.</td></tr>`
+              ? `<tr><td colspan="${12 + U.SIZES.length}" class="note" style="text-align:center;padding:18px">Không tìm thấy dòng nhập kho nào khớp bộ lọc hiện tại.</td></tr>`
               : days.map(([k, rows], gi) => {
                 const r0 = rows[0];
                 const bySz = {};
@@ -5740,7 +5913,8 @@ window.TVS_GH = {
                 const notes = [...new Set(rows.map(r => r.notProduced).filter(Boolean))];
                 const info = Store.receiptEditInfo ? Store.receiptEditInfo(r0.rdLabel, r0.ord) : null;
                 const rev = info ? info.rev : 0;
-                const lastLog = info && info.log.length ? info.log[info.log.length - 1] : null;
+                const lastLog = info && info.log && info.log.length ? info.log[info.log.length - 1] : null;
+                const qcDate = r0.qcDate || (info && info.qcDate) || null;
                 return `<tr${rev ? ' class="row-edited"' : ''}>
                   <td><b>${U.esc(r0.rdLabel)}</b></td>
                   <td>${notes.length ? `<span class="bdg warn plain">${notes.map(U.esc).join("; ")}</span>` : "—"}</td>
@@ -5752,6 +5926,9 @@ window.TVS_GH = {
                   ${U.SIZES.map(s => `<td class="num">${bySz[s] ? U.fmt(bySz[s]) : ""}</td>`).join("")}
                   <td class="num"><b>${U.fmt(U.sum(rows, r => r.prs))}</b></td>
                   <td class="num">${U.fmt(U.sum(rows, r => r.ctn))}</td>
+                  <td>${qcDate
+                    ? `<span class="bdg ok plain clickable" title="Đã kiểm QC ngày ${U.fmtDate(qcDate)} — bấm để đổi/hủy" onclick="Views._mtxToggleQC(${gi})">✓ ${U.fmtDate(qcDate)}</span>`
+                    : `<button class="btn small need-edit" title="Xác nhận đã kiểm đếm QC dòng này" onclick="Views._mtxToggleQC(${gi})">✓ QC</button>`}</td>
                   <td>${rev
                     ? `<span class="bdg acc plain clickable" title="${lastLog ? U.esc("Lần " + rev + " · " + lastLog.by + " · " + lastLog.reason) : ""}" onclick="Views._mtxHistory(${gi})">✎ ${rev} lần</span>`
                     : `<span class="note">—</span>`}</td>
@@ -5765,7 +5942,7 @@ window.TVS_GH = {
             <tfoot><tr>
               <td colspan="7">TỔNG CỘNG (${U.fmt(days.length)} dòng)</td>
               ${U.SIZES.map(s => `<td class="num">${U.fmt(U.sum(FR.filter(r => r.sz === s), r => r.prs)) === "0" ? "" : U.fmt(U.sum(FR.filter(r => r.sz === s), r => r.prs))}</td>`).join("")}
-              <td class="num">${U.fmt(fPrs)}</td><td class="num">${U.fmt(fCtn)}</td><td colspan="2"></td>
+              <td class="num">${U.fmt(fPrs)}</td><td class="num">${U.fmt(fCtn)}</td><td colspan="3"></td>
             </tr></tfoot>
           </table></div>`;
         }
@@ -5792,8 +5969,8 @@ window.TVS_GH = {
                 <td><b>${r.sz}</b></td>
                 <td class="num">${U.fmt(r.prs)}</td>
                 <td class="num">${U.fmt(r.ctn)}</td>
-                <td class="num note">chờ kiểm</td>
-                <td class="note">—</td>
+                <td class="num ${r.qcQty ? "pos" : "note"}">${r.qcQty ? U.fmt(r.qcQty) : "chờ kiểm"}</td>
+                <td class="${r.qcDate ? "" : "note"}">${r.qcDate ? U.fmtDate(r.qcDate) : "—"}</td>
                 <td class="num">${U.fmt(r.ordered)}</td>
                 <td class="num ${r.diff < 0 ? "neg" : "pos"}">${r.diff > 0 ? "+" : ""}${U.fmt(r.diff)}</td>
                 <td>Đợt ${r.bat}</td>
@@ -5847,9 +6024,22 @@ window.TVS_GH = {
         { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
       });
       bind("rEditLog", () => Views._whEditLogModal());
+      bind("rBulkQC", () => {
+        const groups = Views._mtx || [];
+        if (!groups.length) { App.toast("Không có dòng nhập kho nào đang hiển thị để duyệt QC", "warn"); return; }
+        const iso = prompt(`Xác nhận đã kiểm đếm QC (SL kiểm = SL nhập) cho ${groups.length} nhóm dòng đang lọc.\nNhập ngày kiểm QC (YYYY-MM-DD, để trống để xóa trạng thái QC):`, U.todayISO ? U.todayISO() : TVS_META.today);
+        if (iso === null) return;
+        const r = Store.setBulkReceiptsQC(groups, iso.trim() || null);
+        if (r && r.ok) App.toast(iso.trim() ? `✓ Đã xác nhận kiểm đếm QC cho ${r.count} nhóm dòng (ngày ${U.fmtDate(iso.trim())})` : `Đã xoá trạng thái QC của ${r.count} nhóm dòng`, "ok");
+      });
       document.getElementById("rAdd").onclick = openAddReceipt;
       document.getElementById("rTpl").onclick = () => { Store.templateReceipts(); App.toast("Đã tải file mẫu theo ngày (cột size 3→10). Hệ thống nhận cả file .xlsx gốc lẫn .csv theo mẫu này", "ok"); };
       document.getElementById("rImp").onclick = importReceipts;
+      bind("rExpX", () => {
+        const expRows = filterReceipts(TVS_RECEIPTS);
+        Store.exportReceiptsXLSX(expRows, "CHI_TIET_NHAP_KHO_TVS.xlsx");
+        App.toast(`Đã export ${U.fmt(expRows.length)} dòng nhập kho (.xlsx — 2 sheet)`, "ok");
+      });
       document.getElementById("rExp").onclick = () => {
         const expRows = filterReceipts(TVS_RECEIPTS);
         Store.downloadCSV("NHAP_KHO_TVS.csv", [
@@ -6180,6 +6370,20 @@ window.TVS_GH = {
     App.toast(`✓ Đã khôi phục ${ord} (${rdLabel}) về số liệu gốc`, "ok");
     Views._whEditLogModal();
   };
+
+  Views._mtxToggleQC = function (gi) {
+    const g = (Views._mtx || [])[gi];
+    if (!g) return;
+    const info = Store.receiptEditInfo ? Store.receiptEditInfo(g.rdLabel, g.ord) : null;
+    const curQC = info && info.qcDate ? info.qcDate : "";
+    const defDate = curQC || (U.todayISO ? U.todayISO() : TVS_META.today);
+    const iso = prompt(`Ghi nhận ngày kiểm đếm QC cho chỉ thị ${g.ord} (nhập kho ngày ${g.rdLabel}):\n• Nhập YYYY-MM-DD để xác nhận đã kiểm QC\n• Xoá trắng rồi bấm OK để hủy xác nhận QC`, defDate);
+    if (iso === null) return;
+    const r = Store.setReceiptGroupQC(g.rdLabel, g.ord, iso.trim() || null);
+    if (r && r.ok) {
+      App.toast(r.qcDate ? `✓ Đã ghi nhận kiểm QC ${g.ord} (${g.rdLabel}) ngày ${U.fmtDate(r.qcDate)}` : `Đã hủy trạng thái kiểm QC ${g.ord} (${g.rdLabel})`, "ok");
+    }
+  };
 })();
 
 </script>
@@ -6277,7 +6481,8 @@ window.TVS_GH = {
   /* ═════════ MÀN HÌNH CHÍNH ═════════ */
   window.Views.delivery = {
     title: "Lệnh giao hàng · Phiếu xuất kho",
-    render(root) {
+    render(root, params) {
+      if (params && params.q !== undefined) flt.q = params.q;
       const ships = (window.TVS_SHIPMENTS || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       const drafts = ships.filter(s => s.status !== "shipped");
       const done = ships.filter(s => s.status === "shipped");
@@ -6311,7 +6516,8 @@ window.TVS_GH = {
             <button class="btn primary need-edit" id="btnNew">${App.icon("plus", "ico")} Tạo lệnh giao hàng</button>
             <button class="btn" id="btnTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="btnImp">${App.icon("upload", "ico")} Import phiếu từ file</button>
-            <button class="btn" id="btnExpAll" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký xuất (CSV)</button>
+            <button class="btn" id="btnExpAllX" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký (.xlsx)</button>
+            <button class="btn" id="btnExpAll" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký (.csv)</button>
             <button class="btn need-edit" id="btnImpPk" data-testid="pxk-import-packing">${App.icon("upload", "ico")} Import packing list</button>
             <button class="btn" id="btnGoPk" data-testid="pxk-goto-packing">${App.icon("box", "ico")} Màn hình Packing List</button>
             <span class="f-chipcount">Số thùng & dòng MIX size lấy đúng theo <b>PACKING LIST (CLP)</b>:
@@ -6515,6 +6721,12 @@ window.TVS_GH = {
       document.getElementById("btnImp").onclick = importShipFile;
       document.getElementById("btnImpPk").onclick = () => Views._packingImport();
       document.getElementById("btnGoPk").onclick = () => { location.hash = "#/packing"; };
+      const expAllX = document.getElementById("btnExpAllX");
+      if (expAllX) expAllX.onclick = () => {
+        const expShips = filterShipments(TVS_SHIPMENTS.filter(x => x.status === "shipped"));
+        Store.exportShipmentsXLSX(expShips, "NHAT_KY_XUAT_KHO_TVS.xlsx");
+        App.toast(`Đã xuất nhật ký xuất kho (${expShips.length} phiếu · .xlsx)`, "ok");
+      };
       const expAll = document.getElementById("btnExpAll");
       if (expAll) expAll.onclick = exportLog;
     }
@@ -7313,7 +7525,7 @@ window.TVS_GH = {
     const chunks = paginateByDOM(s, rowsH, totalRow, orient);
     const n = chunks.length;
     const hasCompact = chunks.some(c => c.compact);
-    const printedAt = U.fmtDate(TVS_META.today);
+    const printedAt = U.fmtDate(U.todayISO ? U.todayISO() : TVS_META.today);
     const landCls = orient === "landscape" ? " land" : "";
 
     const pagesHTML = chunks.map((c, pi) => {
@@ -8276,13 +8488,15 @@ window.TVS_GH = {
 (function () {
   "use strict";
   window.Views = window.Views || {};
-  const st = { showAll: false };
+  const st = { showAll: false, showMatrixAll: false, q: "" };
 
   window.Views.inventory = {
     title: "Tồn kho N-X-T",
-    render(root) {
+    render(root, params) {
+      if (params && params.q !== undefined) st.q = params.q;
       const N = U.NXT;
       const active = U.ORDER_INDEX.filter(o => o.recvPrs > 0);
+      const inProg = active.filter(o => o.tonPrs > 0 || o.short > 0);
       const pending = U.ORDER_INDEX.filter(o => o.recvPrs === 0);
 
       const flowCard = (lab, prs, ctn, color, note) => `
@@ -8291,28 +8505,6 @@ window.TVS_GH = {
           <div class="k-val">${U.fmt(prs)} <small>đôi</small></div>
           <div class="k-sub">${U.fmt(ctn)} thùng${note ? " · " + note : ""}</div>
         </div>`;
-
-      /* Ma trận size của các đơn đang chạy */
-      const sizeMatrix = active.map(o => {
-        const cells = U.SIZES.filter(s => o.sizes[s]).map(s => {
-          const c = o.sizes[s], diff = c.received - c.ordered;
-          const cls = c.received === 0 ? "short" : (diff >= 0 ? "full" : "short");
-          return `<div class="sm-cell ${cls}">
-            <div class="s">${s}</div>
-            <div class="v">${U.fmt(c.received)}<span style="font-size:11px;color:var(--txt-3)">/${U.fmt(c.ordered)}</span></div>
-            <div class="m">${diff === 0 ? "đủ" : (diff > 0 ? "+" + diff : diff + " đôi")}</div>
-          </div>`;
-        }).join("");
-        return `<div style="margin-bottom:18px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-            <b>${U.flag(o.ctry)} ${o.ord}</b><span class="note">${U.esc(o.ctry)} · màu ${o.col} · xuất KD ${U.fmtDate(o.d)}</span>
-            <span class="bdg ${o.short > 0 ? "warn" : "ok"}">nhập ${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi</span>
-          </div>
-          <div class="size-matrix">${cells}</div>
-        </div>`;
-      }).join("");
-
-      const rowsToShow = st.showAll ? U.ORDER_INDEX : active;
 
       const totalOrds = U.ORDER_INDEX.length;
 
@@ -8346,57 +8538,131 @@ window.TVS_GH = {
 
           <div class="card">
             <div class="card-h"><h3>Tồn kho theo size — đơn đang sản xuất</h3>
-              <span class="sub">đã nhập / đặt hàng theo từng size</span></div>
-            <div class="card-b">${sizeMatrix || `<div class="note">Chưa có đơn nào nhập kho.</div>`}</div>
+              <span class="sub" id="smSub">đã nhập / đặt hàng theo từng size</span>
+              <span class="spacer"></span>
+              <button class="btn small" id="btnToggleMatrix"></button>
+            </div>
+            <div class="card-b" id="smHost" style="max-height:460px;overflow:auto"></div>
           </div>
         </div>
 
         <div class="card mt">
           <div class="card-h">
             <h3>Bảng N-X-T theo đơn hàng</h3>
-            <span class="sub">${st.showAll ? `toàn bộ ${totalOrds} đơn` : `đơn có phát sinh nhập kho (${active.length}/${totalOrds} đơn)`}</span>
+            <span class="sub" id="nxtTblSub"></span>
             <span class="spacer"></span>
-            <button class="btn" id="btnToggleAll">${st.showAll ? "Chỉ hiện đơn có phát sinh" : `Hiện toàn bộ ${totalOrds} đơn`}</button>
+            <input class="f-input" id="invQ" placeholder="Tìm đơn hàng, PO, quốc gia…" value="${U.esc(st.q)}" style="width:220px;padding:6px 10px">
+            <button class="btn" id="btnToggleAll"></button>
           </div>
-          <div class="tbl-wrap"><table class="tbl">
-            <thead><tr>
-              <th>Đơn hàng</th><th>Quốc gia</th><th>Màu</th><th>Xuất KD</th>
-              <th class="num">Đặt (đôi)</th><th class="num">Nhập (N)</th><th class="num">Xuất (X)</th>
-              <th class="num">Tồn (T)</th><th class="num">Còn thiếu</th><th style="min-width:190px">Tiến độ</th>
-            </tr></thead>
-            <tbody>${rowsToShow.map(o => {
-              const pct = o.prs ? o.recvPrs / o.prs : 0;
-              const cls = pct >= 1 ? "ok" : (pct > 0 ? "warn" : "");
-              return `<tr class="clickable" onclick="Views._openOrder('${o.ord}')">
-                <td><b>${o.ord}</b></td>
-                <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
-                <td>${U.colorCell(o.col)}</td>
-                <td>${U.fmtDate(o.d)}</td>
-                <td class="num">${U.fmt(o.prs)}</td>
-                <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "0"}</td>
-                <td class="num">${o.shipPrs ? U.fmt(o.shipPrs) : "0"}</td>
-                <td class="num"><b>${U.fmt(o.tonPrs)}</b></td>
-                <td class="num ${o.short > 0 && o.recvPrs > 0 ? "neg" : ""}">${U.fmt(o.short)}</td>
-                <td><div class="pline"><div class="pbar ${cls}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-                  <span class="pv">${U.fmtPct(pct)}</span></div></td>
-              </tr>`;
-            }).join("")}</tbody>
-            <tfoot><tr>
-              <td colspan="4">TỔNG ${st.showAll ? `(${totalOrds} đơn)` : "(" + rowsToShow.length + " đơn có phát sinh)"}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.prs))}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.recvPrs))}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.shipPrs))}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.tonPrs))}</td>
-              <td class="num neg">${U.fmt(U.sum(rowsToShow, o => o.short))}</td><td></td>
-            </tr></tfoot>
-          </table></div>
-          ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ ${totalOrds} đơn” để xem đầy đủ.</div>`}
+          <div id="nxtTblArea"></div>
         </div>
 
         <!-- v4.9: Báo cáo N-X-T theo kỳ + xuất Excel (assets/js/nxt-report.js) -->
         <div id="nxtReportHost"></div>`;
 
-      document.getElementById("btnToggleAll").onclick = () => { st.showAll = !st.showAll; this.render(root); };
+      const renderMatrix = () => {
+        const list = (st.showMatrixAll || !inProg.length) ? active : inProg;
+        const doneCount = active.length - inProg.length;
+        const btnM = document.getElementById("btnToggleMatrix");
+        if (btnM) {
+          btnM.textContent = st.showMatrixAll
+            ? `Chỉ hiện ${inProg.length} đơn còn tồn/thiếu`
+            : `Hiện cả ${doneCount} đơn đã xong (${active.length})`;
+        }
+        const smSub = document.getElementById("smSub");
+        if (smSub) {
+          smSub.textContent = st.showMatrixAll
+            ? `toàn bộ ${active.length} đơn đã nhập kho`
+            : `${inProg.length} đơn đang còn tồn kho / thiếu hụt`;
+        }
+        const smHost = document.getElementById("smHost");
+        if (!smHost) return;
+        smHost.innerHTML = list.map(o => {
+          const cells = U.SIZES.filter(s => o.sizes[s]).map(s => {
+            const c = o.sizes[s], diff = c.received - c.ordered;
+            const cls = c.received === 0 ? "short" : (diff >= 0 ? "full" : "short");
+            return `<div class="sm-cell ${cls}">
+              <div class="s">${s}</div>
+              <div class="v">${U.fmt(c.received)}<span style="font-size:11px;color:var(--txt-3)">/${U.fmt(c.ordered)}</span></div>
+              <div class="m">${diff === 0 ? "đủ" : (diff > 0 ? "+" + diff : diff + " đôi")}</div>
+            </div>`;
+          }).join("");
+          return `<div style="margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+              <b class="clickable" onclick="Views._openOrder('${o.ord}')">${U.flag(o.ctry)} ${o.ord}</b>
+              <span class="note">${U.esc(o.ctry)} · màu ${o.col} · xuất KD ${U.fmtDate(o.d)}</span>
+              ${o.tonPrs > 0 ? `<span class="bdg acc plain">tồn ${U.fmt(o.tonPrs)} đôi</span>` : ""}
+              <span class="bdg ${o.short > 0 ? "warn" : "ok"}">nhập ${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi</span>
+            </div>
+            <div class="size-matrix">${cells}</div>
+          </div>`;
+        }).join("") || `<div class="note">Chưa có đơn nào nhập kho.</div>`;
+      };
+
+      const renderNxtTable = () => {
+        const q = st.q.trim().toLowerCase();
+        const baseList = st.showAll ? U.ORDER_INDEX : (inProg.length ? inProg : active);
+        const rowsToShow = baseList.filter(o =>
+          !q || o.ord.toLowerCase().includes(q) || (o.po || "").toLowerCase().includes(q) || (o.ctry || "").toLowerCase().includes(q));
+        const btnAll = document.getElementById("btnToggleAll");
+        if (btnAll) {
+          btnAll.textContent = st.showAll ? `Chỉ hiện ${inProg.length} đơn đang còn tồn / thiếu` : `Hiện toàn bộ ${totalOrds} đơn`;
+        }
+        const subEl = document.getElementById("nxtTblSub");
+        if (subEl) {
+          subEl.textContent = st.showAll
+            ? `toàn bộ ${totalOrds} đơn (đang lọc: ${rowsToShow.length})`
+            : `đơn đang còn tồn kho / thiếu hụt (${rowsToShow.length}/${totalOrds} đơn)`;
+        }
+        const area = document.getElementById("nxtTblArea");
+        if (!area) return;
+        area.innerHTML = `<div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>Đơn hàng</th><th>Quốc gia</th><th>Màu</th><th>Xuất KD</th>
+            <th class="num">Đặt (đôi)</th><th class="num">Nhập (N)</th><th class="num">Xuất (X)</th>
+            <th class="num">Tồn (T)</th><th class="num">Còn thiếu</th><th style="min-width:190px">Tiến độ</th>
+          </tr></thead>
+          <tbody>${rowsToShow.length ? rowsToShow.map(o => {
+            const pct = o.prs ? o.recvPrs / o.prs : 0;
+            const cls = pct >= 1 ? "ok" : (pct > 0 ? "warn" : "");
+            return `<tr class="clickable" onclick="Views._openOrder('${o.ord}')">
+              <td><b>${o.ord}</b></td>
+              <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
+              <td>${U.colorCell(o.col)}</td>
+              <td>${U.fmtDate(o.d)}</td>
+              <td class="num">${U.fmt(o.prs)}</td>
+              <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "0"}</td>
+              <td class="num">${o.shipPrs ? U.fmt(o.shipPrs) : "0"}</td>
+              <td class="num"><b>${U.fmt(o.tonPrs)}</b></td>
+              <td class="num ${o.short > 0 && o.recvPrs > 0 ? "neg" : ""}">${U.fmt(o.short)}</td>
+              <td><div class="pline"><div class="pbar ${cls}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
+                <span class="pv">${U.fmtPct(pct)}</span></div></td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="10" class="note" style="text-align:center;padding:18px">Không có đơn hàng nào khớp bộ lọc.</td></tr>`}</tbody>
+          <tfoot><tr>
+            <td colspan="4">TỔNG (${rowsToShow.length} đơn)</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.prs))}</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.recvPrs))}</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.shipPrs))}</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.tonPrs))}</td>
+            <td class="num neg">${U.fmt(U.sum(rowsToShow, o => o.short))}</td><td></td>
+          </tr></tfoot>
+        </table></div>
+        ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">Đang ẩn ${totalOrds - inProg.length} đơn đã xuất hết / chưa phát sinh (${active.length - inProg.length} đơn đã hoàn tất 100% + ${pending.length} đơn chưa nhập). Bấm <b>“Hiện toàn bộ ${totalOrds} đơn”</b> để xem đầy đủ.</div>`}`;
+      };
+
+      renderMatrix();
+      renderNxtTable();
+
+      const btnM = document.getElementById("btnToggleMatrix");
+      if (btnM) btnM.onclick = e => { e.stopPropagation(); st.showMatrixAll = !st.showMatrixAll; renderMatrix(); };
+      const btnA = document.getElementById("btnToggleAll");
+      if (btnA) btnA.onclick = e => { e.stopPropagation(); st.showAll = !st.showAll; renderNxtTable(); };
+      const invQ = document.getElementById("invQ");
+      if (invQ) {
+        invQ.onclick = e => e.stopPropagation();
+        invQ.oninput = e => { st.q = e.target.value; renderNxtTable(); };
+      }
       if (window.NXTReport) NXTReport.mount(document.getElementById("nxtReportHost"));
     }
   };
@@ -8506,6 +8772,15 @@ window.TVS_GH = {
   window.Views.architecture = {
     title: "Kiến trúc hệ thống",
     render(root) {
+      const N = U.NXT;
+      const nOrds = U.ORDER_INDEX.length;
+      const nOrdRows = TVS_ORDERS.length;
+      const nRecRows = TVS_RECEIPTS.length;
+      const nPlans = U.SHIP_PLAN.length;
+      const planRange = nPlans
+        ? `${U.fmtDate(U.SHIP_PLAN[0].d)} → ${U.fmtDate(U.SHIP_PLAN[nPlans - 1].d)}`
+        : "—";
+
       root.innerHTML = `
         <div class="card">
           <div class="card-h"><h3>① Sơ đồ tổng thể theo mô hình Warehouse Robotics Software</h3>
@@ -8515,8 +8790,8 @@ window.TVS_GH = {
             <div class="arch-node" style="max-width:520px;margin:0 auto;width:100%">
               <h4><span class="tag">ERP</span> Lớp kế hoạch doanh nghiệp — TVS</h4>
               <ul>
-                <li><b>Orders</b> — đơn đặt hàng adidas (sheet Data · 95 đơn · 40.027 đôi)</li>
-                <li><b>Inventory</b> — tổng hợp N-X-T thành phẩm NVQ89</li>
+                <li><b>Orders</b> — đơn đặt hàng adidas (sheet Data · ${U.fmt(nOrds)} đơn · ${U.fmt(N.datPrs)} đôi · ${U.fmt(N.datCtn)} thùng CLP)</li>
+                <li><b>Inventory</b> — tổng hợp N-X-T thành phẩm NVQ89 (Nhập ${U.fmt(N.nhapPrs)} · Xuất ${U.fmt(N.xuatPrs)} · Tồn ${U.fmt(N.tonPrs)} đôi)</li>
                 <li><b>Finance / Procurement</b> — (phạm vi mở rộng giai đoạn 2)</li>
               </ul>
             </div>
@@ -8544,15 +8819,15 @@ window.TVS_GH = {
               <div class="arch-node">
                 <h4><span class="tag">WCS</span> Warehouse Control System</h4>
                 <ul>
-                  <li>Material Flow Control — dòng thành phẩm từ chuyền → đóng thùng (6 đôi/thùng)</li>
+                  <li>Material Flow Control — dòng thành phẩm từ chuyền → đóng thùng tự động mapping theo CLP</li>
                   <li>Equipment Control — băng tải, xe nâng khu kho TVS</li>
-                  <li>Real-Time Monitoring — nhật ký nhập kho từng ngày (ChitietNK)</li>
+                  <li>Real-Time Monitoring — nhật ký nhập kho từng ngày (${U.fmt(nRecRows)} dòng ChitietNK)</li>
                 </ul>
               </div>
               <div class="arch-node">
                 <h4><span class="tag">OMS</span> Order Management System</h4>
                 <ul>
-                  <li>Order Processing — 549 dòng size từ khách adidas</li>
+                  <li>Order Processing — ${U.fmt(nOrdRows)} dòng size từ khách adidas (${U.fmt(nOrds)} chỉ thị)</li>
                   <li>Order Prioritization — ưu tiên theo "Ngày xuất KD" gần nhất</li>
                   <li>Fulfillment Management — đối chiếu thiếu/đủ từng size</li>
                 </ul>
@@ -8560,8 +8835,8 @@ window.TVS_GH = {
               <div class="arch-node">
                 <h4><span class="tag">TMS</span> Transport Management System</h4>
                 <ul>
-                  <li>Shipment Planning — 15 mốc xuất (25/07/2026 → 09/01/2027)</li>
-                  <li>Carrier Management — booking container xuất khẩu</li>
+                  <li>Shipment Planning — ${U.fmt(nPlans)} mốc xuất (${planRange})</li>
+                  <li>Carrier Management — booking container xuất khẩu (${U.fmt(TVS_SHIPMENTS.length)} phiếu xuất kho)</li>
                   <li>Delivery Tracking — theo "Ngày thực xuất" khi phát sinh</li>
                 </ul>
               </div>
@@ -8593,7 +8868,7 @@ window.TVS_GH = {
                 <div class="use">→ Trợ lý TVS xác nhận lại khi không tìm thấy mã đơn</div></div></div>
               <div class="rag-card" style="grid-column:1/-1"><div class="rag-num">05</div><div>
                 <h4>Multimodal RAG — One index across text, images, and tables</h4>
-                <p>Một chỉ mục chung cho chữ (ghi chú "UK 9 = 15"), bảng (549 dòng đơn hàng) và hình (ảnh thùng carton, tem size).
+                <p>Một chỉ mục chung cho chữ (ghi chú "UK 9 = 15"), bảng (${U.fmt(nOrdRows)} dòng đơn hàng) và hình (ảnh thùng carton, tem size).
                 Giai đoạn 2: quét tem thùng bằng camera để nhập kho tự động.</p>
                 <div class="use">→ Lộ trình nâng cấp khi kết nối hệ thống camera kho</div></div></div>
             </div>
@@ -8607,11 +8882,11 @@ window.TVS_GH = {
             <div class="tbl-wrap"><table class="tbl">
               <thead><tr><th>Tầng</th><th>Thành phần</th><th>Nguồn dữ liệu thật</th><th>Vai trò</th></tr></thead>
               <tbody>
-                <tr><td><b>Dữ liệu</b></td><td class="mono">assets/js/data.js</td><td>THEO DOI CHI TIET N-X-T ADIDAS.xlsm</td><td>549 dòng đơn hàng (Data) + 11 dòng nhập kho (ChitietNK) trích xuất nguyên trạng</td></tr>
-                <tr><td><b>Nghiệp vụ</b></td><td class="mono">assets/js/utils.js</td><td>—</td><td>Gom 95 đơn, đối chiếu nhập ↔ đặt, tính N-X-T, thiếu/đủ, lịch xuất</td></tr>
+                <tr><td><b>Dữ liệu</b></td><td class="mono">assets/js/data.js + data/tvs-data.json</td><td>THEO DOI CHI TIET N-X-T ADIDAS.xlsm + Đồng bộ GitHub</td><td>${U.fmt(nOrdRows)} dòng đơn hàng (${U.fmt(nOrds)} đơn) + ${U.fmt(nRecRows)} dòng nhập kho + ${U.fmt(Object.keys(window.TVS_PACKING || {}).length)} packing list CLP</td></tr>
+                <tr><td><b>Nghiệp vụ</b></td><td class="mono">assets/js/utils.js + store.js</td><td>—</td><td>Gom ${U.fmt(nOrds)} đơn, mapping thùng CLP, đối chiếu nhập ↔ đặt, tính N-X-T, thiếu/đủ, lịch xuất</td></tr>
                 <tr><td><b>Trực quan</b></td><td class="mono">assets/js/charts.js</td><td>—</td><td>Biểu đồ SVG thuần: cột, thanh, tròn, đường (chạy offline)</td></tr>
-                <tr><td><b>Giao diện</b></td><td class="mono">assets/js/views/*.js</td><td>—</td><td>7 phân hệ: Dashboard · OMS · WMS · N-X-T · TMS · Kiến trúc · Trợ lý AI</td></tr>
-                <tr><td><b>Điều phối</b></td><td class="mono">assets/js/app.js</td><td>—</td><td>Định tuyến #/, tìm kiếm toàn cục, modal chi tiết đơn</td></tr>
+                <tr><td><b>Giao diện</b></td><td class="mono">assets/js/views/*.js</td><td>—</td><td>8 phân hệ: Dashboard · OMS · WMS · CLP · PXK · N-X-T · TMS · Kiến trúc · Trợ lý AI</td></tr>
+                <tr><td><b>Điều phối</b></td><td class="mono">assets/js/app.js</td><td>—</td><td>Định tuyến #/, tìm kiếm toàn cục theo ngữ cảnh, đo bộ nhớ hệ thống, modal chi tiết</td></tr>
               </tbody>
             </table></div>
           </div>
@@ -9362,9 +9637,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     App.renderSyncChip();
     const gs = document.getElementById("globalSearch");
     gs.addEventListener("keydown", e => {
-      if (e.key === "Enter" && gs.value.trim()) {
-        location.hash = "#/orders?q=" + encodeURIComponent(gs.value.trim());
-        gs.blur();
+      if (e.key === "Enter") {
+        const q = gs.value.trim();
+        const curRoute = (location.hash.replace(/^#\/?/, "").split("?")[0] || "");
+        if (/^(pxk|lgh|pkl)[-_\s\d]/i.test(q)) {
+          location.hash = "#/delivery?q=" + encodeURIComponent(q);
+          gs.blur();
+          return;
+        }
+        const localInputId = { warehouse: "wQ", delivery: "dQ", packing: "pkQ", inventory: "invQ", orders: "fQ" }[curRoute];
+        const localEl = localInputId ? document.getElementById(localInputId) : null;
+        if (localEl) {
+          localEl.value = q;
+          localEl.dispatchEvent(new Event("input", { bubbles: true }));
+          gs.blur();
+          return;
+        }
+        if (q) {
+          location.hash = "#/orders?q=" + encodeURIComponent(q);
+          gs.blur();
+        }
       }
     });
     const burger = document.getElementById("burger"), sb = document.getElementById("sidebar"), scrim = document.getElementById("scrim");
@@ -9396,9 +9688,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 
   const routeId = () => (location.hash.replace(/^#\/?/, "").split("?")[0] || "home");
   const titleOf = card => {
+    if (card.dataset && card.dataset.clpKey) return card.dataset.clpKey;
     const h = card.querySelector(":scope > .card-h");
     const t = h && (h.querySelector("h3") || h);
-    return (t ? t.textContent : "").trim().replace(/\s+/g, " ").slice(0, 80);
+    const raw = (t ? t.textContent : "").trim().replace(/\s+/g, " ");
+    /* Chuẩn hóa tiêu đề: bỏ các cụm số đếm động trong ngoặc như "(27 mốc ngày)", "(14)" để giữ trạng thái mở/đóng khi số liệu thay đổi */
+    return raw.replace(/\s*\(\s*[\d.,]+[^)]*\)/g, "").trim().slice(0, 80);
   };
   const keyOf = card => routeId() + " ‖ " + titleOf(card);
 

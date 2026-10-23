@@ -129,7 +129,8 @@
       const gk = gkOf(r), e = edits[gk];
       if (!e) { out.push(Object.assign({}, r)); continue; }
       if (e.deleted) continue;                 // đã xóa → bỏ toàn nhóm
-      if (!e.sizes) { out.push(Object.assign({}, r)); continue; }  // không override size
+      const qcPatch = e.qcDate ? { qcDate: e.qcDate, qcQty: r.prs } : {};
+      if (!e.sizes) { out.push(Object.assign({}, r, qcPatch)); continue; }  // không override size
       if (handled.has(gk)) continue;
       handled.add(gk);
       const base = byKey[gk], tmpl = base[0];
@@ -137,7 +138,10 @@
         const q = e.sizes[sz];
         if (!q || q <= 0) return;
         const src = base.find(x => x.sz === sz) || tmpl;
-        out.push(Object.assign({}, src, { sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev }));
+        out.push(Object.assign({}, src, {
+          sz, prs: q, ctn: Math.ceil(q / PK), _edited: true, _rev: e.rev,
+          ...(e.qcDate ? { qcDate: e.qcDate, qcQty: q } : {}),
+        }));
       });
     }
     return out;
@@ -353,7 +357,7 @@
     const list = [];
     let editedCount = 0, deletedCount = 0, restoredCount = 0;
     for (const [gk, e] of Object.entries(edits)) {
-      if (!e) continue;
+      if (!e || (!e.deleted && !e.sizes && !(e.log && e.log.length))) continue;
       const [rdLabel, ord] = gk.split("||");
       const last = (e.log && e.log.length) ? e.log[e.log.length - 1] : null;
       const state = e.deleted ? "deleted" : (e.sizes ? "edited" : "restored");
@@ -379,6 +383,37 @@
       editedCount: edited.length, deletedCount: deleted.length, restoredCount: restored.length,
       edited, deleted, restored, all: list, list,
     };
+  };
+  /* Ghi nhận / hủy xác nhận Kiểm hàng QC (qcQty = SL nhập, qcDate = ngày kiểm) cho 1 hoặc nhiều nhóm nhập kho */
+  Store.setReceiptGroupQC = function (rdLabel, ord, qcDate) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const gk = rdLabel + "||" + ord;
+    const e = Store.local.receiptEdits[gk] || { rev: 0, log: [] };
+    if (qcDate) e.qcDate = qcDate;
+    else delete e.qcDate;
+    if (!e.qcDate && !e.deleted && !e.sizes && !(e.log && e.log.length)) {
+      delete Store.local.receiptEdits[gk];
+    } else {
+      Store.local.receiptEdits[gk] = e;
+    }
+    commit();
+    return { ok: true, qcDate: e.qcDate || null };
+  };
+  Store.setBulkReceiptsQC = function (groups, qcDate) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    let count = 0;
+    for (const g of (groups || [])) {
+      const gk = g.rdLabel + "||" + g.ord;
+      const e = Store.local.receiptEdits[gk] || { rev: 0, log: [] };
+      if (qcDate) { e.qcDate = qcDate; Store.local.receiptEdits[gk] = e; count++; }
+      else {
+        delete e.qcDate;
+        if (!e.deleted && !e.sizes && !(e.log && e.log.length)) delete Store.local.receiptEdits[gk];
+        count++;
+      }
+    }
+    commit();
+    return { ok: true, count };
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
@@ -1747,6 +1782,109 @@
     XlsxWrite.download(fname || "PACKING_LIST_CLP_TVS.xlsx", [
       { name: "CLP", freeze: { r: 1, c: 2 }, cols: [{ w: 6 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 22 }, { w: 14 }, { w: 22 }, { w: 9 }, { w: 7 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 11 }], rows: [head].concat(body) },
       { name: "Tong hop", cols: [{ w: 14 }, { w: 7 }, { w: 20 }, { w: 16 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 11 }, { w: 22 }], rows: sum },
+    ]);
+  };
+
+  /* ── EXPORT EXCEL (.XLSX) CHO ĐƠN HÀNG / NHẬP KHO / LỆNH GIAO HÀNG ── */
+  Store.exportOrdersXLSX = function (rows, fname) {
+    const list = rows || window.TVS_ORDERS || [];
+    if (!window.XlsxWrite) return;
+    const S = XlsxWrite.S;
+    const head = ["Ngày xuất KD", "Quốc gia", "Đơn hàng", "PO", "Màu", "Size", "Số đôi", "Số thùng (CLP)", "Đợt đặt hàng"].map(h => ({ v: h, s: S.head }));
+    let tp = 0, tc = 0;
+    const body = list.map(r => {
+      tp += r.prs || 0; tc += r.ctn || 0;
+      return [
+        { v: U.fmtDate(r.d), s: S.txtC }, { v: r.ctry, s: S.txt }, { v: r.ord, s: S.txtB },
+        { v: r.po, s: S.txt }, { v: r.col, s: S.txtC }, { v: r.sz, s: S.txtC },
+        { v: r.prs, s: S.num }, { v: r.ctn, s: S.num }, { v: r.bat, s: S.txtC },
+      ];
+    });
+    const tot = [
+      { v: "TỔNG CỘNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: tp, s: S.totN }, { v: tc, s: S.totN }, { v: "", s: S.totT },
+    ];
+    XlsxWrite.download(fname || "DON_DAT_HANG_TVS.xlsx", [
+      { name: "Data", freeze: { r: 1, c: 3 }, cols: [{ w: 14 }, { w: 18 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 9 }, { w: 12 }, { w: 14 }, { w: 12 }], rows: [head, ...body, tot] },
+    ]);
+  };
+
+  Store.exportReceiptsXLSX = function (rows, fname) {
+    const list = rows || window.TVS_RECEIPTS || [];
+    if (!window.XlsxWrite) return;
+    const S = XlsxWrite.S;
+    const mHead = ["Ngày Nhập Kho", "Quốc gia", "Chỉ thị", "PO", "Mã hàng", "Màu sắc", ...SIZES6.map(s => s.replace("UK ", "")), "Tổng đôi", "Thùng (CLP)", "QC Kiểm", "Ghi chú"].map(h => ({ v: h, s: S.head }));
+    const groups = [...U.groupBy(list, r => r.rdLabel + "|" + r.ord)];
+    let mp = 0, mc = 0;
+    const mBody = groups.map(([k, grp]) => {
+      const r0 = grp[0], bySz = {};
+      grp.forEach(r => { bySz[r.sz] = (bySz[r.sz] || 0) + r.prs; });
+      const gp = grp.reduce((a, r) => a + r.prs, 0), gc = grp.reduce((a, r) => a + r.ctn, 0);
+      mp += gp; mc += gc;
+      const notes = [...new Set(grp.map(r => r.notProduced).filter(Boolean))].join("; ");
+      return [
+        { v: r0.rdLabel, s: S.txtC }, { v: r0.ctry, s: S.txt }, { v: r0.ord, s: S.txtB },
+        { v: r0.po, s: S.txt }, { v: r0.item, s: S.txtC }, { v: r0.col, s: S.txtC },
+        ...SIZES6.map(s => ({ v: bySz[s] || null, s: S.num })),
+        { v: gp, s: S.numB }, { v: gc, s: S.num },
+        { v: r0.qcDate ? U.fmtDate(r0.qcDate) : "Chờ kiểm", s: S.txtC },
+        { v: notes, s: S.txt },
+      ];
+    });
+    const mTot = [
+      { v: "TỔNG CỘNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      ...SIZES6.map(s => ({ v: list.filter(r => r.sz === s).reduce((a, r) => a + r.prs, 0) || null, s: S.totN })),
+      { v: mp, s: S.totN }, { v: mc, s: S.totN }, { v: "", s: S.totT }, { v: "", s: S.totT },
+    ];
+
+    const dHead = ["Ngày NK", "Quốc gia", "Đơn hàng", "PO", "Mã hàng", "Màu", "Size", "Số đôi", "Số thùng", "SL kiểm", "Ngày kiểm", "SL đơn đặt", "Thiếu/Đủ", "Đợt", "Ngày xuất KD", "SL thiếu chưa SX"].map(h => ({ v: h, s: S.head }));
+    const dBody = list.map(r => [
+      { v: r.rdLabel, s: S.txtC }, { v: r.ctry, s: S.txt }, { v: r.ord, s: S.txtB }, { v: r.po, s: S.txt },
+      { v: r.item, s: S.txtC }, { v: r.col, s: S.txtC }, { v: r.sz, s: S.txtC },
+      { v: r.prs, s: S.num }, { v: r.ctn, s: S.num },
+      { v: r.qcQty || null, s: S.num }, { v: r.qcDate ? U.fmtDate(r.qcDate) : "", s: S.txtC },
+      { v: r.ordered, s: S.num }, { v: r.diff, s: S.num }, { v: r.bat, s: S.txtC },
+      { v: U.fmtDate(r.planExp), s: S.txtC }, { v: r.notProduced || "", s: S.txt },
+    ]);
+
+    XlsxWrite.download(fname || "CHI_TIET_NHAP_KHO_TVS.xlsx", [
+      { name: "Ma tran theo ngay", freeze: { r: 1, c: 3 }, cols: [{ w: 14 }, { w: 16 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 10 }, ...SIZES6.map(() => ({ w: 8 })), { w: 12 }, { w: 12 }, { w: 14 }, { w: 20 }], rows: [mHead, ...mBody, mTot] },
+      { name: "ChitietNK", freeze: { r: 1, c: 3 }, cols: [{ w: 12 }, { w: 16 }, { w: 14 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 12 }, { w: 18 }], rows: [dHead, ...dBody] },
+    ]);
+  };
+
+  Store.exportShipmentsXLSX = function (shipments, fname) {
+    const list = shipments || (window.TVS_SHIPMENTS || []).filter(x => x.status === "shipped");
+    if (!window.XlsxWrite) return;
+    const S = XlsxWrite.S;
+    const head = ["Số phiếu", "Lệnh GH số", "Ngày phiếu", "Ngày thực xuất", "Chỉ thị", "Quốc gia", "PO", "Style", "Màu", "Size/Quy cách", "Thùng số", "SL theo PL", "SL thực xuất", "Số carton", "Ngày xuất KD", "Đúng hạn"].map(h => ({ v: h, s: S.head }));
+    const body = [];
+    let tp = 0, tc = 0;
+    for (const s of list) {
+      for (const l of (s.lines || [])) {
+        const o = U.orderByCode(l.ord);
+        tp += l.qty || 0; tc += l.ctn || 0;
+        body.push([
+          { v: s.code, s: S.txtB }, { v: s.lgh, s: S.txt }, { v: U.fmtDate(s.date), s: S.txtC },
+          { v: U.fmtDate(s.actualDate), s: S.txtC }, { v: l.ord, s: S.txtB }, { v: l.ctry, s: S.txt },
+          { v: l.po, s: S.txt }, { v: l.style, s: S.txtC }, { v: l.col, s: S.txtC },
+          { v: l.kind === "mix" ? "MIX" : l.sz, s: S.txtC },
+          { v: l.from ? (l.from === l.to ? "#" + l.from : `#${l.from}–${l.to}`) : "", s: S.txtC },
+          { v: l.groupPrs ?? l.req ?? 0, s: S.num }, { v: l.qty, s: S.numB }, { v: l.ctn, s: S.num },
+          { v: o ? U.fmtDate(o.d) : "", s: S.txtC },
+          { v: s.actualDate && o ? (s.actualDate <= o.d ? "Đúng hạn" : "Trễ") : "Nháp", s: S.txtC },
+        ]);
+      }
+    }
+    const tot = [
+      { v: "TỔNG CỘNG", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT }, { v: "", s: S.totT },
+      { v: tp, s: S.totN }, { v: tc, s: S.totN }, { v: "", s: S.totT }, { v: "", s: S.totT },
+    ];
+    XlsxWrite.download(fname || "NHAT_KY_XUAT_KHO_TVS.xlsx", [
+      { name: "Nhat ky xuat kho", freeze: { r: 1, c: 2 }, cols: [{ w: 18 }, { w: 16 }, { w: 12 }, { w: 14 }, { w: 12 }, { w: 16 }, { w: 15 }, { w: 9 }, { w: 9 }, { w: 12 }, { w: 12 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 12 }, { w: 12 }], rows: [head, ...body, tot] },
     ]);
   };
 

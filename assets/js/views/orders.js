@@ -102,7 +102,8 @@
             <button class="btn primary need-edit" id="oAdd">${App.icon("plus", "ico")} Thêm đơn hàng</button>
             <button class="btn" id="oTpl">${App.icon("download", "ico")} File mẫu (size hàng ngang)</button>
             <button class="btn need-edit" id="oImp">${App.icon("upload", "ico")} Import từ file</button>
-            <button class="btn" id="oExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
+            <button class="btn" id="oExpX">${App.icon("download", "ico")} Export (.xlsx)</button>
+            <button class="btn" id="oExp">${App.icon("download", "ico")} Export (.csv)</button>
             <span class="f-chipcount">Import file <b>size hàng ngang</b> (1 dòng = 1 đơn, cột UK 3→UK 9) — hệ thống tự chuyển sang dạng hàng dọc ·
               <a id="oTplLong" style="cursor:pointer;color:var(--acc);font-weight:700">mẫu dạng dọc</a></span>
           </div>
@@ -161,6 +162,11 @@
         if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
         App.toast(`✓ Đã khôi phục toàn bộ đơn hàng về dữ liệu gốc (${r.n} đơn có chỉnh sửa)`, "ok");
       };
+      bind("oExpX", "click", () => {
+        const rows = applyFilterRows();
+        Store.exportOrdersXLSX(rows, "DON_DAT_HANG_TVS.xlsx");
+        App.toast(`Đã export ${U.fmt(rows.length)} dòng đơn hàng (.xlsx)`, "ok");
+      });
       bind("oExp", "click", () => {
         const rows = applyFilterRows();
         Store.downloadCSV("DON_DAT_HANG_TVS.csv", [

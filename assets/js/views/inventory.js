@@ -5,13 +5,15 @@
 (function () {
   "use strict";
   window.Views = window.Views || {};
-  const st = { showAll: false };
+  const st = { showAll: false, showMatrixAll: false, q: "" };
 
   window.Views.inventory = {
     title: "Tồn kho N-X-T",
-    render(root) {
+    render(root, params) {
+      if (params && params.q !== undefined) st.q = params.q;
       const N = U.NXT;
       const active = U.ORDER_INDEX.filter(o => o.recvPrs > 0);
+      const inProg = active.filter(o => o.tonPrs > 0 || o.short > 0);
       const pending = U.ORDER_INDEX.filter(o => o.recvPrs === 0);
 
       const flowCard = (lab, prs, ctn, color, note) => `
@@ -20,28 +22,6 @@
           <div class="k-val">${U.fmt(prs)} <small>đôi</small></div>
           <div class="k-sub">${U.fmt(ctn)} thùng${note ? " · " + note : ""}</div>
         </div>`;
-
-      /* Ma trận size của các đơn đang chạy */
-      const sizeMatrix = active.map(o => {
-        const cells = U.SIZES.filter(s => o.sizes[s]).map(s => {
-          const c = o.sizes[s], diff = c.received - c.ordered;
-          const cls = c.received === 0 ? "short" : (diff >= 0 ? "full" : "short");
-          return `<div class="sm-cell ${cls}">
-            <div class="s">${s}</div>
-            <div class="v">${U.fmt(c.received)}<span style="font-size:11px;color:var(--txt-3)">/${U.fmt(c.ordered)}</span></div>
-            <div class="m">${diff === 0 ? "đủ" : (diff > 0 ? "+" + diff : diff + " đôi")}</div>
-          </div>`;
-        }).join("");
-        return `<div style="margin-bottom:18px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-            <b>${U.flag(o.ctry)} ${o.ord}</b><span class="note">${U.esc(o.ctry)} · màu ${o.col} · xuất KD ${U.fmtDate(o.d)}</span>
-            <span class="bdg ${o.short > 0 ? "warn" : "ok"}">nhập ${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi</span>
-          </div>
-          <div class="size-matrix">${cells}</div>
-        </div>`;
-      }).join("");
-
-      const rowsToShow = st.showAll ? U.ORDER_INDEX : active;
 
       const totalOrds = U.ORDER_INDEX.length;
 
@@ -75,57 +55,131 @@
 
           <div class="card">
             <div class="card-h"><h3>Tồn kho theo size — đơn đang sản xuất</h3>
-              <span class="sub">đã nhập / đặt hàng theo từng size</span></div>
-            <div class="card-b">${sizeMatrix || `<div class="note">Chưa có đơn nào nhập kho.</div>`}</div>
+              <span class="sub" id="smSub">đã nhập / đặt hàng theo từng size</span>
+              <span class="spacer"></span>
+              <button class="btn small" id="btnToggleMatrix"></button>
+            </div>
+            <div class="card-b" id="smHost" style="max-height:460px;overflow:auto"></div>
           </div>
         </div>
 
         <div class="card mt">
           <div class="card-h">
             <h3>Bảng N-X-T theo đơn hàng</h3>
-            <span class="sub">${st.showAll ? `toàn bộ ${totalOrds} đơn` : `đơn có phát sinh nhập kho (${active.length}/${totalOrds} đơn)`}</span>
+            <span class="sub" id="nxtTblSub"></span>
             <span class="spacer"></span>
-            <button class="btn" id="btnToggleAll">${st.showAll ? "Chỉ hiện đơn có phát sinh" : `Hiện toàn bộ ${totalOrds} đơn`}</button>
+            <input class="f-input" id="invQ" placeholder="Tìm đơn hàng, PO, quốc gia…" value="${U.esc(st.q)}" style="width:220px;padding:6px 10px">
+            <button class="btn" id="btnToggleAll"></button>
           </div>
-          <div class="tbl-wrap"><table class="tbl">
-            <thead><tr>
-              <th>Đơn hàng</th><th>Quốc gia</th><th>Màu</th><th>Xuất KD</th>
-              <th class="num">Đặt (đôi)</th><th class="num">Nhập (N)</th><th class="num">Xuất (X)</th>
-              <th class="num">Tồn (T)</th><th class="num">Còn thiếu</th><th style="min-width:190px">Tiến độ</th>
-            </tr></thead>
-            <tbody>${rowsToShow.map(o => {
-              const pct = o.prs ? o.recvPrs / o.prs : 0;
-              const cls = pct >= 1 ? "ok" : (pct > 0 ? "warn" : "");
-              return `<tr class="clickable" onclick="Views._openOrder('${o.ord}')">
-                <td><b>${o.ord}</b></td>
-                <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
-                <td>${U.colorCell(o.col)}</td>
-                <td>${U.fmtDate(o.d)}</td>
-                <td class="num">${U.fmt(o.prs)}</td>
-                <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "0"}</td>
-                <td class="num">${o.shipPrs ? U.fmt(o.shipPrs) : "0"}</td>
-                <td class="num"><b>${U.fmt(o.tonPrs)}</b></td>
-                <td class="num ${o.short > 0 && o.recvPrs > 0 ? "neg" : ""}">${U.fmt(o.short)}</td>
-                <td><div class="pline"><div class="pbar ${cls}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-                  <span class="pv">${U.fmtPct(pct)}</span></div></td>
-              </tr>`;
-            }).join("")}</tbody>
-            <tfoot><tr>
-              <td colspan="4">TỔNG ${st.showAll ? `(${totalOrds} đơn)` : "(" + rowsToShow.length + " đơn có phát sinh)"}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.prs))}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.recvPrs))}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.shipPrs))}</td>
-              <td class="num">${U.fmt(U.sum(rowsToShow, o => o.tonPrs))}</td>
-              <td class="num neg">${U.fmt(U.sum(rowsToShow, o => o.short))}</td><td></td>
-            </tr></tfoot>
-          </table></div>
-          ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">${pending.length} đơn còn lại chưa bắt đầu nhập kho (Tồn = 0). Bấm “Hiện toàn bộ ${totalOrds} đơn” để xem đầy đủ.</div>`}
+          <div id="nxtTblArea"></div>
         </div>
 
         <!-- v4.9: Báo cáo N-X-T theo kỳ + xuất Excel (assets/js/nxt-report.js) -->
         <div id="nxtReportHost"></div>`;
 
-      document.getElementById("btnToggleAll").onclick = () => { st.showAll = !st.showAll; this.render(root); };
+      const renderMatrix = () => {
+        const list = (st.showMatrixAll || !inProg.length) ? active : inProg;
+        const doneCount = active.length - inProg.length;
+        const btnM = document.getElementById("btnToggleMatrix");
+        if (btnM) {
+          btnM.textContent = st.showMatrixAll
+            ? `Chỉ hiện ${inProg.length} đơn còn tồn/thiếu`
+            : `Hiện cả ${doneCount} đơn đã xong (${active.length})`;
+        }
+        const smSub = document.getElementById("smSub");
+        if (smSub) {
+          smSub.textContent = st.showMatrixAll
+            ? `toàn bộ ${active.length} đơn đã nhập kho`
+            : `${inProg.length} đơn đang còn tồn kho / thiếu hụt`;
+        }
+        const smHost = document.getElementById("smHost");
+        if (!smHost) return;
+        smHost.innerHTML = list.map(o => {
+          const cells = U.SIZES.filter(s => o.sizes[s]).map(s => {
+            const c = o.sizes[s], diff = c.received - c.ordered;
+            const cls = c.received === 0 ? "short" : (diff >= 0 ? "full" : "short");
+            return `<div class="sm-cell ${cls}">
+              <div class="s">${s}</div>
+              <div class="v">${U.fmt(c.received)}<span style="font-size:11px;color:var(--txt-3)">/${U.fmt(c.ordered)}</span></div>
+              <div class="m">${diff === 0 ? "đủ" : (diff > 0 ? "+" + diff : diff + " đôi")}</div>
+            </div>`;
+          }).join("");
+          return `<div style="margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+              <b class="clickable" onclick="Views._openOrder('${o.ord}')">${U.flag(o.ctry)} ${o.ord}</b>
+              <span class="note">${U.esc(o.ctry)} · màu ${o.col} · xuất KD ${U.fmtDate(o.d)}</span>
+              ${o.tonPrs > 0 ? `<span class="bdg acc plain">tồn ${U.fmt(o.tonPrs)} đôi</span>` : ""}
+              <span class="bdg ${o.short > 0 ? "warn" : "ok"}">nhập ${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi</span>
+            </div>
+            <div class="size-matrix">${cells}</div>
+          </div>`;
+        }).join("") || `<div class="note">Chưa có đơn nào nhập kho.</div>`;
+      };
+
+      const renderNxtTable = () => {
+        const q = st.q.trim().toLowerCase();
+        const baseList = st.showAll ? U.ORDER_INDEX : (inProg.length ? inProg : active);
+        const rowsToShow = baseList.filter(o =>
+          !q || o.ord.toLowerCase().includes(q) || (o.po || "").toLowerCase().includes(q) || (o.ctry || "").toLowerCase().includes(q));
+        const btnAll = document.getElementById("btnToggleAll");
+        if (btnAll) {
+          btnAll.textContent = st.showAll ? `Chỉ hiện ${inProg.length} đơn đang còn tồn / thiếu` : `Hiện toàn bộ ${totalOrds} đơn`;
+        }
+        const subEl = document.getElementById("nxtTblSub");
+        if (subEl) {
+          subEl.textContent = st.showAll
+            ? `toàn bộ ${totalOrds} đơn (đang lọc: ${rowsToShow.length})`
+            : `đơn đang còn tồn kho / thiếu hụt (${rowsToShow.length}/${totalOrds} đơn)`;
+        }
+        const area = document.getElementById("nxtTblArea");
+        if (!area) return;
+        area.innerHTML = `<div class="tbl-wrap"><table class="tbl">
+          <thead><tr>
+            <th>Đơn hàng</th><th>Quốc gia</th><th>Màu</th><th>Xuất KD</th>
+            <th class="num">Đặt (đôi)</th><th class="num">Nhập (N)</th><th class="num">Xuất (X)</th>
+            <th class="num">Tồn (T)</th><th class="num">Còn thiếu</th><th style="min-width:190px">Tiến độ</th>
+          </tr></thead>
+          <tbody>${rowsToShow.length ? rowsToShow.map(o => {
+            const pct = o.prs ? o.recvPrs / o.prs : 0;
+            const cls = pct >= 1 ? "ok" : (pct > 0 ? "warn" : "");
+            return `<tr class="clickable" onclick="Views._openOrder('${o.ord}')">
+              <td><b>${o.ord}</b></td>
+              <td>${U.flag(o.ctry)} ${U.esc(o.ctry)}</td>
+              <td>${U.colorCell(o.col)}</td>
+              <td>${U.fmtDate(o.d)}</td>
+              <td class="num">${U.fmt(o.prs)}</td>
+              <td class="num">${o.recvPrs ? U.fmt(o.recvPrs) : "0"}</td>
+              <td class="num">${o.shipPrs ? U.fmt(o.shipPrs) : "0"}</td>
+              <td class="num"><b>${U.fmt(o.tonPrs)}</b></td>
+              <td class="num ${o.short > 0 && o.recvPrs > 0 ? "neg" : ""}">${U.fmt(o.short)}</td>
+              <td><div class="pline"><div class="pbar ${cls}"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
+                <span class="pv">${U.fmtPct(pct)}</span></div></td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="10" class="note" style="text-align:center;padding:18px">Không có đơn hàng nào khớp bộ lọc.</td></tr>`}</tbody>
+          <tfoot><tr>
+            <td colspan="4">TỔNG (${rowsToShow.length} đơn)</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.prs))}</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.recvPrs))}</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.shipPrs))}</td>
+            <td class="num">${U.fmt(U.sum(rowsToShow, o => o.tonPrs))}</td>
+            <td class="num neg">${U.fmt(U.sum(rowsToShow, o => o.short))}</td><td></td>
+          </tr></tfoot>
+        </table></div>
+        ${st.showAll ? "" : `<div class="note" style="padding:10px 18px">Đang ẩn ${totalOrds - inProg.length} đơn đã xuất hết / chưa phát sinh (${active.length - inProg.length} đơn đã hoàn tất 100% + ${pending.length} đơn chưa nhập). Bấm <b>“Hiện toàn bộ ${totalOrds} đơn”</b> để xem đầy đủ.</div>`}`;
+      };
+
+      renderMatrix();
+      renderNxtTable();
+
+      const btnM = document.getElementById("btnToggleMatrix");
+      if (btnM) btnM.onclick = e => { e.stopPropagation(); st.showMatrixAll = !st.showMatrixAll; renderMatrix(); };
+      const btnA = document.getElementById("btnToggleAll");
+      if (btnA) btnA.onclick = e => { e.stopPropagation(); st.showAll = !st.showAll; renderNxtTable(); };
+      const invQ = document.getElementById("invQ");
+      if (invQ) {
+        invQ.onclick = e => e.stopPropagation();
+        invQ.oninput = e => { st.q = e.target.value; renderNxtTable(); };
+      }
       if (window.NXTReport) NXTReport.mount(document.getElementById("nxtReportHost"));
     }
   };

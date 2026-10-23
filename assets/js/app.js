@@ -461,9 +461,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     App.renderSyncChip();
     const gs = document.getElementById("globalSearch");
     gs.addEventListener("keydown", e => {
-      if (e.key === "Enter" && gs.value.trim()) {
-        location.hash = "#/orders?q=" + encodeURIComponent(gs.value.trim());
-        gs.blur();
+      if (e.key === "Enter") {
+        const q = gs.value.trim();
+        const curRoute = (location.hash.replace(/^#\/?/, "").split("?")[0] || "");
+        if (/^(pxk|lgh|pkl)[-_\s\d]/i.test(q)) {
+          location.hash = "#/delivery?q=" + encodeURIComponent(q);
+          gs.blur();
+          return;
+        }
+        const localInputId = { warehouse: "wQ", delivery: "dQ", packing: "pkQ", inventory: "invQ", orders: "fQ" }[curRoute];
+        const localEl = localInputId ? document.getElementById(localInputId) : null;
+        if (localEl) {
+          localEl.value = q;
+          localEl.dispatchEvent(new Event("input", { bubbles: true }));
+          gs.blur();
+          return;
+        }
+        if (q) {
+          location.hash = "#/orders?q=" + encodeURIComponent(q);
+          gs.blur();
+        }
       }
     });
     const burger = document.getElementById("burger"), sb = document.getElementById("sidebar"), scrim = document.getElementById("scrim");

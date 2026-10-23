@@ -91,7 +91,8 @@
   /* ═════════ MÀN HÌNH CHÍNH ═════════ */
   window.Views.delivery = {
     title: "Lệnh giao hàng · Phiếu xuất kho",
-    render(root) {
+    render(root, params) {
+      if (params && params.q !== undefined) flt.q = params.q;
       const ships = (window.TVS_SHIPMENTS || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       const drafts = ships.filter(s => s.status !== "shipped");
       const done = ships.filter(s => s.status === "shipped");
@@ -125,7 +126,8 @@
             <button class="btn primary need-edit" id="btnNew">${App.icon("plus", "ico")} Tạo lệnh giao hàng</button>
             <button class="btn" id="btnTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="btnImp">${App.icon("upload", "ico")} Import phiếu từ file</button>
-            <button class="btn" id="btnExpAll" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký xuất (CSV)</button>
+            <button class="btn" id="btnExpAllX" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký (.xlsx)</button>
+            <button class="btn" id="btnExpAll" ${done.length ? "" : "disabled"}>${App.icon("download", "ico")} Export nhật ký (.csv)</button>
             <button class="btn need-edit" id="btnImpPk" data-testid="pxk-import-packing">${App.icon("upload", "ico")} Import packing list</button>
             <button class="btn" id="btnGoPk" data-testid="pxk-goto-packing">${App.icon("box", "ico")} Màn hình Packing List</button>
             <span class="f-chipcount">Số thùng & dòng MIX size lấy đúng theo <b>PACKING LIST (CLP)</b>:
@@ -329,6 +331,12 @@
       document.getElementById("btnImp").onclick = importShipFile;
       document.getElementById("btnImpPk").onclick = () => Views._packingImport();
       document.getElementById("btnGoPk").onclick = () => { location.hash = "#/packing"; };
+      const expAllX = document.getElementById("btnExpAllX");
+      if (expAllX) expAllX.onclick = () => {
+        const expShips = filterShipments(TVS_SHIPMENTS.filter(x => x.status === "shipped"));
+        Store.exportShipmentsXLSX(expShips, "NHAT_KY_XUAT_KHO_TVS.xlsx");
+        App.toast(`Đã xuất nhật ký xuất kho (${expShips.length} phiếu · .xlsx)`, "ok");
+      };
       const expAll = document.getElementById("btnExpAll");
       if (expAll) expAll.onclick = exportLog;
     }
@@ -1127,7 +1135,7 @@
     const chunks = paginateByDOM(s, rowsH, totalRow, orient);
     const n = chunks.length;
     const hasCompact = chunks.some(c => c.compact);
-    const printedAt = U.fmtDate(TVS_META.today);
+    const printedAt = U.fmtDate(U.todayISO ? U.todayISO() : TVS_META.today);
     const landCls = orient === "landscape" ? " land" : "";
 
     const pagesHTML = chunks.map((c, pi) => {

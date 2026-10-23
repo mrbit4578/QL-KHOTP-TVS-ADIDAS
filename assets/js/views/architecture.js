@@ -13,6 +13,15 @@
   window.Views.architecture = {
     title: "Kiến trúc hệ thống",
     render(root) {
+      const N = U.NXT;
+      const nOrds = U.ORDER_INDEX.length;
+      const nOrdRows = TVS_ORDERS.length;
+      const nRecRows = TVS_RECEIPTS.length;
+      const nPlans = U.SHIP_PLAN.length;
+      const planRange = nPlans
+        ? `${U.fmtDate(U.SHIP_PLAN[0].d)} → ${U.fmtDate(U.SHIP_PLAN[nPlans - 1].d)}`
+        : "—";
+
       root.innerHTML = `
         <div class="card">
           <div class="card-h"><h3>① Sơ đồ tổng thể theo mô hình Warehouse Robotics Software</h3>
@@ -22,8 +31,8 @@
             <div class="arch-node" style="max-width:520px;margin:0 auto;width:100%">
               <h4><span class="tag">ERP</span> Lớp kế hoạch doanh nghiệp — TVS</h4>
               <ul>
-                <li><b>Orders</b> — đơn đặt hàng adidas (sheet Data · 95 đơn · 40.027 đôi)</li>
-                <li><b>Inventory</b> — tổng hợp N-X-T thành phẩm NVQ89</li>
+                <li><b>Orders</b> — đơn đặt hàng adidas (sheet Data · ${U.fmt(nOrds)} đơn · ${U.fmt(N.datPrs)} đôi · ${U.fmt(N.datCtn)} thùng CLP)</li>
+                <li><b>Inventory</b> — tổng hợp N-X-T thành phẩm NVQ89 (Nhập ${U.fmt(N.nhapPrs)} · Xuất ${U.fmt(N.xuatPrs)} · Tồn ${U.fmt(N.tonPrs)} đôi)</li>
                 <li><b>Finance / Procurement</b> — (phạm vi mở rộng giai đoạn 2)</li>
               </ul>
             </div>
@@ -51,15 +60,15 @@
               <div class="arch-node">
                 <h4><span class="tag">WCS</span> Warehouse Control System</h4>
                 <ul>
-                  <li>Material Flow Control — dòng thành phẩm từ chuyền → đóng thùng (6 đôi/thùng)</li>
+                  <li>Material Flow Control — dòng thành phẩm từ chuyền → đóng thùng tự động mapping theo CLP</li>
                   <li>Equipment Control — băng tải, xe nâng khu kho TVS</li>
-                  <li>Real-Time Monitoring — nhật ký nhập kho từng ngày (ChitietNK)</li>
+                  <li>Real-Time Monitoring — nhật ký nhập kho từng ngày (${U.fmt(nRecRows)} dòng ChitietNK)</li>
                 </ul>
               </div>
               <div class="arch-node">
                 <h4><span class="tag">OMS</span> Order Management System</h4>
                 <ul>
-                  <li>Order Processing — 549 dòng size từ khách adidas</li>
+                  <li>Order Processing — ${U.fmt(nOrdRows)} dòng size từ khách adidas (${U.fmt(nOrds)} chỉ thị)</li>
                   <li>Order Prioritization — ưu tiên theo "Ngày xuất KD" gần nhất</li>
                   <li>Fulfillment Management — đối chiếu thiếu/đủ từng size</li>
                 </ul>
@@ -67,8 +76,8 @@
               <div class="arch-node">
                 <h4><span class="tag">TMS</span> Transport Management System</h4>
                 <ul>
-                  <li>Shipment Planning — 15 mốc xuất (25/07/2026 → 09/01/2027)</li>
-                  <li>Carrier Management — booking container xuất khẩu</li>
+                  <li>Shipment Planning — ${U.fmt(nPlans)} mốc xuất (${planRange})</li>
+                  <li>Carrier Management — booking container xuất khẩu (${U.fmt(TVS_SHIPMENTS.length)} phiếu xuất kho)</li>
                   <li>Delivery Tracking — theo "Ngày thực xuất" khi phát sinh</li>
                 </ul>
               </div>
@@ -100,7 +109,7 @@
                 <div class="use">→ Trợ lý TVS xác nhận lại khi không tìm thấy mã đơn</div></div></div>
               <div class="rag-card" style="grid-column:1/-1"><div class="rag-num">05</div><div>
                 <h4>Multimodal RAG — One index across text, images, and tables</h4>
-                <p>Một chỉ mục chung cho chữ (ghi chú "UK 9 = 15"), bảng (549 dòng đơn hàng) và hình (ảnh thùng carton, tem size).
+                <p>Một chỉ mục chung cho chữ (ghi chú "UK 9 = 15"), bảng (${U.fmt(nOrdRows)} dòng đơn hàng) và hình (ảnh thùng carton, tem size).
                 Giai đoạn 2: quét tem thùng bằng camera để nhập kho tự động.</p>
                 <div class="use">→ Lộ trình nâng cấp khi kết nối hệ thống camera kho</div></div></div>
             </div>
@@ -114,11 +123,11 @@
             <div class="tbl-wrap"><table class="tbl">
               <thead><tr><th>Tầng</th><th>Thành phần</th><th>Nguồn dữ liệu thật</th><th>Vai trò</th></tr></thead>
               <tbody>
-                <tr><td><b>Dữ liệu</b></td><td class="mono">assets/js/data.js</td><td>THEO DOI CHI TIET N-X-T ADIDAS.xlsm</td><td>549 dòng đơn hàng (Data) + 11 dòng nhập kho (ChitietNK) trích xuất nguyên trạng</td></tr>
-                <tr><td><b>Nghiệp vụ</b></td><td class="mono">assets/js/utils.js</td><td>—</td><td>Gom 95 đơn, đối chiếu nhập ↔ đặt, tính N-X-T, thiếu/đủ, lịch xuất</td></tr>
+                <tr><td><b>Dữ liệu</b></td><td class="mono">assets/js/data.js + data/tvs-data.json</td><td>THEO DOI CHI TIET N-X-T ADIDAS.xlsm + Đồng bộ GitHub</td><td>${U.fmt(nOrdRows)} dòng đơn hàng (${U.fmt(nOrds)} đơn) + ${U.fmt(nRecRows)} dòng nhập kho + ${U.fmt(Object.keys(window.TVS_PACKING || {}).length)} packing list CLP</td></tr>
+                <tr><td><b>Nghiệp vụ</b></td><td class="mono">assets/js/utils.js + store.js</td><td>—</td><td>Gom ${U.fmt(nOrds)} đơn, mapping thùng CLP, đối chiếu nhập ↔ đặt, tính N-X-T, thiếu/đủ, lịch xuất</td></tr>
                 <tr><td><b>Trực quan</b></td><td class="mono">assets/js/charts.js</td><td>—</td><td>Biểu đồ SVG thuần: cột, thanh, tròn, đường (chạy offline)</td></tr>
-                <tr><td><b>Giao diện</b></td><td class="mono">assets/js/views/*.js</td><td>—</td><td>7 phân hệ: Dashboard · OMS · WMS · N-X-T · TMS · Kiến trúc · Trợ lý AI</td></tr>
-                <tr><td><b>Điều phối</b></td><td class="mono">assets/js/app.js</td><td>—</td><td>Định tuyến #/, tìm kiếm toàn cục, modal chi tiết đơn</td></tr>
+                <tr><td><b>Giao diện</b></td><td class="mono">assets/js/views/*.js</td><td>—</td><td>8 phân hệ: Dashboard · OMS · WMS · CLP · PXK · N-X-T · TMS · Kiến trúc · Trợ lý AI</td></tr>
+                <tr><td><b>Điều phối</b></td><td class="mono">assets/js/app.js</td><td>—</td><td>Định tuyến #/, tìm kiếm toàn cục theo ngữ cảnh, đo bộ nhớ hệ thống, modal chi tiết</td></tr>
               </tbody>
             </table></div>
           </div>

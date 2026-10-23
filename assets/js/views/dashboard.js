@@ -6,6 +6,8 @@
   "use strict";
   window.Views = window.Views || {};
 
+  const dashSt = { showCompleted: false };
+
   function kpi(ico, lab, val, sub, accent) {
     return `<div class="card kpi${accent ? " kpi-acc" : ""}">
       <div class="k-lab">${App.icon(ico)}<span>${lab}</span></div>
@@ -95,8 +97,9 @@
           <div class="card">
             <div class="card-h">
               <h3>Tiến độ nhập kho theo đơn hàng đang sản xuất</h3>
-              <span class="sub">đối chiếu sheet ChitietNK ↔ Data</span>
+              <span class="sub" id="pgSub">đối chiếu sheet ChitietNK ↔ Data</span>
               <span class="spacer"></span>
+              <button class="btn small" id="btnDashToggleDone"></button>
               <a class="btn ghost" href="#/inventory">Xem N-X-T →</a>
             </div>
             <div class="card-b" id="pgOrders"></div>
@@ -126,29 +129,50 @@
           label: "Đợt " + x.key, value: x.prs, color: Charts.PALETTE[i % Charts.PALETTE.length]
         })), { unit: "đôi", h: 220 });
 
-      /* ── Tiến độ các đơn đang chạy + tổng ── */
+      /* ── Tiến độ các đơn đang chạy + tổng (mặc định ưu tiên đơn chưa đủ / còn tồn kho) ── */
       const pg = document.getElementById("pgOrders");
-      const rows = activeOrders.map(o => {
-        const pct = o.recvPrs / o.prs;
-        const cls = pct >= 1 ? "ok" : (o.daysLeft <= 7 ? "bad" : "warn");
-        return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)">
-          <div style="width:210px;font-weight:700;font-size:12.8px">${U.flag(o.ctry)} ${o.ord}
-            <span class="note" style="font-weight:600"> · ${U.esc(o.ctry)}</span></div>
-          <div class="pline" style="flex:1"><div class="pbar ${cls}" style="flex:1"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
-            <span class="pv">${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi (${U.fmtPct(pct)})</span></div>
-          <span class="bdg ${o.short > 0 ? "bad" : "ok"}">${o.short > 0 ? "thiếu " + U.fmt(o.short) : "đủ hàng"}</span>
-        </div>`;
-      }).join("");
-      const pctAll = U.NXT.progress;
-      pg.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--line-2)">
-          <div style="width:210px;font-weight:800;font-size:12.8px">TOÀN BỘ CHƯƠNG TRÌNH</div>
-          <div class="pline" style="flex:1"><div class="pbar" style="flex:1"><i style="width:${(pctAll * 100).toFixed(2)}%"></i></div>
-            <span class="pv">${U.fmt(U.NXT.nhapPrs)}/${U.fmt(U.NXT.datPrs)} đôi (${U.fmtPct(pctAll)})</span></div>
-          <span class="bdg acc">${U.ORDER_INDEX.length - activeOrders.length} đơn chưa bắt đầu</span>
-        </div>
-        ${rows}
-        <div class="note" style="margin-top:10px">Quy cách đóng thùng: <b>Tự động mapping từ Packing List (CLP)</b> theo từng chỉ thị &amp; size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE).</div>`;
+      const inProgOrders = activeOrders.filter(o => o.short > 0 || o.tonPrs > 0);
+      const doneOrders = activeOrders.filter(o => o.short <= 0 && o.tonPrs <= 0);
+      const renderPgOrders = () => {
+        const list = (dashSt.showCompleted || !inProgOrders.length) ? activeOrders : inProgOrders;
+        const btnT = document.getElementById("btnDashToggleDone");
+        if (btnT) {
+          btnT.textContent = dashSt.showCompleted
+            ? `Ẩn ${doneOrders.length} đơn đã hoàn tất 100%`
+            : `Hiện cả ${doneOrders.length} đơn đã hoàn tất (${activeOrders.length})`;
+        }
+        const subEl = document.getElementById("pgSub");
+        if (subEl) {
+          subEl.textContent = dashSt.showCompleted
+            ? `toàn bộ ${activeOrders.length} đơn đã nhập kho`
+            : `${inProgOrders.length} đơn đang xử lý (thiếu hàng / còn tồn) · ẩn ${doneOrders.length} đơn đã xuất xong`;
+        }
+        const rows = list.map(o => {
+          const pct = o.recvPrs / o.prs;
+          const cls = pct >= 1 ? "ok" : (o.daysLeft <= 7 ? "bad" : "warn");
+          return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)">
+            <div style="width:210px;font-weight:700;font-size:12.8px" class="clickable" onclick="Views._openOrder('${o.ord}')">${U.flag(o.ctry)} ${o.ord}
+              <span class="note" style="font-weight:600"> · ${U.esc(o.ctry)}</span></div>
+            <div class="pline" style="flex:1"><div class="pbar ${cls}" style="flex:1"><i style="width:${Math.min(100, pct * 100)}%"></i></div>
+              <span class="pv">${U.fmt(o.recvPrs)}/${U.fmt(o.prs)} đôi (${U.fmtPct(pct)})</span></div>
+            ${o.tonPrs > 0 ? `<span class="bdg acc plain">tồn ${U.fmt(o.tonPrs)}</span>` : ""}
+            <span class="bdg ${o.short > 0 ? "bad" : "ok"}">${o.short > 0 ? "thiếu " + U.fmt(o.short) : "đủ hàng"}</span>
+          </div>`;
+        }).join("");
+        const pctAll = U.NXT.progress;
+        pg.innerHTML = `
+          <div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--line-2)">
+            <div style="width:210px;font-weight:800;font-size:12.8px">TOÀN BỘ CHƯƠNG TRÌNH</div>
+            <div class="pline" style="flex:1"><div class="pbar" style="flex:1"><i style="width:${(pctAll * 100).toFixed(2)}%"></i></div>
+              <span class="pv">${U.fmt(U.NXT.nhapPrs)}/${U.fmt(U.NXT.datPrs)} đôi (${U.fmtPct(pctAll)})</span></div>
+            <span class="bdg acc">${U.ORDER_INDEX.length - activeOrders.length} đơn chưa bắt đầu</span>
+          </div>
+          <div style="max-height:420px;overflow:auto;padding-right:4px">${rows}</div>
+          <div class="note" style="margin-top:10px">Quy cách đóng thùng: <b>Tự động mapping từ Packing List (CLP)</b> theo từng chỉ thị &amp; size (5–6 đôi/thùng + thùng lẻ + thùng MIX SIZE).</div>`;
+      };
+      const btnT = document.getElementById("btnDashToggleDone");
+      if (btnT) btnT.onclick = e => { e.stopPropagation(); dashSt.showCompleted = !dashSt.showCompleted; renderPgOrders(); };
+      renderPgOrders();
     }
   };
 })();

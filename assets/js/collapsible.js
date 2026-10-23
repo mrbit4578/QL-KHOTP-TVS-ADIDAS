@@ -18,9 +18,12 @@
 
   const routeId = () => (location.hash.replace(/^#\/?/, "").split("?")[0] || "home");
   const titleOf = card => {
+    if (card.dataset && card.dataset.clpKey) return card.dataset.clpKey;
     const h = card.querySelector(":scope > .card-h");
     const t = h && (h.querySelector("h3") || h);
-    return (t ? t.textContent : "").trim().replace(/\s+/g, " ").slice(0, 80);
+    const raw = (t ? t.textContent : "").trim().replace(/\s+/g, " ");
+    /* Chuẩn hóa tiêu đề: bỏ các cụm số đếm động trong ngoặc như "(27 mốc ngày)", "(14)" để giữ trạng thái mở/đóng khi số liệu thay đổi */
+    return raw.replace(/\s*\(\s*[\d.,]+[^)]*\)/g, "").trim().slice(0, 80);
   };
   const keyOf = card => routeId() + " ‖ " + titleOf(card);
 

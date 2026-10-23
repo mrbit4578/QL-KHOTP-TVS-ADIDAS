@@ -38,6 +38,8 @@
       const shortIn = U.sum(R.filter(r => r.diff < 0), r => -r.diff);
       const notProd = U.SHORTAGES.filter(s => s.type === "chưa sản xuất");
       const notProdQty = U.sum(notProd, s => s.qty);
+      const qcDoneCount = R.filter(r => r.qcQty > 0 || r.qcDate).length;
+      const qcPendCount = R.length - qcDoneCount;
       const events = [...U.groupBy(R, r => r.rdLabel)].map(([lab, rows]) => {
         const ords = U.uniq(rows, r => r.ord);
         const ctries = U.uniq(rows, r => r.ctry);
@@ -63,7 +65,9 @@
             <button class="btn primary need-edit" id="rAdd">${App.icon("plus", "ico")} Nhập kho mới</button>
             <button class="btn" id="rTpl">${App.icon("download", "ico")} File mẫu import</button>
             <button class="btn need-edit" id="rImp">${App.icon("upload", "ico")} Import từ file</button>
-            <button class="btn" id="rExp">${App.icon("download", "ico")} Export dữ liệu (CSV)</button>
+            <button class="btn" id="rExpX">${App.icon("download", "ico")} Export (.xlsx)</button>
+            <button class="btn" id="rExp">${App.icon("download", "ico")} Export (.csv)</button>
+            <button class="btn need-edit" id="rBulkQC" title="Xác nhận kiểm đếm QC cho các dòng nhập kho đang hiển thị">✓ Duyệt QC các dòng đang lọc</button>
             <button class="btn" id="rEditLog">⟲ Nhật ký sửa / xóa nhập kho (${Store.receiptEditSummary ? Store.receiptEditSummary().total : 0})</button>
             <span class="f-chipcount">Số thùng tự động mapping từ Packing List (CLP) theo chỉ thị + size</span>
           </div>
@@ -101,7 +105,8 @@
             <div class="k-val" style="color:${notProdQty ? "var(--warn)" : "var(--ok)"}">${U.fmt(notProdQty)} <small>đôi</small></div>
             <div class="k-sub">${notProd.length ? notProd.slice(0, 4).map(s => s.ord + ": " + s.sz + "=" + s.qty).join(" · ") + (notProd.length > 4 ? ` (+${notProd.length - 4})` : "") : "Tất cả size đã lên kho"}</div></div>
           <div class="card kpi"><div class="k-lab">${App.icon("check")}<span>Kiểm đếm QC</span></div>
-            <div class="k-val">0/${R.length}</div><div class="k-sub">dòng chờ kiểm (SL kiểm & ngày kiểm trống)</div></div>
+            <div class="k-val" style="color:${qcPendCount ? "var(--txt)" : "var(--ok)"}">${U.fmt(qcDoneCount)}/${U.fmt(R.length)}</div>
+            <div class="k-sub">${qcPendCount ? `${U.fmt(qcPendCount)} dòng chờ kiểm · bấm “✓ Duyệt QC” để xác nhận` : "✓ Đã kiểm đếm QC 100% dòng nhập kho"}</div></div>
         </div>
 
         <div class="grid g-32 mt">
@@ -226,10 +231,10 @@
               <th>Ngày Nhập Kho</th><th>Ghi chú</th><th>Quốc gia</th><th>Chỉ thị</th><th>PO</th>
               <th>Mã hàng</th><th>Màu sắc</th>
               ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}
-              <th class="num">Tổng đôi</th><th class="num">Thùng</th><th>Lần sửa</th><th>Thao tác</th>
+              <th class="num">Tổng đôi</th><th class="num">Thùng</th><th>QC kiểm</th><th>Lần sửa</th><th>Thao tác</th>
             </tr></thead>
             <tbody>${!days.length
-              ? `<tr><td colspan="${11 + U.SIZES.length}" class="note" style="text-align:center;padding:18px">Không tìm thấy dòng nhập kho nào khớp bộ lọc hiện tại.</td></tr>`
+              ? `<tr><td colspan="${12 + U.SIZES.length}" class="note" style="text-align:center;padding:18px">Không tìm thấy dòng nhập kho nào khớp bộ lọc hiện tại.</td></tr>`
               : days.map(([k, rows], gi) => {
                 const r0 = rows[0];
                 const bySz = {};
@@ -237,7 +242,8 @@
                 const notes = [...new Set(rows.map(r => r.notProduced).filter(Boolean))];
                 const info = Store.receiptEditInfo ? Store.receiptEditInfo(r0.rdLabel, r0.ord) : null;
                 const rev = info ? info.rev : 0;
-                const lastLog = info && info.log.length ? info.log[info.log.length - 1] : null;
+                const lastLog = info && info.log && info.log.length ? info.log[info.log.length - 1] : null;
+                const qcDate = r0.qcDate || (info && info.qcDate) || null;
                 return `<tr${rev ? ' class="row-edited"' : ''}>
                   <td><b>${U.esc(r0.rdLabel)}</b></td>
                   <td>${notes.length ? `<span class="bdg warn plain">${notes.map(U.esc).join("; ")}</span>` : "—"}</td>
@@ -249,6 +255,9 @@
                   ${U.SIZES.map(s => `<td class="num">${bySz[s] ? U.fmt(bySz[s]) : ""}</td>`).join("")}
                   <td class="num"><b>${U.fmt(U.sum(rows, r => r.prs))}</b></td>
                   <td class="num">${U.fmt(U.sum(rows, r => r.ctn))}</td>
+                  <td>${qcDate
+                    ? `<span class="bdg ok plain clickable" title="Đã kiểm QC ngày ${U.fmtDate(qcDate)} — bấm để đổi/hủy" onclick="Views._mtxToggleQC(${gi})">✓ ${U.fmtDate(qcDate)}</span>`
+                    : `<button class="btn small need-edit" title="Xác nhận đã kiểm đếm QC dòng này" onclick="Views._mtxToggleQC(${gi})">✓ QC</button>`}</td>
                   <td>${rev
                     ? `<span class="bdg acc plain clickable" title="${lastLog ? U.esc("Lần " + rev + " · " + lastLog.by + " · " + lastLog.reason) : ""}" onclick="Views._mtxHistory(${gi})">✎ ${rev} lần</span>`
                     : `<span class="note">—</span>`}</td>
@@ -262,7 +271,7 @@
             <tfoot><tr>
               <td colspan="7">TỔNG CỘNG (${U.fmt(days.length)} dòng)</td>
               ${U.SIZES.map(s => `<td class="num">${U.fmt(U.sum(FR.filter(r => r.sz === s), r => r.prs)) === "0" ? "" : U.fmt(U.sum(FR.filter(r => r.sz === s), r => r.prs))}</td>`).join("")}
-              <td class="num">${U.fmt(fPrs)}</td><td class="num">${U.fmt(fCtn)}</td><td colspan="2"></td>
+              <td class="num">${U.fmt(fPrs)}</td><td class="num">${U.fmt(fCtn)}</td><td colspan="3"></td>
             </tr></tfoot>
           </table></div>`;
         }
@@ -289,8 +298,8 @@
                 <td><b>${r.sz}</b></td>
                 <td class="num">${U.fmt(r.prs)}</td>
                 <td class="num">${U.fmt(r.ctn)}</td>
-                <td class="num note">chờ kiểm</td>
-                <td class="note">—</td>
+                <td class="num ${r.qcQty ? "pos" : "note"}">${r.qcQty ? U.fmt(r.qcQty) : "chờ kiểm"}</td>
+                <td class="${r.qcDate ? "" : "note"}">${r.qcDate ? U.fmtDate(r.qcDate) : "—"}</td>
                 <td class="num">${U.fmt(r.ordered)}</td>
                 <td class="num ${r.diff < 0 ? "neg" : "pos"}">${r.diff > 0 ? "+" : ""}${U.fmt(r.diff)}</td>
                 <td>Đợt ${r.bat}</td>
@@ -344,9 +353,22 @@
         { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
       });
       bind("rEditLog", () => Views._whEditLogModal());
+      bind("rBulkQC", () => {
+        const groups = Views._mtx || [];
+        if (!groups.length) { App.toast("Không có dòng nhập kho nào đang hiển thị để duyệt QC", "warn"); return; }
+        const iso = prompt(`Xác nhận đã kiểm đếm QC (SL kiểm = SL nhập) cho ${groups.length} nhóm dòng đang lọc.\nNhập ngày kiểm QC (YYYY-MM-DD, để trống để xóa trạng thái QC):`, U.todayISO ? U.todayISO() : TVS_META.today);
+        if (iso === null) return;
+        const r = Store.setBulkReceiptsQC(groups, iso.trim() || null);
+        if (r && r.ok) App.toast(iso.trim() ? `✓ Đã xác nhận kiểm đếm QC cho ${r.count} nhóm dòng (ngày ${U.fmtDate(iso.trim())})` : `Đã xoá trạng thái QC của ${r.count} nhóm dòng`, "ok");
+      });
       document.getElementById("rAdd").onclick = openAddReceipt;
       document.getElementById("rTpl").onclick = () => { Store.templateReceipts(); App.toast("Đã tải file mẫu theo ngày (cột size 3→10). Hệ thống nhận cả file .xlsx gốc lẫn .csv theo mẫu này", "ok"); };
       document.getElementById("rImp").onclick = importReceipts;
+      bind("rExpX", () => {
+        const expRows = filterReceipts(TVS_RECEIPTS);
+        Store.exportReceiptsXLSX(expRows, "CHI_TIET_NHAP_KHO_TVS.xlsx");
+        App.toast(`Đã export ${U.fmt(expRows.length)} dòng nhập kho (.xlsx — 2 sheet)`, "ok");
+      });
       document.getElementById("rExp").onclick = () => {
         const expRows = filterReceipts(TVS_RECEIPTS);
         Store.downloadCSV("NHAP_KHO_TVS.csv", [
@@ -676,5 +698,19 @@
     if (!r.ok) { App.toast("⚠ " + r.msg, "warn"); return; }
     App.toast(`✓ Đã khôi phục ${ord} (${rdLabel}) về số liệu gốc`, "ok");
     Views._whEditLogModal();
+  };
+
+  Views._mtxToggleQC = function (gi) {
+    const g = (Views._mtx || [])[gi];
+    if (!g) return;
+    const info = Store.receiptEditInfo ? Store.receiptEditInfo(g.rdLabel, g.ord) : null;
+    const curQC = info && info.qcDate ? info.qcDate : "";
+    const defDate = curQC || (U.todayISO ? U.todayISO() : TVS_META.today);
+    const iso = prompt(`Ghi nhận ngày kiểm đếm QC cho chỉ thị ${g.ord} (nhập kho ngày ${g.rdLabel}):\n• Nhập YYYY-MM-DD để xác nhận đã kiểm QC\n• Xoá trắng rồi bấm OK để hủy xác nhận QC`, defDate);
+    if (iso === null) return;
+    const r = Store.setReceiptGroupQC(g.rdLabel, g.ord, iso.trim() || null);
+    if (r && r.ok) {
+      App.toast(r.qcDate ? `✓ Đã ghi nhận kiểm QC ${g.ord} (${g.rdLabel}) ngày ${U.fmtDate(r.qcDate)}` : `Đã hủy trạng thái kiểm QC ${g.ord} (${g.rdLabel})`, "ok");
+    }
   };
 })();
