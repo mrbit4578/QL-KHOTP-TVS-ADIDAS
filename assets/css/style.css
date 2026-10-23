@@ -401,14 +401,14 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 
 /* ── Phiếu xuất kho (mẫu 03/XKNB) ──────────────────────────── */
 .phieu-wrap{background:#eef0f3;padding:18px;display:flex;flex-direction:column;gap:18px}
-.px-page{background:#fff;border:1px solid var(--line-2);padding:22px 26px 14px;font-size:12px;color:#111;max-width:960px;margin:0 auto;width:100%;position:relative;box-shadow:0 1px 4px rgba(16,24,40,.08)}
+.px-page{background:#fff;border:1px solid var(--line-2);padding:22px 26px 14px;font-size:12px;line-height:1.45;color:#111;max-width:960px;margin:0 auto;width:100%;display:flex;flex-direction:column;position:relative;box-shadow:0 1px 4px rgba(16,24,40,.08)}
 .px-page.land{max-width:1200px}
 .px-orient{display:inline-flex;background:var(--neu-bg);border-radius:7px;padding:2px;gap:2px}
 .px-orient button{border:0;background:transparent;font:inherit;font-size:11.5px;font-weight:700;color:var(--txt-2);padding:4px 11px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .px-orient button.on{background:var(--ink);color:#fff}
 .px-cont-info{font-size:11.5px;color:#333;border:1px dotted #c9ced6;border-radius:6px;padding:6px 10px;margin-bottom:8px}
-.px-carry td{text-align:right!important;color:#667085;font-style:italic;border-left:1px solid #6b7280!important;border-right:1px solid #6b7280!important}
-.px-foot{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #c9ced6;margin-top:14px;padding-top:6px;font-size:10.2px;color:#555}
+.px-carry td,td.px-carry{text-align:right!important;color:#667085;font-style:italic;border-left:1px solid #6b7280!important;border-right:1px solid #6b7280!important}
+.px-foot{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #c9ced6;margin-top:auto;padding-top:6px;font-size:10.2px;color:#555;flex-shrink:0}
 .px-foot .px-pageno{font-weight:800;color:#111}
 .px-mix{font-size:9.6px;font-weight:600;color:#333;white-space:nowrap}
 .mix-bd{font-size:11px;color:var(--txt-2);font-weight:600}
@@ -466,13 +466,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
   body.print-phieu .app,body.print-phieu .modal-back,body.print-phieu #toasts{display:none!important}
   body.print-phieu #printRoot{display:block}
   body.print-phieu #printRoot .px-page{
-    border:0;box-shadow:none;max-width:none;margin:0;padding:0 0 12mm;
-    page-break-after:always;break-after:page;position:relative;
+    border:0;box-shadow:none;max-width:none;margin:0;padding:0;
+    page-break-after:always;break-after:page;display:flex;flex-direction:column;position:relative;
     height:276mm;overflow:hidden;   /* khoá đúng 1 tờ A4 đứng — không cho lấn trang sau */
   }
   body.print-phieu #printRoot .px-page.land{height:189mm}   /* A4 ngang */
   body.print-phieu #printRoot .px-page:last-child{page-break-after:auto}
-  body.print-phieu #printRoot .px-foot{position:absolute;left:0;right:0;bottom:0;background:#fff}
+  body.print-phieu #printRoot .px-foot{position:static;margin-top:auto;background:#fff;flex-shrink:0}
   .px-sign-tbl th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 

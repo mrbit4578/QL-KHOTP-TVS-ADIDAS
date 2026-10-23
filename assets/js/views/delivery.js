@@ -644,7 +644,7 @@
       </div>
       <div>
         ${info("Theo lệnh giao hàng số", U.esc(s.lgh))}
-        ${info("Theo PO / Work Order", pos.map(U.esc).join("<br>"))}
+        ${info("Theo PO / Work Order", pos.map(U.esc).join(", "))}
         ${info("Packing List số", U.esc(s.pkl))}
         ${info("QC Release số", U.esc(s.qcNo))}
         ${info("Thương hiệu", "Adidas")}
@@ -710,56 +710,172 @@
     st.textContent = `@page{size:A4 ${orient};margin:9mm}`;
   }
 
-  /* Phân trang theo NGÂN SÁCH CHIỀU CAO thật của khổ giấy (mm) — "Trang i/n"
-     khớp đúng số tờ máy in báo. Khi trang cuối chỉ còn ít dòng + khối ký mà
-     thiếu chỗ → TỰ ĐỘNG CO DÒNG (compact) để vừa đủ trang, không lấn tờ sau. */
-  function paginate(rowCount, orient) {
-    const H = orient === "landscape" ? 190 : 277;      // vùng in A4 sau lề (trừ hao an toàn)
-    const ROW = orient === "landscape" ? 8.5 : 11;     // mm/dòng bình thường
-    const ROWC = ROW * 0.72;                            // mm/dòng khi NÉN
-    /* Trang 2+ KHÔNG lặp lại header công ty/tiêu đề — chỉ còn dải số phiếu nhỏ */
-    const HEAD_FULL = 30, INFO = 78, SEC = 8, THEAD = 8, FOOT = 12, HEAD_CONT = 14;
-    const TOTAL = 9, SIGN = 64, TOTALC = 7, SIGNC = 48; // tổng + khối ký (thường / nén) — ô ký to hơn
-    const cap1 = H - HEAD_FULL - INFO - SEC - THEAD - FOOT;
-    const capN = H - HEAD_CONT - THEAD - FOOT;
-    const capOf = i => (i === 0 ? cap1 : capN);
-    const max1 = Math.max(1, Math.floor(cap1 / ROW));
-    const maxN = Math.max(1, Math.floor(capN / ROW));
+  /* Phân trang ĐO DOM THẬT theo đúng kích thước vùng in A4 (mm → px):
+     - Đo chiều cao thực tế của khối thông tin đầu trang 1 (.px-info có thể giãn
+       khi nhiều PO / địa chỉ dài) → không bao giờ bị tràn hoặc mất dòng cuối trang 1.
+     - Đo chiều cao thực tế từng dòng bảng (dòng thường ~6.1mm, dòng MIX 2 dòng ~9.6mm)
+       bằng tổng vi sai toạ độ (telescopic sum) → lấp đầy trang 2, 3… sát chân trang,
+       triệt tiêu khoảng trắng thừa.
+     - Trang cuối tự kiểm tra vừa TỔNG CỘNG + XÁC NHẬN ở chế độ thường / nén (compact)
+       hoặc tách trang hợp lý. */
+  const PROBE_CSS = `
+    #pxmPage,#pxmPage *{box-sizing:border-box;margin:0;padding:0}
+    #pxmPage{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#111;font-size:12px;line-height:1.45;background:#fff}
+    #pxmPage .px-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+    #pxmPage .px-co{font-weight:800;font-size:13px}
+    #pxmPage .px-co-sub{font-size:11px;color:#333}
+    #pxmPage .px-form-no{text-align:right;font-size:10.2px;max-width:330px;color:#333}
+    #pxmPage .px-title{text-align:center;font-size:19px;font-weight:800;letter-spacing:.02em;margin:14px 0 12px}
+    #pxmPage .px-title span{font-size:12px;font-weight:700}
+    #pxmPage .px-info{display:grid;grid-template-columns:1fr 1fr;gap:0 26px}
+    #pxmPage .px-row{display:flex;border-bottom:1px dotted #c9ced6;padding:3.5px 0;gap:8px}
+    #pxmPage .px-lab{width:158px;flex-shrink:0;font-weight:700;color:#333;font-size:11.2px}
+    #pxmPage .px-val{flex:1;font-size:11.8px}
+    #pxmPage .px-cont-info{font-size:11.5px;color:#333;border:1px dotted #c9ced6;border-radius:6px;padding:6px 10px;margin-bottom:8px}
+    #pxmPage .px-sec{font-weight:800;font-size:12.5px;margin:14px 0 6px;letter-spacing:.04em}
+    #pxmPage .px-tbl{width:100%;border-collapse:collapse;font-size:11px}
+    #pxmPage .px-tbl th,#pxmPage .px-tbl td{border:1px solid #6b7280;padding:3.5px 5px;text-align:left}
+    #pxmPage .px-tbl th{background:#f1f3f6;font-size:10px;text-transform:uppercase;letter-spacing:.02em;text-align:center}
+    #pxmPage .px-tbl .c{text-align:center}#pxmPage .px-tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+    #pxmPage .px-tbl .nw{white-space:nowrap}
+    #pxmPage .px-tbl .px-total td{font-weight:800;background:#f7f8fa}
+    #pxmPage .px-carry td{text-align:right!important;color:#667085;font-style:italic}
+    #pxmPage .px-mix{font-size:9.6px;font-weight:600;color:#333;white-space:nowrap}
+    #pxmPage .px-sign-tbl{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
+    #pxmPage .px-sign-tbl th{background:#1f4e79;color:#fff;font-size:10.8px;font-weight:800;letter-spacing:.02em;border:1px solid #16385a;padding:5px 4px;text-align:left}
+    #pxmPage .px-sign-tbl td{border:1px solid #9aa3b2;border-top:0;vertical-align:top;padding:7px 8px 6px;font-size:10.6px}
+    #pxmPage .px-sign-tbl .px-ky{color:#555;font-style:italic}
+    #pxmPage .px-sign-tbl .px-sign-space{height:92px}
+    #pxmPage .px-sign-tbl i{font-style:normal;color:#111;display:block;border-top:1px dotted #c9ced6;padding-top:4px}
+    #pxmPage .px-foot{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #c9ced6;padding-top:6px;font-size:10.2px;color:#555}
+    #pxmPage.compact .px-tbl th{padding:2.5px 4px;font-size:9.4px}
+    #pxmPage.compact .px-tbl td{padding:2px 4px;font-size:10px}
+    #pxmPage.compact .px-mix{font-size:8.8px}
+    #pxmPage.compact .px-sign-tbl th{padding:3.5px 4px;font-size:10px}
+    #pxmPage.compact .px-sign-tbl td{padding:3px 5px;font-size:9.6px}
+    #pxmPage.compact .px-sign-tbl .px-sign-space{height:64px}
+    #pxmPage.compact .px-sec{margin:8px 0 4px}
+    #pxmPage.compact .px-cont-info{padding:4px 8px;margin-bottom:5px}
+  `;
 
-    /* 1. Chia thô theo sức chứa từng trang */
-    const chunks = [{ s: 0, e: Math.min(rowCount, max1), compact: false }];
-    let p = chunks[0].e;
+  function paginateByDOM(s, rowsH, totalRow, orient) {
+    const rowCount = rowsH.length;
+    if (!rowCount) return [{ s: 0, e: 0, compact: false }];
+
+    const land = orient === "landscape";
+    const probe = document.createElement("div");
+    probe.style.cssText = `position:fixed;left:-10000px;top:0;width:${land ? "279mm" : "192mm"};visibility:hidden;pointer-events:none;z-index:-1`;
+    probe.innerHTML = `<style>${PROBE_CSS}</style>
+      <div id="pxmRef" style="height:${land ? "189mm" : "276mm"}"></div>
+      <div id="pxmPage">
+        <div id="pxmTop1" style="display:flex;flex-direction:column">${pxkHead(s, false)}${pxkInfoBlock(s)}<div class="px-sec">CHI TIẾT XUẤT KHO</div></div>
+        <div id="pxmTopN" style="display:flex;flex-direction:column"><div class="px-cont-info">PHIẾU XUẤT KHO <b>${U.esc(s.code)}</b> (tiếp theo — trang 9/9) · Lệnh GH: ${U.esc(s.lgh)} · Xuất cho: ${U.esc(s.receiver)}</div></div>
+        <table class="px-tbl" id="pxmTbl">${PX_THEAD}<tbody>${rowsH.join("")}${totalRow}<tr id="pxmCarry" class="px-carry"><td colspan="12">(còn tiếp trang 9/9…)</td></tr></tbody></table>
+        <div id="pxmSign" style="display:flex;flex-direction:column">${pxkSignBlock(s)}</div>
+        <div class="px-foot" id="pxmFoot">
+          <span>${U.esc(s.code)} · In ngày 01/01/2026</span>
+          <span>TVS — hệ thống N-X-T adidas Rubber Boots · A4 ${land ? "ngang" : "đứng"}</span>
+          <span class="px-pageno">Trang 9/9</span>
+        </div>
+      </div>`;
+    document.body.appendChild(probe);
+
+    const pageEl = probe.querySelector("#pxmPage");
+    const pageH = probe.querySelector("#pxmRef").getBoundingClientRect().height;
+    const top1El = probe.querySelector("#pxmTop1");
+    const topNEl = probe.querySelector("#pxmTopN");
+    const tblEl = probe.querySelector("#pxmTbl");
+    const signEl = probe.querySelector("#pxmSign");
+    const footEl = probe.querySelector("#pxmFoot");
+
+    function measure(compact) {
+      pageEl.classList.toggle("compact", !!compact);
+      const footH = footEl.getBoundingClientRect().height;
+      const top1H = top1El.getBoundingClientRect().height;
+      const topNH = topNEl.getBoundingClientRect().height;
+      const signH = signEl.getBoundingClientRect().height;
+      const tRect = tblEl.getBoundingClientRect();
+      const trs = tblEl.tBodies[0].rows;
+      const theadH = trs.length ? (trs[0].getBoundingClientRect().top - tRect.top) : tblEl.tHead.getBoundingClientRect().height;
+      const rowH = new Float64Array(rowCount);
+      for (let i = 0; i < rowCount; i++) {
+        rowH[i] = trs[i + 1].getBoundingClientRect().top - trs[i].getBoundingClientRect().top;
+      }
+      const totalH = (trs[rowCount + 1].getBoundingClientRect().top - trs[rowCount].getBoundingClientRect().top) + 1;
+      const cRect = trs[rowCount + 1].getBoundingClientRect();
+      const carryH = cRect.bottom - cRect.top;
+      /* Trừ 8px khoảng đệm trên footer + 6px dự phòng sai số làm tròn khi in */
+      const usableH = pageH - footH - 14;
+      return { usableH, top1H, topNH, theadH, rowH, totalH, carryH, signH };
+    }
+
+    const M = measure(false);
+    const MC = measure(true);
+    probe.remove();
+
+    const pref = new Float64Array(rowCount + 1);
+    const prefC = new Float64Array(rowCount + 1);
+    for (let i = 0; i < rowCount; i++) {
+      pref[i + 1] = pref[i] + M.rowH[i];
+      prefC[i + 1] = prefC[i] + MC.rowH[i];
+    }
+    const sumR = (m, sIdx, eIdx) => (m === MC ? prefC[eIdx] - prefC[sIdx] : pref[eIdx] - pref[sIdx]);
+    const bodyCap = (m, pi) => m.usableH - (pi === 0 ? m.top1H : m.topNH) - m.theadH;
+
+    /* 1. Chia dòng tuần tự theo chiều cao đo thật của từng trang */
+    const chunks = [];
+    let p = 0;
     while (p < rowCount) {
-      chunks.push({ s: p, e: Math.min(rowCount, p + maxN), compact: false });
-      p = chunks[chunks.length - 1].e;
+      const pi = chunks.length;
+      const cap = bodyCap(M, pi);
+      if (sumR(M, p, rowCount) + M.totalH <= cap) {
+        chunks.push({ s: p, e: rowCount, compact: false });
+        break;
+      }
+      const maxDataH = cap - M.carryH;
+      let e = p;
+      while (e < rowCount && sumR(M, p, e + 1) <= maxDataH) e++;
+      if (e === p) e = p + 1;
+      chunks.push({ s: p, e, compact: false });
+      p = e;
     }
 
-    /* 2. Trang cuối phải chứa vừa TỔNG + KHỐI KÝ */
+    /* 2. Kiểm tra trang cuối chứa TỔNG CỘNG + KHỐI KÝ XÁC NHẬN */
     const li = chunks.length - 1;
-    const rows = chunks[li].e - chunks[li].s;
-    const cap = capOf(li);
-    if (rows * ROW + TOTAL + SIGN <= cap) return chunks;                       // vừa ở cỡ thường
+    const sIdx = chunks[li].s, eIdx = chunks[li].e;
+    const rows = eIdx - sIdx;
 
-    /* 2a. NÉN trang cuối (tự co dòng) */
-    if (rows * ROWC + TOTALC + SIGNC <= cap) {
-      chunks[li].compact = true;
-      return chunks;
-    }
-    /* 2b. Trang cuối ít dòng → thử GỘP về trang trước rồi nén trang đó */
-    if (chunks.length >= 2 && rows <= 6) {
-      const prevRows = (chunks[li - 1].e - chunks[li - 1].s) + rows;
-      if (prevRows * ROWC + TOTALC + SIGNC <= capOf(li - 1)) {
-        chunks[li - 1].e = chunks[li].e;
+    /* 2a. Nếu trang cuối chỉ lẻ vài dòng (<= 5), ưu tiên thử gộp về trang trước ở chế độ nén */
+    if (chunks.length >= 2 && rows <= 5) {
+      const prevS = chunks[li - 1].s;
+      if (sumR(MC, prevS, eIdx) + MC.totalH + MC.signH <= bodyCap(MC, li - 1)) {
+        chunks[li - 1].e = eIdx;
         chunks[li - 1].compact = true;
         chunks.pop();
         return chunks;
       }
     }
-    /* 2c. Bất đắc dĩ: tách trang ký — kéo theo vài dòng cuối để trang ký không trống trơ */
-    const moveN = Math.min(4, Math.max(1, rows - 1));
-    const cut = chunks[li].e - moveN;
+
+    /* 2b. Trang cuối vừa ở cỡ thường */
+    if (sumR(M, sIdx, eIdx) + M.totalH + M.signH <= bodyCap(M, li)) return chunks;
+
+    /* 2c. Trang cuối vừa khi bật chế độ nén (compact) */
+    if (sumR(MC, sIdx, eIdx) + MC.totalH + MC.signH <= bodyCap(MC, li)) {
+      chunks[li].compact = true;
+      return chunks;
+    }
+
+    /* 2d. Không đủ chỗ cho khối ký → giữ tối đa dòng ở trang hiện tại + đẩy vài dòng cuối sang trang ký */
+    const minMove = Math.min(3, Math.max(1, rows - 1));
+    const maxKeepEnd = eIdx - minMove;
+    const maxDataH = bodyCap(M, li) - M.carryH;
+    let cut = sIdx;
+    while (cut < maxKeepEnd && sumR(M, sIdx, cut + 1) <= maxDataH) cut++;
+    if (cut === sIdx) cut = Math.min(eIdx - 1, sIdx + 1);
     chunks[li].e = cut;
-    chunks.push({ s: cut, e: cut + moveN, compact: false });
+    const needCompactLast = (sumR(M, cut, eIdx) + M.totalH + M.signH > bodyCap(M, li + 1)) &&
+                            (sumR(MC, cut, eIdx) + MC.totalH + MC.signH <= bodyCap(MC, li + 1));
+    chunks.push({ s: cut, e: eIdx, compact: needCompactLast });
     return chunks;
   }
 
@@ -775,7 +891,7 @@
       <td class="r">${U.fmt(totalCtn)}</td><td></td></tr>`;
 
     const rowsH = s.lines.map((l, i) => pxkLineRow(l, i));
-    const chunks = paginate(rowsH.length, orient);
+    const chunks = paginateByDOM(s, rowsH, totalRow, orient);
     const n = chunks.length;
     const hasCompact = chunks.some(c => c.compact);
     const printedAt = U.fmtDate(TVS_META.today);
@@ -790,7 +906,7 @@
         ${isFirst ? `<div class="px-sec">CHI TIẾT XUẤT KHO</div>` : ""}
         ${(chunk.length || isLast) ? `<table class="px-tbl">${PX_THEAD}<tbody>
           ${chunk.join("")}
-          ${isLast ? totalRow : `<tr><td colspan="12" class="px-carry">(còn tiếp trang ${pi + 2}/${n}…)</td></tr>`}
+          ${isLast ? totalRow : `<tr class="px-carry"><td colspan="12" class="px-carry">(còn tiếp trang ${pi + 2}/${n}…)</td></tr>`}
         </tbody></table>` : `<div class="px-carry-d">(chi tiết xuất kho tiếp tục ở trang ${pi + 2}/${n}…)</div>`}
         ${isLast ? pxkSignBlock(s) : ""}
         <div class="px-foot">

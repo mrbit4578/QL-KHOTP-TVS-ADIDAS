@@ -214,7 +214,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#fff}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#111;font-size:12px;line-height:1.45}
-.px-page{position:relative;height:276mm;overflow:hidden;padding:0 0 12mm;page-break-after:always;break-after:page}
+.px-page{display:flex;flex-direction:column;position:relative;height:276mm;overflow:hidden;padding:0;page-break-after:always;break-after:page}
 .px-page.land{height:189mm}
 .px-page:last-child{page-break-after:auto;break-after:auto}
 .px-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
@@ -235,7 +235,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .px-tbl .c{text-align:center}.px-tbl .r{text-align:right;font-variant-numeric:tabular-nums}
 .px-tbl .nw{white-space:nowrap}
 .px-tbl .px-total td{font-weight:800;background:#f7f8fa;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.px-carry td{text-align:right!important;color:#667085;font-style:italic}
+.px-carry td,td.px-carry{text-align:right!important;color:#667085;font-style:italic}
 .px-carry-d{font-size:11px;color:#667085;font-style:italic;text-align:right;padding:8px 2px}
 .px-mix{font-size:9.6px;font-weight:600;color:#333;white-space:nowrap}
 .px-sign-tbl{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
@@ -244,7 +244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 .px-sign-tbl .px-ky{color:#555;font-style:italic}
 .px-sign-tbl .px-sign-space{height:92px}
 .px-sign-tbl i{font-style:normal;color:#111;display:block;border-top:1px dotted #c9ced6;padding-top:4px}
-.px-foot{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:10px;border-top:1px solid #c9ced6;padding-top:6px;font-size:10.2px;color:#555;background:#fff}
+.px-foot{margin-top:auto;display:flex;justify-content:space-between;gap:10px;border-top:1px solid #c9ced6;padding-top:6px;font-size:10.2px;color:#555;background:#fff;flex-shrink:0}
 .px-foot .px-pageno{font-weight:800;color:#111}
 .px-page.compact .px-tbl th{padding:2.5px 4px;font-size:9.4px}
 .px-page.compact .px-tbl td{padding:2px 4px;font-size:10px}
