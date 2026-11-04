@@ -4,7 +4,8 @@
    • Mọi người (viewer) tải dữ liệu chung khi mở web — luôn thấy số liệu mới
    • Tài khoản nhập liệu (có GitHub Token) ghi thay đổi = 1 commit
      "Cập nhật dữ liệu bởi <user>" → lịch sử thay đổi xem được trên GitHub
-   • Không có token → API GitHub từ chối ghi (phân quyền THẬT)
+   • Không có token hoặc token sai/hết hạn → thông báo lỗi rõ ràng, cho phép
+     kiểm tra và cập nhật token trực tiếp, không làm mất dữ liệu trên máy.
    ═══════════════════════════════════════════════════════════════════ */
 (function () {
   "use strict";
@@ -12,7 +13,16 @@
   const CFG = window.TVS_GH || {};
   const API = () => `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${CFG.dataPath}`;
 
-  Sync.state = { sha: null, lastSync: null, lastBy: null, syncing: false, pending: false, error: null, offline: false };
+  Sync.state = {
+    sha: null,
+    lastSync: null,
+    lastBy: null,
+    syncing: false,
+    pending: false,
+    error: null,
+    offline: false,
+    lastHttpStatus: null
+  };
 
   const b64decodeUtf8 = b64 => {
     const bin = atob(b64.replace(/\n/g, ""));
@@ -26,12 +36,20 @@
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   };
-  const headers = () => {
-    const h = { Accept: "application/vnd.github+json" };
+
+  const headers = (isPut = false) => {
+    const h = {
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+    if (isPut) {
+      h["Content-Type"] = "application/json";
+    }
     const t = window.Auth ? Auth.token() : "";
     if (t) h.Authorization = "Bearer " + t;
     return h;
   };
+
   const chip = () => { if (window.App && App.renderSyncChip) App.renderSyncChip(); };
 
   /* Gộp an toàn dữ liệu remote & local khi xảy ra xung đột 409 hoặc đang chờ lưu */
@@ -60,64 +78,166 @@
       orderEdits: mergeEdits(remote.orderEdits, local.orderEdits),
       seedReceiptsOff: local.seedReceiptsOff !== undefined ? local.seedReceiptsOff : !!remote.seedReceiptsOff,
       packingAdded: Object.assign({}, remote.packingAdded || {}, local.packingAdded || {}),
+      packingMeta: Object.assign({}, remote.packingMeta || {}, local.packingMeta || {}),
       packingLog: mergeArr(remote.packingLog, local.packingLog, x => (x.at || "") + "|" + (x.file || "")),
     };
+  };
+
+  /* ── KIỂM TRA QUYỀN VÀ TRẠNG THÁI GITHUB TOKEN ── */
+  Sync.testToken = async function (customToken) {
+    const t = (customToken !== undefined ? customToken : (window.Auth ? Auth.token() : "")).trim();
+    if (!t) return { ok: false, msg: "Chưa cấu hình GitHub Token" };
+    try {
+      // 1. Kiểm tra xác thực user / token
+      const rUser = await fetch("https://api.github.com/user", {
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": "Bearer " + t,
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (rUser.status === 401) {
+        return { ok: false, status: 401, msg: "Token không hợp lệ hoặc đã hết hạn (401 Bad credentials)" };
+      }
+      const uData = rUser.ok ? await rUser.json() : null;
+      const ghUser = uData ? uData.login : "User";
+
+      // 2. Kiểm tra quyền truy cập repository
+      const rRepo = await fetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}`, {
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": "Bearer " + t,
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (rRepo.status === 404) {
+        return { ok: false, status: 404, msg: `Không tìm thấy repository ${CFG.owner}/${CFG.repo} hoặc Token không có quyền truy cập repo này` };
+      }
+      if (rRepo.status === 401 || rRepo.status === 403) {
+        return { ok: false, status: rRepo.status, msg: `Token bị từ chối truy cập repository (${rRepo.status})` };
+      }
+      const repoData = await rRepo.json();
+      const perms = repoData.permissions || {};
+      const canPush = perms.push === true || perms.admin === true;
+
+      return {
+        ok: true,
+        user: ghUser,
+        canPush: canPush,
+        permissions: perms,
+        msg: canPush
+          ? `✓ Token hợp lệ! User: ${ghUser} · Có quyền Ghi/Push vào ${CFG.repo}`
+          : `⚠ Token hợp lệ nhưng CHỈ CÓ QUYỀN ĐỌC (không có quyền Ghi vào ${CFG.repo}). Hãy tạo token có quyền "Contents: Read and write".`
+      };
+    } catch (e) {
+      return { ok: false, msg: "Lỗi kết nối mạng tới GitHub API: " + (e.message || e) };
+    }
   };
 
   /* ── TẢI dữ liệu chung từ GitHub ── */
   Sync.load = async function () {
     if (!CFG.owner) return;
-    Sync.state.syncing = true; Sync.state.error = null; chip();
+    Sync.state.syncing = true;
+    chip();
     try {
       const r = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
-      if (r.status === 404) { Sync.state.sha = null; Sync.state.syncing = false; chip(); return; }
-      if (!r.ok) throw new Error("GitHub " + r.status);
+      Sync.state.lastHttpStatus = r.status;
+      if (r.status === 404) {
+        Sync.state.sha = null;
+        Sync.state.syncing = false;
+        chip();
+        return;
+      }
+      if (!r.ok) throw new Error("GitHub HTTP " + r.status);
       const j = await r.json();
       Sync.state.sha = j.sha;
       const data = JSON.parse(b64decodeUtf8(j.content));
       if (window.Store && Store.replaceLocal) {
-        const merged = Sync.state.pending ? Sync.mergePayload(data, Store.local) : data;
+        // Bảo vệ dữ liệu local: luôn gộp nếu trên máy có phiếu xuất kho hoặc dữ liệu mới
+        const hasLocal = Store.local && (
+          (Store.local.shipments && Store.local.shipments.length > 0) ||
+          (Store.local.ordersAdded && Store.local.ordersAdded.length > 0) ||
+          (Store.local.receiptsAdded && Store.local.receiptsAdded.length > 0) ||
+          (Store.local.receiptEdits && Object.keys(Store.local.receiptEdits).length > 0) ||
+          (Store.local.orderEdits && Object.keys(Store.local.orderEdits).length > 0)
+        );
+        const merged = (Sync.state.pending || hasLocal) ? Sync.mergePayload(data, Store.local) : data;
         Store.replaceLocal(merged);
       }
       Sync.state.lastSync = new Date();
       Sync.state.lastBy = data.meta && data.meta.updatedBy || null;
       Sync.state.offline = false;
+      Sync.state.error = null;
     } catch (e) {
       Sync.state.error = String(e.message || e);
       Sync.state.offline = true;
+    } finally {
+      Sync.state.syncing = false;
+      chip();
     }
-    Sync.state.syncing = false; chip();
   };
 
   /* ── GHI dữ liệu chung lên GitHub (chỉ editor có token) ── */
   let timer = null;
   Sync.queue = function () {
-    if (!(window.Auth && Auth.canEdit() && Auth.token())) return;
-    Sync.state.pending = true; chip();
+    if (!(window.Auth && Auth.canEdit())) return;
+    Sync.state.pending = true;
+    Sync.state.error = null;
+    chip();
     clearTimeout(timer);
     timer = setTimeout(() => Sync.save(), 1600);
   };
 
   Sync.save = async function (retried) {
-    if (!(window.Auth && Auth.canEdit())) return;
-    if (!Auth.token()) { App.toast("⚠ Chưa có GitHub Token — dữ liệu chỉ lưu trên máy này. Đăng nhập lại và dán token để đồng bộ.", "warn"); return; }
-    Sync.state.syncing = true; Sync.state.error = null; chip();
+    if (!(window.Auth && Auth.canEdit())) {
+      App.toast("Tài khoản hiện tại không có quyền ghi (chế độ chỉ xem)", "warn");
+      return;
+    }
+    const tok = Auth.token();
+    if (!tok) {
+      Sync.state.error = "Chưa có GitHub Token (cần cài đặt token để lưu online)";
+      Sync.state.pending = false;
+      chip();
+      App.toast("⚠ Chưa có GitHub Token — bấm vào chip đồng bộ để nhập Token", "warn");
+      return;
+    }
+    Sync.state.syncing = true;
+    Sync.state.error = null;
+    chip();
     try {
+      // 1. Nếu chưa có SHA trong bộ nhớ, tự động lấy SHA hiện tại trên GitHub
+      if (!Sync.state.sha) {
+        try {
+          const g = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
+          if (g.ok) {
+            const gj = await g.json();
+            Sync.state.sha = gj.sha;
+          }
+        } catch (_) {}
+      }
+
+      // 2. Chuẩn bị payload dữ liệu
       const payload = Object.assign({}, Store.local, {
         meta: { updatedAt: new Date().toISOString(), updatedBy: Auth.current.u, app: "TVS N-X-T v4" }
       });
       const jsonStr = (window.Store && Store.stringifyCompact)
         ? Store.stringifyCompact(payload)
         : JSON.stringify(payload, null, 1);
+
       const body = {
         message: `Cập nhật dữ liệu bởi ${Auth.current.u} (${Auth.current.name}) — ${new Date().toLocaleString("vi-VN")}`,
         content: b64encodeUtf8(jsonStr),
         branch: CFG.branch,
       };
       if (Sync.state.sha) body.sha = Sync.state.sha;
-      const r = await fetch(API(), { method: "PUT", headers: headers(), body: JSON.stringify(body) });
+
+      // 3. Gửi PUT lên GitHub
+      const r = await fetch(API(), { method: "PUT", headers: headers(true), body: JSON.stringify(body) });
+      Sync.state.lastHttpStatus = r.status;
+
+      // Xử lý xung đột SHA (409 Conflict hoặc 422 Mismatch)
       if (r.status === 409 || r.status === 422) {
-        if (!retried) {   /* sha lệch (người khác vừa ghi) → tải bản mới, gộp với bản local rồi ghi lại */
+        if (!retried) {
           const g = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
           if (g.ok) {
             const gj = await g.json();
@@ -126,36 +246,53 @@
               const remoteData = JSON.parse(b64decodeUtf8(gj.content));
               const merged = Sync.mergePayload(remoteData, Store.local);
               if (window.Store && Store.replaceLocal) Store.replaceLocal(merged);
-            } catch (err) {}
+            } catch (_) {}
           }
-          Sync.state.syncing = false;
-          App.toast("⚠ Có người vừa cập nhật dữ liệu — hệ thống đã tự động gộp dữ liệu và đồng bộ lại", "warn");
-          return Sync.save(true);
+          App.toast("⚠ Có phiên bản mới trên GitHub — hệ thống đang tự động gộp và đồng bộ lại...", "warn");
+          return await Sync.save(true);
         }
-        throw new Error("Xung đột dữ liệu (409)");
+        throw new Error("Xung đột phiên bản SHA trên GitHub (409/422). Vui lòng thử bấm 'Tải lại' rồi lưu lại.");
       }
-      if (r.status === 401 || r.status === 403) throw new Error("Token không có quyền ghi (401/403)");
-      if (!r.ok) throw new Error("GitHub " + r.status);
+
+      if (r.status === 401) {
+        throw new Error("GitHub Token không hợp lệ hoặc đã hết hạn (401 Bad credentials)");
+      }
+      if (r.status === 403) {
+        throw new Error("GitHub Token không có quyền ghi repo này (403 Forbidden). Cần quyền Contents: Read and write.");
+      }
+      if (!r.ok) {
+        let errDetail = "";
+        try {
+          const errJ = await r.json();
+          if (errJ && errJ.message) errDetail = ": " + errJ.message;
+        } catch (_) {}
+        throw new Error(`GitHub API lỗi ${r.status}${errDetail}`);
+      }
+
       const j = await r.json();
       Sync.state.sha = j.content.sha;
       Sync.state.lastSync = new Date();
       Sync.state.lastBy = Auth.current.u;
       Sync.state.pending = false;
+      Sync.state.error = null;
       Sync.state.offline = false;
-      App.toast("☁ Đã lưu dữ liệu lên GitHub (" + U.esc(Auth.current.name) + ")", "ok");
+      App.toast("☁ Đã lưu dữ liệu lên GitHub thành công (" + U.esc(Auth.current.name) + ")", "ok");
     } catch (e) {
       Sync.state.error = String(e.message || e);
-      App.toast("⚠ Lỗi đồng bộ GitHub: " + U.esc(Sync.state.error), "warn");
+      Sync.state.pending = false;
+      App.toast("⚠ " + Sync.state.error, "bad");
+    } finally {
+      Sync.state.syncing = false;
+      chip();
     }
-    Sync.state.syncing = false; chip();
   };
 
   /* Trạng thái hiển thị cho chip topbar */
   Sync.label = function () {
     if (!CFG.owner) return null;
     if (Sync.state.syncing) return { cls: "warn", txt: "Đang đồng bộ…" };
+    if (Sync.state.error) return { cls: "bad", txt: "Lỗi đồng bộ ☁" };
     if (Sync.state.pending) return { cls: "warn", txt: "Chờ lưu ☁" };
-    if (Sync.state.error) return { cls: "bad", txt: "Lỗi đồng bộ" };
     if (Sync.state.lastSync) {
       const hh = Sync.state.lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
       return { cls: "ok", txt: "☁ GitHub " + hh + (Sync.state.lastBy ? " · " + Sync.state.lastBy : "") };

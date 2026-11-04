@@ -74,6 +74,17 @@
   Auth.current = null;
   try { Auth.current = JSON.parse(get("TVS_SESSION") || "null"); } catch (e) {}
   Auth.token = () => get("TVS_GH_TOKEN") || "";
+  Auth.setToken = function (token) {
+    if (!token || !token.trim()) {
+      set("TVS_GH_TOKEN", null);
+    } else {
+      set("TVS_GH_TOKEN", token.trim());
+    }
+    if (window.Sync) {
+      Sync.state.error = null;
+      if (window.App && App.renderSyncChip) App.renderSyncChip();
+    }
+  };
   Auth.canEdit = () => !!(Auth.current && Auth.current.role === "editor");
   Auth.userName = () => Auth.current ? Auth.current.name : "Khách (chỉ xem)";
 

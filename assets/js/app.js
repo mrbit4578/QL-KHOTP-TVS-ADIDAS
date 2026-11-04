@@ -419,6 +419,218 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     };
   };
 
+  /* ── Tải file JSON dự phòng khẩn cấp về máy tính ── */
+  App.downloadBackupJson = function () {
+    if (!window.Store || !Store.local) return;
+    const data = Object.assign({}, Store.local, {
+      meta: {
+        exportedAt: new Date().toISOString(),
+        user: window.Auth && Auth.current ? Auth.current.u : "guest",
+        app: "TVS N-X-T v4"
+      }
+    });
+    const jsonStr = (window.Store && Store.stringifyCompact)
+      ? Store.stringifyCompact(data)
+      : JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const pad = n => String(n).padStart(2, "0");
+    const now = new Date();
+    const ds = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+    a.href = url;
+    a.download = `tvs-data-backup-${ds}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    App.toast("💾 Đã tải file sao lưu JSON về máy tính (" + a.download + ")", "ok");
+  };
+
+  /* ── Modal Quản lý & Trạng thái đồng bộ GitHub ── */
+  App.openSyncModal = function () {
+    if (!window.Sync) return;
+    const s = Sync.label() || { cls: "neu", txt: "Chưa đồng bộ" };
+    const tok = window.Auth ? Auth.token() : "";
+    const st = Sync.state || {};
+    const err = st.error;
+    const canEdit = window.Auth && Auth.canEdit();
+    const curUser = window.Auth && Auth.current ? Auth.current.name : "Khách (chỉ xem)";
+    const shipmentCount = (window.Store && Store.local && Store.local.shipments) ? Store.local.shipments.length : 0;
+    const lastSyncTime = st.lastSync ? st.lastSync.toLocaleString("vi-VN") : "Chưa đồng bộ trong phiên này";
+    const shortSha = st.sha ? st.sha.substring(0, 7) : "Chưa có";
+
+    let statusHtml = "";
+    if (st.syncing) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--warn);background:var(--warn-bg)"><div class="k-val" style="color:var(--warn);font-size:16px">⏳ Đang tiến hành đồng bộ dữ liệu với GitHub...</div></div>`;
+    } else if (err) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--bad);background:var(--bad-bg)">
+        <div class="k-val" style="color:var(--bad);font-size:15px;word-break:break-word">⚠ Lỗi: ${U.esc(err)}</div>
+        <div class="note" style="margin-top:6px;color:var(--bad)">
+          ${err.includes("401")
+            ? "<b>Nguyên nhân:</b> GitHub Personal Access Token của bạn đã hết hạn (expired) hoặc không đúng. Hãy tạo lại Token mới và dán vào ô bên dưới."
+            : err.includes("403")
+            ? "<b>Nguyên nhân:</b> Token không có quyền ghi. Cần tạo Token fine-grained với quyền <b>Contents: Read and write</b> trên repo <b>QL-KHOTP-TVS-ADIDAS</b>."
+            : err.includes("409") || err.includes("422")
+            ? "<b>Nguyên nhân:</b> Xung đột phiên bản SHA trên GitHub. Bấm nút <b>'Tải lại từ GitHub (Gộp an toàn)'</b> để hệ thống gộp phiên bản mới nhất rồi lưu lại."
+            : "<b>Khắc phục:</b> Kiểm tra kết nối mạng hoặc thử lại sau vài giây. Dữ liệu trên máy bạn vẫn an toàn 100%."}
+        </div>
+      </div>`;
+    } else if (st.pending) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--warn);background:var(--warn-bg)">
+        <div class="k-val" style="color:var(--warn);font-size:15px">⏳ Chờ lưu ☁ — Có thay đổi dữ liệu trên máy chưa được ghi lên GitHub</div>
+      </div>`;
+    } else if (st.lastSync) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--ok);background:var(--ok-bg)">
+        <div class="k-val" style="color:var(--ok);font-size:15px">✓ Đã đồng bộ thành công với GitHub lúc ${lastSyncTime}</div>
+        <div class="k-sub" style="margin-top:4px">Bởi: <b>${U.esc(st.lastBy || "hệ thống")}</b> · Commit SHA: <code>${shortSha}</code></div>
+      </div>`;
+    } else {
+      statusHtml = `<div class="card kpi"><div class="k-val" style="font-size:15px">☁ Chưa thực hiện đồng bộ trong phiên làm việc này</div></div>`;
+    }
+
+    App.openModal(`
+      <div class="modal-h">
+        <h3>☁ Quản lý & Trạng thái đồng bộ GitHub</h3>
+        <span class="bdg ${s.cls}">${s.txt}</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b" style="max-width:640px">
+        ${statusHtml}
+
+        <div class="grid g-2" style="gap:10px;margin-top:12px">
+          <div class="card" style="padding:10px 12px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase">Tài khoản & Phân quyền</div>
+            <div style="font-size:14px;font-weight:700;margin-top:2px">${U.esc(curUser)}</div>
+            <div style="font-size:12px;color:${canEdit ? "var(--ok)" : "var(--warn)"};margin-top:2px">
+              ${canEdit ? "✓ Quyền Nhập liệu (được ghi online)" : "⚠ Chế độ Chỉ xem (không được sửa dữ liệu)"}
+            </div>
+          </div>
+          <div class="card" style="padding:10px 12px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase">Dữ liệu hiện tại trên máy</div>
+            <div style="font-size:14px;font-weight:700;margin-top:2px">${shipmentCount} phiếu xuất kho</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">SHA kho dữ liệu: <code>${shortSha}</code></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;padding:12px">
+          <div style="font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center">
+            <span>🔑 GitHub Personal Access Token (PAT)</span>
+            <span class="note" style="font-weight:normal">${tok ? `<span style="color:var(--ok)">✓ Đã lưu token</span>` : `<span style="color:var(--warn)">⚠ Chưa có token</span>`}</span>
+          </div>
+          <div style="font-size:12px;color:#aaa;margin-top:4px">
+            Token dùng để xác thực quyền GHI vào file <code>data/tvs-data.json</code> trên repository GitHub.
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <input id="syncModalTok" type="password" value="${tok ? tok : ""}" placeholder="${tok ? "•••••••• (Dán token mới nếu cần thay thế)" : "Dán GitHub Token (github_pat_... hoặc ghp_...)"}" style="flex:1;font-family:monospace;font-size:12px">
+            <button class="btn" id="btnTestTok" title="Kiểm tra token có quyền ghi không">🔍 Kiểm tra</button>
+            <button class="btn primary" id="btnSaveTok" title="Lưu token vào máy này">Lưu</button>
+            ${tok ? `<button class="btn danger small" id="btnClearTok" title="Xóa token khỏi máy">Xóa</button>` : ""}
+          </div>
+          <div id="syncTokResult" style="margin-top:8px;font-size:12px;display:none"></div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center">
+          <button class="btn primary" id="btnSyncNow" ${canEdit ? "" : "disabled"} title="Ghi toàn bộ dữ liệu trên máy lên GitHub">
+            ☁ Lưu ngay lên GitHub
+          </button>
+          <button class="btn" id="btnPullMerge" title="Tải bản mới nhất từ GitHub và tự động gộp với dữ liệu trên máy">
+            ↺ Tải lại từ GitHub (Gộp an toàn)
+          </button>
+          <button class="btn" id="btnDownloadBackup" style="margin-left:auto" title="Tải ngay file JSON đầy đủ về ổ cứng máy tính">
+            💾 Tải file JSON dự phòng (.json)
+          </button>
+        </div>
+
+        <div class="note mt" style="font-size:11.5px;line-height:1.6">
+          <b>💡 Hướng dẫn tạo GitHub Token mới nếu bị lỗi 401/403:</b><br>
+          1. Vào GitHub → <b>Settings</b> → <b>Developer Settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b> (hoặc Tokens classic).<br>
+          2. Chọn <b>Generate new token</b> → Chọn repository: <b>QL-KHOTP-TVS-ADIDAS</b>.<br>
+          3. Mục <b>Permissions</b> → chọn <b>Repository permissions</b> → <b>Contents: Read and write</b>.<br>
+          4. Bấm <b>Generate token</b>, sao chép mã và dán vào ô trên rồi bấm <b>Lưu</b>.
+        </div>
+      </div>
+    `);
+
+    // Gắn sự kiện các nút
+    const tokIn = document.getElementById("syncModalTok");
+    const tokRes = document.getElementById("syncTokResult");
+
+    const btnTest = document.getElementById("btnTestTok");
+    if (btnTest) {
+      btnTest.onclick = async () => {
+        const tVal = tokIn.value.trim();
+        if (!tVal) {
+          tokRes.style.display = "block";
+          tokRes.innerHTML = `<span style="color:var(--bad)">⚠ Vui lòng dán token vào ô trước khi kiểm tra</span>`;
+          return;
+        }
+        btnTest.disabled = true;
+        btnTest.textContent = "Đang kiểm tra...";
+        tokRes.style.display = "block";
+        tokRes.innerHTML = `<span style="color:var(--warn)">⏳ Đang kết nối GitHub API để kiểm tra quyền...</span>`;
+        const r = await Sync.testToken(tVal);
+        btnTest.disabled = false;
+        btnTest.textContent = "🔍 Kiểm tra";
+        if (r.ok && r.canPush) {
+          tokRes.innerHTML = `<span style="color:var(--ok);font-weight:700">${r.msg}</span>`;
+        } else {
+          tokRes.innerHTML = `<span style="color:var(--bad);font-weight:700">${r.msg}</span>`;
+        }
+      };
+    }
+
+    const btnSave = document.getElementById("btnSaveTok");
+    if (btnSave) {
+      btnSave.onclick = () => {
+        const tVal = tokIn.value.trim();
+        if (!tVal) { App.toast("Vui lòng dán token", "warn"); return; }
+        if (window.Auth && Auth.setToken) Auth.setToken(tVal);
+        App.toast("✓ Đã lưu GitHub Token vào máy này", "ok");
+        App.openSyncModal();
+      };
+    }
+
+    const btnClr = document.getElementById("btnClearTok");
+    if (btnClr) {
+      btnClr.onclick = () => {
+        if (confirm("Bạn có chắc chắn muốn xóa Token đã lưu khỏi máy này?")) {
+          if (window.Auth && Auth.setToken) Auth.setToken("");
+          App.toast("Đã xóa GitHub Token khỏi máy", "warn");
+          App.openSyncModal();
+        }
+      };
+    }
+
+    const btnSync = document.getElementById("btnSyncNow");
+    if (btnSync) {
+      btnSync.onclick = async () => {
+        btnSync.disabled = true;
+        btnSync.textContent = "Đang lưu...";
+        await Sync.save();
+        App.openSyncModal();
+      };
+    }
+
+    const btnPull = document.getElementById("btnPullMerge");
+    if (btnPull) {
+      btnPull.onclick = async () => {
+        btnPull.disabled = true;
+        btnPull.textContent = "Đang tải...";
+        await Sync.load();
+        App.toast("✓ Đã hoàn tất tải & gộp dữ liệu từ GitHub", "ok");
+        App.openSyncModal();
+      };
+    }
+
+    const btnBackup = document.getElementById("btnDownloadBackup");
+    if (btnBackup) {
+      btnBackup.onclick = () => {
+        App.downloadBackupJson();
+      };
+    }
+  };
+
   /* ── Chip trạng thái đồng bộ GitHub ── */
   App.renderSyncChip = function () {
     if (App.renderStorageChip) App.renderStorageChip();
@@ -426,8 +638,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     if (!el || !window.Sync) return;
     const s = Sync.label();
     if (!s) { el.innerHTML = ""; return; }
-    el.innerHTML = `<span class="bdg ${s.cls}" style="cursor:pointer" title="Dữ liệu chung lưu trên GitHub — bấm để tải lại">${s.txt}</span>`;
-    el.firstElementChild.onclick = () => { Sync.load(); App.toast("Đang tải lại dữ liệu chung từ GitHub…", "ok"); };
+    el.innerHTML = `<span class="bdg ${s.cls}" style="cursor:pointer" title="Trạng thái đồng bộ dữ liệu GitHub — bấm để xem chi tiết & quản lý">${s.txt}</span>`;
+    el.firstElementChild.onclick = () => {
+      if (App.openSyncModal) App.openSyncModal();
+      else { Sync.load(); App.toast("Đang tải lại dữ liệu chung từ GitHub…", "ok"); }
+    };
   };
 
   /* ── Khởi động ── */

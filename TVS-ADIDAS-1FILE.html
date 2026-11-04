@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 04/11/2026 08:05) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
-<link rel="icon" href="assets/img/logo.svg" type="image/svg+xml">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
 <meta name="theme-color" content="#0c0e12">
 <!-- Font nội dung Roboto + dự phòng tiêu đề Be Vietnam Pro (đủ dấu tiếng Việt) — dùng khi chạy online -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -645,6 +646,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 <div class="scrim" id="scrim"></div>
 
 <!-- Dữ liệu thật + lớp lưu trữ động + lõi ứng dụng -->
+<!-- ── assets/js/data.js ── -->
 <script>
 /* ===== TVS x adidas Rubber Boots — DỮ LIỆU THẬT trích xuất từ file Excel =====
    Nguồn: THEO DOI CHI TIET N-X-T ADIDAS.xlsm (sheet Data + ChitietNK)
@@ -1591,6 +1593,7 @@ window.TVS_RECEIPTS = [
 ];
 
 </script>
+<!-- ── assets/js/data-packing.js ── -->
 <script>
 /* ===== PACKING LIST (CLP) — DỮ LIỆU THẬT 3 ĐỢT ĐẶT HÀNG =====
    Nguồn (sheet CLP của từng file đơn hàng khách adidas):
@@ -1701,6 +1704,7 @@ window.TVS_PACKING = {
 };
 
 </script>
+<!-- ── assets/js/xlsx-lite.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    xlsx-lite.js — Trình đọc file Excel .xlsx thuần JavaScript (offline)
@@ -1883,6 +1887,7 @@ window.TVS_PACKING = {
 })();
 
 </script>
+<!-- ── assets/js/xlsx-write.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    xlsx-write.js — GHI FILE EXCEL .xlsx THUẦN JAVASCRIPT (v4.9)
@@ -2148,6 +2153,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 })();
 
 </script>
+<!-- ── assets/js/store.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    store.js — LỚP DỮ LIỆU ĐỘNG (localStorage)
@@ -4043,6 +4049,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 })();
 
 </script>
+<!-- ── assets/js/auth-config.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    auth-config.js — CẤU HÌNH TÀI KHOẢN & PHÂN QUYỀN
@@ -4073,6 +4080,7 @@ window.TVS_GH = {
 };
 
 </script>
+<!-- ── assets/js/auth.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    auth.js — ĐĂNG NHẬP & PHÂN QUYỀN
@@ -4150,6 +4158,17 @@ window.TVS_GH = {
   Auth.current = null;
   try { Auth.current = JSON.parse(get("TVS_SESSION") || "null"); } catch (e) {}
   Auth.token = () => get("TVS_GH_TOKEN") || "";
+  Auth.setToken = function (token) {
+    if (!token || !token.trim()) {
+      set("TVS_GH_TOKEN", null);
+    } else {
+      set("TVS_GH_TOKEN", token.trim());
+    }
+    if (window.Sync) {
+      Sync.state.error = null;
+      if (window.App && App.renderSyncChip) App.renderSyncChip();
+    }
+  };
   Auth.canEdit = () => !!(Auth.current && Auth.current.role === "editor");
   Auth.userName = () => Auth.current ? Auth.current.name : "Khách (chỉ xem)";
 
@@ -4222,6 +4241,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/github-sync.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    github-sync.js — LƯU DỮ LIỆU THẬT TRÊN GITHUB
@@ -4229,7 +4249,8 @@ window.TVS_GH = {
    • Mọi người (viewer) tải dữ liệu chung khi mở web — luôn thấy số liệu mới
    • Tài khoản nhập liệu (có GitHub Token) ghi thay đổi = 1 commit
      "Cập nhật dữ liệu bởi <user>" → lịch sử thay đổi xem được trên GitHub
-   • Không có token → API GitHub từ chối ghi (phân quyền THẬT)
+   • Không có token hoặc token sai/hết hạn → thông báo lỗi rõ ràng, cho phép
+     kiểm tra và cập nhật token trực tiếp, không làm mất dữ liệu trên máy.
    ═══════════════════════════════════════════════════════════════════ */
 (function () {
   "use strict";
@@ -4237,7 +4258,16 @@ window.TVS_GH = {
   const CFG = window.TVS_GH || {};
   const API = () => `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${CFG.dataPath}`;
 
-  Sync.state = { sha: null, lastSync: null, lastBy: null, syncing: false, pending: false, error: null, offline: false };
+  Sync.state = {
+    sha: null,
+    lastSync: null,
+    lastBy: null,
+    syncing: false,
+    pending: false,
+    error: null,
+    offline: false,
+    lastHttpStatus: null
+  };
 
   const b64decodeUtf8 = b64 => {
     const bin = atob(b64.replace(/\n/g, ""));
@@ -4251,12 +4281,20 @@ window.TVS_GH = {
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   };
-  const headers = () => {
-    const h = { Accept: "application/vnd.github+json" };
+
+  const headers = (isPut = false) => {
+    const h = {
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+    if (isPut) {
+      h["Content-Type"] = "application/json";
+    }
     const t = window.Auth ? Auth.token() : "";
     if (t) h.Authorization = "Bearer " + t;
     return h;
   };
+
   const chip = () => { if (window.App && App.renderSyncChip) App.renderSyncChip(); };
 
   /* Gộp an toàn dữ liệu remote & local khi xảy ra xung đột 409 hoặc đang chờ lưu */
@@ -4285,64 +4323,166 @@ window.TVS_GH = {
       orderEdits: mergeEdits(remote.orderEdits, local.orderEdits),
       seedReceiptsOff: local.seedReceiptsOff !== undefined ? local.seedReceiptsOff : !!remote.seedReceiptsOff,
       packingAdded: Object.assign({}, remote.packingAdded || {}, local.packingAdded || {}),
+      packingMeta: Object.assign({}, remote.packingMeta || {}, local.packingMeta || {}),
       packingLog: mergeArr(remote.packingLog, local.packingLog, x => (x.at || "") + "|" + (x.file || "")),
     };
+  };
+
+  /* ── KIỂM TRA QUYỀN VÀ TRẠNG THÁI GITHUB TOKEN ── */
+  Sync.testToken = async function (customToken) {
+    const t = (customToken !== undefined ? customToken : (window.Auth ? Auth.token() : "")).trim();
+    if (!t) return { ok: false, msg: "Chưa cấu hình GitHub Token" };
+    try {
+      // 1. Kiểm tra xác thực user / token
+      const rUser = await fetch("https://api.github.com/user", {
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": "Bearer " + t,
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (rUser.status === 401) {
+        return { ok: false, status: 401, msg: "Token không hợp lệ hoặc đã hết hạn (401 Bad credentials)" };
+      }
+      const uData = rUser.ok ? await rUser.json() : null;
+      const ghUser = uData ? uData.login : "User";
+
+      // 2. Kiểm tra quyền truy cập repository
+      const rRepo = await fetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}`, {
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": "Bearer " + t,
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (rRepo.status === 404) {
+        return { ok: false, status: 404, msg: `Không tìm thấy repository ${CFG.owner}/${CFG.repo} hoặc Token không có quyền truy cập repo này` };
+      }
+      if (rRepo.status === 401 || rRepo.status === 403) {
+        return { ok: false, status: rRepo.status, msg: `Token bị từ chối truy cập repository (${rRepo.status})` };
+      }
+      const repoData = await rRepo.json();
+      const perms = repoData.permissions || {};
+      const canPush = perms.push === true || perms.admin === true;
+
+      return {
+        ok: true,
+        user: ghUser,
+        canPush: canPush,
+        permissions: perms,
+        msg: canPush
+          ? `✓ Token hợp lệ! User: ${ghUser} · Có quyền Ghi/Push vào ${CFG.repo}`
+          : `⚠ Token hợp lệ nhưng CHỈ CÓ QUYỀN ĐỌC (không có quyền Ghi vào ${CFG.repo}). Hãy tạo token có quyền "Contents: Read and write".`
+      };
+    } catch (e) {
+      return { ok: false, msg: "Lỗi kết nối mạng tới GitHub API: " + (e.message || e) };
+    }
   };
 
   /* ── TẢI dữ liệu chung từ GitHub ── */
   Sync.load = async function () {
     if (!CFG.owner) return;
-    Sync.state.syncing = true; Sync.state.error = null; chip();
+    Sync.state.syncing = true;
+    chip();
     try {
       const r = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
-      if (r.status === 404) { Sync.state.sha = null; Sync.state.syncing = false; chip(); return; }
-      if (!r.ok) throw new Error("GitHub " + r.status);
+      Sync.state.lastHttpStatus = r.status;
+      if (r.status === 404) {
+        Sync.state.sha = null;
+        Sync.state.syncing = false;
+        chip();
+        return;
+      }
+      if (!r.ok) throw new Error("GitHub HTTP " + r.status);
       const j = await r.json();
       Sync.state.sha = j.sha;
       const data = JSON.parse(b64decodeUtf8(j.content));
       if (window.Store && Store.replaceLocal) {
-        const merged = Sync.state.pending ? Sync.mergePayload(data, Store.local) : data;
+        // Bảo vệ dữ liệu local: luôn gộp nếu trên máy có phiếu xuất kho hoặc dữ liệu mới
+        const hasLocal = Store.local && (
+          (Store.local.shipments && Store.local.shipments.length > 0) ||
+          (Store.local.ordersAdded && Store.local.ordersAdded.length > 0) ||
+          (Store.local.receiptsAdded && Store.local.receiptsAdded.length > 0) ||
+          (Store.local.receiptEdits && Object.keys(Store.local.receiptEdits).length > 0) ||
+          (Store.local.orderEdits && Object.keys(Store.local.orderEdits).length > 0)
+        );
+        const merged = (Sync.state.pending || hasLocal) ? Sync.mergePayload(data, Store.local) : data;
         Store.replaceLocal(merged);
       }
       Sync.state.lastSync = new Date();
       Sync.state.lastBy = data.meta && data.meta.updatedBy || null;
       Sync.state.offline = false;
+      Sync.state.error = null;
     } catch (e) {
       Sync.state.error = String(e.message || e);
       Sync.state.offline = true;
+    } finally {
+      Sync.state.syncing = false;
+      chip();
     }
-    Sync.state.syncing = false; chip();
   };
 
   /* ── GHI dữ liệu chung lên GitHub (chỉ editor có token) ── */
   let timer = null;
   Sync.queue = function () {
-    if (!(window.Auth && Auth.canEdit() && Auth.token())) return;
-    Sync.state.pending = true; chip();
+    if (!(window.Auth && Auth.canEdit())) return;
+    Sync.state.pending = true;
+    Sync.state.error = null;
+    chip();
     clearTimeout(timer);
     timer = setTimeout(() => Sync.save(), 1600);
   };
 
   Sync.save = async function (retried) {
-    if (!(window.Auth && Auth.canEdit())) return;
-    if (!Auth.token()) { App.toast("⚠ Chưa có GitHub Token — dữ liệu chỉ lưu trên máy này. Đăng nhập lại và dán token để đồng bộ.", "warn"); return; }
-    Sync.state.syncing = true; Sync.state.error = null; chip();
+    if (!(window.Auth && Auth.canEdit())) {
+      App.toast("Tài khoản hiện tại không có quyền ghi (chế độ chỉ xem)", "warn");
+      return;
+    }
+    const tok = Auth.token();
+    if (!tok) {
+      Sync.state.error = "Chưa có GitHub Token (cần cài đặt token để lưu online)";
+      Sync.state.pending = false;
+      chip();
+      App.toast("⚠ Chưa có GitHub Token — bấm vào chip đồng bộ để nhập Token", "warn");
+      return;
+    }
+    Sync.state.syncing = true;
+    Sync.state.error = null;
+    chip();
     try {
+      // 1. Nếu chưa có SHA trong bộ nhớ, tự động lấy SHA hiện tại trên GitHub
+      if (!Sync.state.sha) {
+        try {
+          const g = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
+          if (g.ok) {
+            const gj = await g.json();
+            Sync.state.sha = gj.sha;
+          }
+        } catch (_) {}
+      }
+
+      // 2. Chuẩn bị payload dữ liệu
       const payload = Object.assign({}, Store.local, {
         meta: { updatedAt: new Date().toISOString(), updatedBy: Auth.current.u, app: "TVS N-X-T v4" }
       });
       const jsonStr = (window.Store && Store.stringifyCompact)
         ? Store.stringifyCompact(payload)
         : JSON.stringify(payload, null, 1);
+
       const body = {
         message: `Cập nhật dữ liệu bởi ${Auth.current.u} (${Auth.current.name}) — ${new Date().toLocaleString("vi-VN")}`,
         content: b64encodeUtf8(jsonStr),
         branch: CFG.branch,
       };
       if (Sync.state.sha) body.sha = Sync.state.sha;
-      const r = await fetch(API(), { method: "PUT", headers: headers(), body: JSON.stringify(body) });
+
+      // 3. Gửi PUT lên GitHub
+      const r = await fetch(API(), { method: "PUT", headers: headers(true), body: JSON.stringify(body) });
+      Sync.state.lastHttpStatus = r.status;
+
+      // Xử lý xung đột SHA (409 Conflict hoặc 422 Mismatch)
       if (r.status === 409 || r.status === 422) {
-        if (!retried) {   /* sha lệch (người khác vừa ghi) → tải bản mới, gộp với bản local rồi ghi lại */
+        if (!retried) {
           const g = await fetch(API() + "?ref=" + CFG.branch + "&t=" + Date.now(), { headers: headers() });
           if (g.ok) {
             const gj = await g.json();
@@ -4351,36 +4491,53 @@ window.TVS_GH = {
               const remoteData = JSON.parse(b64decodeUtf8(gj.content));
               const merged = Sync.mergePayload(remoteData, Store.local);
               if (window.Store && Store.replaceLocal) Store.replaceLocal(merged);
-            } catch (err) {}
+            } catch (_) {}
           }
-          Sync.state.syncing = false;
-          App.toast("⚠ Có người vừa cập nhật dữ liệu — hệ thống đã tự động gộp dữ liệu và đồng bộ lại", "warn");
-          return Sync.save(true);
+          App.toast("⚠ Có phiên bản mới trên GitHub — hệ thống đang tự động gộp và đồng bộ lại...", "warn");
+          return await Sync.save(true);
         }
-        throw new Error("Xung đột dữ liệu (409)");
+        throw new Error("Xung đột phiên bản SHA trên GitHub (409/422). Vui lòng thử bấm 'Tải lại' rồi lưu lại.");
       }
-      if (r.status === 401 || r.status === 403) throw new Error("Token không có quyền ghi (401/403)");
-      if (!r.ok) throw new Error("GitHub " + r.status);
+
+      if (r.status === 401) {
+        throw new Error("GitHub Token không hợp lệ hoặc đã hết hạn (401 Bad credentials)");
+      }
+      if (r.status === 403) {
+        throw new Error("GitHub Token không có quyền ghi repo này (403 Forbidden). Cần quyền Contents: Read and write.");
+      }
+      if (!r.ok) {
+        let errDetail = "";
+        try {
+          const errJ = await r.json();
+          if (errJ && errJ.message) errDetail = ": " + errJ.message;
+        } catch (_) {}
+        throw new Error(`GitHub API lỗi ${r.status}${errDetail}`);
+      }
+
       const j = await r.json();
       Sync.state.sha = j.content.sha;
       Sync.state.lastSync = new Date();
       Sync.state.lastBy = Auth.current.u;
       Sync.state.pending = false;
+      Sync.state.error = null;
       Sync.state.offline = false;
-      App.toast("☁ Đã lưu dữ liệu lên GitHub (" + U.esc(Auth.current.name) + ")", "ok");
+      App.toast("☁ Đã lưu dữ liệu lên GitHub thành công (" + U.esc(Auth.current.name) + ")", "ok");
     } catch (e) {
       Sync.state.error = String(e.message || e);
-      App.toast("⚠ Lỗi đồng bộ GitHub: " + U.esc(Sync.state.error), "warn");
+      Sync.state.pending = false;
+      App.toast("⚠ " + Sync.state.error, "bad");
+    } finally {
+      Sync.state.syncing = false;
+      chip();
     }
-    Sync.state.syncing = false; chip();
   };
 
   /* Trạng thái hiển thị cho chip topbar */
   Sync.label = function () {
     if (!CFG.owner) return null;
     if (Sync.state.syncing) return { cls: "warn", txt: "Đang đồng bộ…" };
+    if (Sync.state.error) return { cls: "bad", txt: "Lỗi đồng bộ ☁" };
     if (Sync.state.pending) return { cls: "warn", txt: "Chờ lưu ☁" };
-    if (Sync.state.error) return { cls: "bad", txt: "Lỗi đồng bộ" };
     if (Sync.state.lastSync) {
       const hh = Sync.state.lastSync.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
       return { cls: "ok", txt: "☁ GitHub " + hh + (Sync.state.lastBy ? " · " + Sync.state.lastBy : "") };
@@ -4395,6 +4552,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/utils.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    utils.js — Lõi nghiệp vụ N-X-T (Nhập – Xuất – Tồn)
@@ -4689,6 +4847,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/charts.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    charts.js — Bộ biểu đồ SVG thuần (offline, không CDN)
@@ -4842,6 +5001,7 @@ window.TVS_GH = {
 
 </script>
 <!-- Các module giao diện (Dashboard / OMS / WMS / PXK / N-X-T / TMS / Kiến trúc / AI) -->
+<!-- ── assets/js/views/dashboard.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/dashboard.js — BẢNG ĐIỀU KHIỂN (Analytics & Dashboard)
@@ -5023,6 +5183,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/orders.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/orders.js — OMS · ĐƠN ĐẶT HÀNG KHÁCH HÀNG (sheet Data)
@@ -5668,6 +5829,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/warehouse.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/warehouse.js — WMS · NHẬP KHO THÀNH PHẨM (sheet ChitietNK)
@@ -6387,6 +6549,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/delivery.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/delivery.js — LỆNH GIAO HÀNG / PHIẾU XUẤT KHO THÀNH PHẨM
@@ -7566,6 +7729,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/packing.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/packing.js — PACKING LIST (CLP) · v5.0
@@ -8046,6 +8210,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/nxt-report.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    nxt-report.js — BÁO CÁO N-X-T THEO KỲ + XUẤT FILE EXCEL (.xlsx) — v4.9
@@ -8480,6 +8645,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/inventory.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/inventory.js — N-X-T · NHẬP – XUẤT – TỒN KHO THÀNH PHẨM
@@ -8669,6 +8835,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/shipping.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/shipping.js — TMS · KẾ HOẠCH XUẤT HÀNG KINH DOANH
@@ -8756,6 +8923,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/architecture.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/architecture.js — KIẾN TRÚC HỆ THỐNG
@@ -8896,6 +9064,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/views/assistant.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    views/assistant.js — TRỢ LÝ AI TVS (mô phỏng Agentic RAG — hình ②)
@@ -9173,6 +9342,7 @@ window.TVS_GH = {
 })();
 
 </script>
+<!-- ── assets/js/app.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    app.js — Điều phối ứng dụng TVS × adidas N-X-T
@@ -9595,6 +9765,218 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     };
   };
 
+  /* ── Tải file JSON dự phòng khẩn cấp về máy tính ── */
+  App.downloadBackupJson = function () {
+    if (!window.Store || !Store.local) return;
+    const data = Object.assign({}, Store.local, {
+      meta: {
+        exportedAt: new Date().toISOString(),
+        user: window.Auth && Auth.current ? Auth.current.u : "guest",
+        app: "TVS N-X-T v4"
+      }
+    });
+    const jsonStr = (window.Store && Store.stringifyCompact)
+      ? Store.stringifyCompact(data)
+      : JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const pad = n => String(n).padStart(2, "0");
+    const now = new Date();
+    const ds = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+    a.href = url;
+    a.download = `tvs-data-backup-${ds}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    App.toast("💾 Đã tải file sao lưu JSON về máy tính (" + a.download + ")", "ok");
+  };
+
+  /* ── Modal Quản lý & Trạng thái đồng bộ GitHub ── */
+  App.openSyncModal = function () {
+    if (!window.Sync) return;
+    const s = Sync.label() || { cls: "neu", txt: "Chưa đồng bộ" };
+    const tok = window.Auth ? Auth.token() : "";
+    const st = Sync.state || {};
+    const err = st.error;
+    const canEdit = window.Auth && Auth.canEdit();
+    const curUser = window.Auth && Auth.current ? Auth.current.name : "Khách (chỉ xem)";
+    const shipmentCount = (window.Store && Store.local && Store.local.shipments) ? Store.local.shipments.length : 0;
+    const lastSyncTime = st.lastSync ? st.lastSync.toLocaleString("vi-VN") : "Chưa đồng bộ trong phiên này";
+    const shortSha = st.sha ? st.sha.substring(0, 7) : "Chưa có";
+
+    let statusHtml = "";
+    if (st.syncing) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--warn);background:var(--warn-bg)"><div class="k-val" style="color:var(--warn);font-size:16px">⏳ Đang tiến hành đồng bộ dữ liệu với GitHub...</div></div>`;
+    } else if (err) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--bad);background:var(--bad-bg)">
+        <div class="k-val" style="color:var(--bad);font-size:15px;word-break:break-word">⚠ Lỗi: ${U.esc(err)}</div>
+        <div class="note" style="margin-top:6px;color:var(--bad)">
+          ${err.includes("401")
+            ? "<b>Nguyên nhân:</b> GitHub Personal Access Token của bạn đã hết hạn (expired) hoặc không đúng. Hãy tạo lại Token mới và dán vào ô bên dưới."
+            : err.includes("403")
+            ? "<b>Nguyên nhân:</b> Token không có quyền ghi. Cần tạo Token fine-grained với quyền <b>Contents: Read and write</b> trên repo <b>QL-KHOTP-TVS-ADIDAS</b>."
+            : err.includes("409") || err.includes("422")
+            ? "<b>Nguyên nhân:</b> Xung đột phiên bản SHA trên GitHub. Bấm nút <b>'Tải lại từ GitHub (Gộp an toàn)'</b> để hệ thống gộp phiên bản mới nhất rồi lưu lại."
+            : "<b>Khắc phục:</b> Kiểm tra kết nối mạng hoặc thử lại sau vài giây. Dữ liệu trên máy bạn vẫn an toàn 100%."}
+        </div>
+      </div>`;
+    } else if (st.pending) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--warn);background:var(--warn-bg)">
+        <div class="k-val" style="color:var(--warn);font-size:15px">⏳ Chờ lưu ☁ — Có thay đổi dữ liệu trên máy chưa được ghi lên GitHub</div>
+      </div>`;
+    } else if (st.lastSync) {
+      statusHtml = `<div class="card kpi" style="border-left:4px solid var(--ok);background:var(--ok-bg)">
+        <div class="k-val" style="color:var(--ok);font-size:15px">✓ Đã đồng bộ thành công với GitHub lúc ${lastSyncTime}</div>
+        <div class="k-sub" style="margin-top:4px">Bởi: <b>${U.esc(st.lastBy || "hệ thống")}</b> · Commit SHA: <code>${shortSha}</code></div>
+      </div>`;
+    } else {
+      statusHtml = `<div class="card kpi"><div class="k-val" style="font-size:15px">☁ Chưa thực hiện đồng bộ trong phiên làm việc này</div></div>`;
+    }
+
+    App.openModal(`
+      <div class="modal-h">
+        <h3>☁ Quản lý & Trạng thái đồng bộ GitHub</h3>
+        <span class="bdg ${s.cls}">${s.txt}</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b" style="max-width:640px">
+        ${statusHtml}
+
+        <div class="grid g-2" style="gap:10px;margin-top:12px">
+          <div class="card" style="padding:10px 12px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase">Tài khoản & Phân quyền</div>
+            <div style="font-size:14px;font-weight:700;margin-top:2px">${U.esc(curUser)}</div>
+            <div style="font-size:12px;color:${canEdit ? "var(--ok)" : "var(--warn)"};margin-top:2px">
+              ${canEdit ? "✓ Quyền Nhập liệu (được ghi online)" : "⚠ Chế độ Chỉ xem (không được sửa dữ liệu)"}
+            </div>
+          </div>
+          <div class="card" style="padding:10px 12px">
+            <div style="font-size:11px;color:#888;text-transform:uppercase">Dữ liệu hiện tại trên máy</div>
+            <div style="font-size:14px;font-weight:700;margin-top:2px">${shipmentCount} phiếu xuất kho</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">SHA kho dữ liệu: <code>${shortSha}</code></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;padding:12px">
+          <div style="font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center">
+            <span>🔑 GitHub Personal Access Token (PAT)</span>
+            <span class="note" style="font-weight:normal">${tok ? `<span style="color:var(--ok)">✓ Đã lưu token</span>` : `<span style="color:var(--warn)">⚠ Chưa có token</span>`}</span>
+          </div>
+          <div style="font-size:12px;color:#aaa;margin-top:4px">
+            Token dùng để xác thực quyền GHI vào file <code>data/tvs-data.json</code> trên repository GitHub.
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <input id="syncModalTok" type="password" value="${tok ? tok : ""}" placeholder="${tok ? "•••••••• (Dán token mới nếu cần thay thế)" : "Dán GitHub Token (github_pat_... hoặc ghp_...)"}" style="flex:1;font-family:monospace;font-size:12px">
+            <button class="btn" id="btnTestTok" title="Kiểm tra token có quyền ghi không">🔍 Kiểm tra</button>
+            <button class="btn primary" id="btnSaveTok" title="Lưu token vào máy này">Lưu</button>
+            ${tok ? `<button class="btn danger small" id="btnClearTok" title="Xóa token khỏi máy">Xóa</button>` : ""}
+          </div>
+          <div id="syncTokResult" style="margin-top:8px;font-size:12px;display:none"></div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center">
+          <button class="btn primary" id="btnSyncNow" ${canEdit ? "" : "disabled"} title="Ghi toàn bộ dữ liệu trên máy lên GitHub">
+            ☁ Lưu ngay lên GitHub
+          </button>
+          <button class="btn" id="btnPullMerge" title="Tải bản mới nhất từ GitHub và tự động gộp với dữ liệu trên máy">
+            ↺ Tải lại từ GitHub (Gộp an toàn)
+          </button>
+          <button class="btn" id="btnDownloadBackup" style="margin-left:auto" title="Tải ngay file JSON đầy đủ về ổ cứng máy tính">
+            💾 Tải file JSON dự phòng (.json)
+          </button>
+        </div>
+
+        <div class="note mt" style="font-size:11.5px;line-height:1.6">
+          <b>💡 Hướng dẫn tạo GitHub Token mới nếu bị lỗi 401/403:</b><br>
+          1. Vào GitHub → <b>Settings</b> → <b>Developer Settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b> (hoặc Tokens classic).<br>
+          2. Chọn <b>Generate new token</b> → Chọn repository: <b>QL-KHOTP-TVS-ADIDAS</b>.<br>
+          3. Mục <b>Permissions</b> → chọn <b>Repository permissions</b> → <b>Contents: Read and write</b>.<br>
+          4. Bấm <b>Generate token</b>, sao chép mã và dán vào ô trên rồi bấm <b>Lưu</b>.
+        </div>
+      </div>
+    `);
+
+    // Gắn sự kiện các nút
+    const tokIn = document.getElementById("syncModalTok");
+    const tokRes = document.getElementById("syncTokResult");
+
+    const btnTest = document.getElementById("btnTestTok");
+    if (btnTest) {
+      btnTest.onclick = async () => {
+        const tVal = tokIn.value.trim();
+        if (!tVal) {
+          tokRes.style.display = "block";
+          tokRes.innerHTML = `<span style="color:var(--bad)">⚠ Vui lòng dán token vào ô trước khi kiểm tra</span>`;
+          return;
+        }
+        btnTest.disabled = true;
+        btnTest.textContent = "Đang kiểm tra...";
+        tokRes.style.display = "block";
+        tokRes.innerHTML = `<span style="color:var(--warn)">⏳ Đang kết nối GitHub API để kiểm tra quyền...</span>`;
+        const r = await Sync.testToken(tVal);
+        btnTest.disabled = false;
+        btnTest.textContent = "🔍 Kiểm tra";
+        if (r.ok && r.canPush) {
+          tokRes.innerHTML = `<span style="color:var(--ok);font-weight:700">${r.msg}</span>`;
+        } else {
+          tokRes.innerHTML = `<span style="color:var(--bad);font-weight:700">${r.msg}</span>`;
+        }
+      };
+    }
+
+    const btnSave = document.getElementById("btnSaveTok");
+    if (btnSave) {
+      btnSave.onclick = () => {
+        const tVal = tokIn.value.trim();
+        if (!tVal) { App.toast("Vui lòng dán token", "warn"); return; }
+        if (window.Auth && Auth.setToken) Auth.setToken(tVal);
+        App.toast("✓ Đã lưu GitHub Token vào máy này", "ok");
+        App.openSyncModal();
+      };
+    }
+
+    const btnClr = document.getElementById("btnClearTok");
+    if (btnClr) {
+      btnClr.onclick = () => {
+        if (confirm("Bạn có chắc chắn muốn xóa Token đã lưu khỏi máy này?")) {
+          if (window.Auth && Auth.setToken) Auth.setToken("");
+          App.toast("Đã xóa GitHub Token khỏi máy", "warn");
+          App.openSyncModal();
+        }
+      };
+    }
+
+    const btnSync = document.getElementById("btnSyncNow");
+    if (btnSync) {
+      btnSync.onclick = async () => {
+        btnSync.disabled = true;
+        btnSync.textContent = "Đang lưu...";
+        await Sync.save();
+        App.openSyncModal();
+      };
+    }
+
+    const btnPull = document.getElementById("btnPullMerge");
+    if (btnPull) {
+      btnPull.onclick = async () => {
+        btnPull.disabled = true;
+        btnPull.textContent = "Đang tải...";
+        await Sync.load();
+        App.toast("✓ Đã hoàn tất tải & gộp dữ liệu từ GitHub", "ok");
+        App.openSyncModal();
+      };
+    }
+
+    const btnBackup = document.getElementById("btnDownloadBackup");
+    if (btnBackup) {
+      btnBackup.onclick = () => {
+        App.downloadBackupJson();
+      };
+    }
+  };
+
   /* ── Chip trạng thái đồng bộ GitHub ── */
   App.renderSyncChip = function () {
     if (App.renderStorageChip) App.renderStorageChip();
@@ -9602,8 +9984,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
     if (!el || !window.Sync) return;
     const s = Sync.label();
     if (!s) { el.innerHTML = ""; return; }
-    el.innerHTML = `<span class="bdg ${s.cls}" style="cursor:pointer" title="Dữ liệu chung lưu trên GitHub — bấm để tải lại">${s.txt}</span>`;
-    el.firstElementChild.onclick = () => { Sync.load(); App.toast("Đang tải lại dữ liệu chung từ GitHub…", "ok"); };
+    el.innerHTML = `<span class="bdg ${s.cls}" style="cursor:pointer" title="Trạng thái đồng bộ dữ liệu GitHub — bấm để xem chi tiết & quản lý">${s.txt}</span>`;
+    el.firstElementChild.onclick = () => {
+      if (App.openSyncModal) App.openSyncModal();
+      else { Sync.load(); App.toast("Đang tải lại dữ liệu chung từ GitHub…", "ok"); }
+    };
   };
 
   /* ── Khởi động ── */
@@ -9667,6 +10052,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica N
 })();
 
 </script>
+<!-- ── assets/js/collapsible.js ── -->
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    collapsible.js — SỔ XUỐNG / THU GỌN CÁC KHỐI TRÊN MỌI MÀN HÌNH (v4.10)
