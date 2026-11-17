@@ -1289,9 +1289,6 @@
 {"rd":"2026-11-02","rdLabel":"02/11/2026","ctry":"UNITED STATES","ord":"AE2608696","po":"0903172267-1","item":"NVQ89","col":"LC1786","sz":"UK 4","prs":30,"ctn":5,"ordered":39,"diff":0,"bat":2,"planExp":"2026-11-24","_id":"Lmw1ehwbiq539","_src":"import"},
 {"rd":"2026-11-02","rdLabel":"02/11/2026","ctry":"UNITED STATES","ord":"AE2608696","po":"0903172267-1","item":"NVQ89","col":"LC1786","sz":"UK 5","prs":84,"ctn":14,"ordered":108,"diff":0,"bat":2,"planExp":"2026-11-24","_id":"Lmw1ehwbixxh0","_src":"import"},
 {"rd":"2026-11-02","rdLabel":"02/11/2026","ctry":"UNITED STATES","ord":"AE2608696","po":"0903172267-1","item":"NVQ89","col":"LC1786","sz":"UK 9","prs":19,"ctn":4,"ordered":97,"diff":-78,"bat":2,"planExp":"2026-11-24","_id":"Lmw1ehwbi1r8i","_src":"import"},
-{"rd":"2026-11-05","rdLabel":"05/11/2026","ctry":"JAPAN","ord":"AE2608670","po":"0903157306-1","item":"NVQ89","col":"LC1783","sz":"UK 4","prs":2,"ctn":1,"qcQty":null,"qcDate":null,"ordered":68,"diff":0,"bat":2,"actualExp":null,"planExp":"2026-11-17","notProduced":null,"_id":"Lmw1fc556libm","_src":"import"},
-{"rd":"2026-11-05","rdLabel":"05/11/2026","ctry":"JAPAN","ord":"AE2608670","po":"0903157306-1","item":"NVQ89","col":"LC1783","sz":"UK 5","prs":1,"ctn":1,"qcQty":null,"qcDate":null,"ordered":211,"diff":0,"bat":2,"actualExp":null,"planExp":"2026-11-17","notProduced":null,"_id":"Lmw1fc556qs9x","_src":"import"},
-{"rd":"2026-11-05","rdLabel":"05/11/2026","ctry":"JAPAN","ord":"AE2608670","po":"0903157306-1","item":"NVQ89","col":"LC1783","sz":"UK 6","prs":8,"ctn":2,"qcQty":null,"qcDate":null,"ordered":224,"diff":0,"bat":2,"actualExp":null,"planExp":"2026-11-17","notProduced":null,"_id":"Lmw1fc5565d1w","_src":"import"},
 {"rd":"2026-11-05","rdLabel":"05/11/2026","ctry":"UNITED STATES","ord":"AE2608767","po":"0903170134-1","item":"NVQ89","col":"LC1787","sz":"UK 5","prs":6,"ctn":1,"qcQty":null,"qcDate":null,"ordered":92,"diff":-12,"bat":2,"actualExp":null,"planExp":"2026-12-25","notProduced":null,"_id":"Lmwdbhszoqtz9","_src":"import"},
 {"rd":"2026-11-05","rdLabel":"05/11/2026","ctry":"UNITED STATES","ord":"AE2608767","po":"0903170134-1","item":"NVQ89","col":"LC1787","sz":"UK 6","prs":6,"ctn":1,"qcQty":null,"qcDate":null,"ordered":128,"diff":-32,"bat":2,"actualExp":null,"planExp":"2026-12-25","notProduced":null,"_id":"Lmwdbhszouov3","_src":"import"},
 {"rd":"2026-11-05","rdLabel":"05/11/2026","ctry":"UNITED STATES","ord":"AE2608767","po":"0903170134-1","item":"NVQ89","col":"LC1787","sz":"UK 7","prs":6,"ctn":1,"qcQty":null,"qcDate":null,"ordered":114,"diff":-108,"bat":2,"actualExp":null,"planExp":"2026-12-25","notProduced":null,"_id":"Lmwdbhszokn0v","_src":"import"},
@@ -1513,7 +1510,8 @@
 "31/10/2026||AE2608697":{"rev":1,"log":[{"rev":1,"at":"2026-11-17T01:01:35.877Z","by":"thukho","reason":"nHẬP SAI SỐ LƯỢNG","before":{"UK 7":12},"after":{"UK 7":6}}],"sizes":{"UK 7":6},"deleted":false},
 "02/11/2026||AE2608059":{"rev":1,"log":[{"rev":1,"at":"2026-11-17T01:02:57.781Z","by":"thukho","reason":"nHẬP SAI SỐ LƯỢNG","before":{"UK 6":24},"after":{"UK 6":12}}],"sizes":{"UK 6":12},"deleted":false},
 "31/10/2026||AE2608767":{"rev":1,"log":[{"rev":1,"at":"2026-11-17T01:04:24.013Z","by":"thukho","reason":"nHẬP SAI SỐ LƯỢNG","before":{"UK 6":48,"UK 8":24},"after":{"UK 6":24,"UK 8":12}}],"sizes":{"UK 6":24,"UK 8":12},"deleted":false},
-"31/10/2026||AE2608060":{"rev":1,"log":[{"rev":1,"at":"2026-11-17T01:07:26.555Z","by":"thukho","reason":"nHẬP SAI SỐ LƯỢNG","before":{"UK 9":12},"after":{"UK 9":6}}],"sizes":{"UK 9":6},"deleted":false}
+"31/10/2026||AE2608060":{"rev":1,"log":[{"rev":1,"at":"2026-11-17T01:07:26.555Z","by":"thukho","reason":"nHẬP SAI SỐ LƯỢNG","before":{"UK 9":12},"after":{"UK 9":6}}],"sizes":{"UK 9":6},"deleted":false},
+"05/11/2026||AE2608670":{"rev":1,"log":[{"rev":1,"at":"2026-11-17T01:12:03.656Z","by":"thukho","reason":"Trùng số liệu","before":{"UK 4":2,"UK 5":1,"UK 6":8},"after":null}],"deleted":true,"sizes":null}
 },
 "orderEdits":{
 "AE2608051":{"rev":1,"log":[{"rev":1,"at":"2026-08-19T06:19:46.765Z","by":"thukho","reason":"thay đổi ngày xuất hàng . 18-08-2026","before":{"UK 3":7,"UK 4":40,"UK 5":71,"UK 6":77,"UK 7":58,"UK 8":34,"UK 9":13},"after":{"UK 3":7,"UK 4":40,"UK 5":71,"UK 6":77,"UK 7":58,"UK 8":34,"UK 9":13},"beforeHead":{"d":"2026-11-24","ctry":"ARGENTINA","po":"0903181596-1","col":"LC1783","bat":2},"afterHead":{"d":"2026-09-15","ctry":"ARGENTINA","po":"0903181596-1","col":"LC1783","bat":2}}],"deleted":false,"head":{"d":"2026-09-15","ctry":"ARGENTINA","po":"0903181596-1","col":"LC1783","bat":2},"sizes":{"UK 3":7,"UK 4":40,"UK 5":71,"UK 6":77,"UK 7":58,"UK 8":34,"UK 9":13}},
@@ -1572,7 +1570,7 @@
 {"at":"2026-09-08T03:55:24.971Z","by":"thukho","reason":"pakinglisst đợt 5","file":"260901_ADIDAS RAINBOOT - ĐƠN HÀNG XUỐNG LẦN 5 - SỐ LƯỢNG 21,765 ĐÔI .xlsx","sheet":"Sheet1","added":["AD2600007","AD2600003","AD2600004","AD2600005","AD2600006","AD2600008","AD2600009","AD2600010","AD2600011"],"over":[],"skipped":[],"prs":21765,"ctn":3707}
 ],
 "meta":{
-"updatedAt":"2026-11-17T01:08:56.545Z",
+"updatedAt":"2026-11-17T01:12:05.372Z",
 "updatedBy":"thukho",
 "app":"TVS N-X-T v4"
 }
