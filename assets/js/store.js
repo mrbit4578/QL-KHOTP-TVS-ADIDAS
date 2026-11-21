@@ -333,6 +333,7 @@
       packingMeta: data.packingMeta || {},
       packingLog: data.packingLog || [],
     });
+    compactReceiptGroupInLocal(null);
     persist();
     Store.merge();
     if (window.U && U.rebuild) U.rebuild();
@@ -417,7 +418,7 @@
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
-  /* Nén gọn các dòng thừa/đã xóa trong receiptsAdded cho 1 nhóm gk (hoặc toàn bộ) */
+  /* Nén gọn các dòng thừa/đã xóa/trùng khóa (rdLabel+ord+sz) trong receiptsAdded cho 1 nhóm gk (hoặc toàn bộ) */
   function compactReceiptGroupInLocal(targetGk) {
     const edits = Store.local.receiptEdits || {};
     const rows = Store.local.receiptsAdded || [];
@@ -447,10 +448,136 @@
       ["qcQty", "qcDate", "actualExp", "notProduced"].forEach(k => { if (c[k] === null) delete c[k]; });
       out.push(c);
     }
-    const removed = rows.length - out.length;
-    Store.local.receiptsAdded = out;
+    /* Khử trùng lặp theo khóa tự nhiên (rdLabel + ord + sz): giữ bản ghi mới nhất nếu 2 bản ghi trùng khóa khác _id */
+    const dedupMap = new Map();
+    for (const r of out) {
+      const natKey = `${r.rdLabel || r.rd}||${r.ord}||${r.sz}`;
+      if (targetGk && gkOf(r) !== targetGk && !dedupMap.has(natKey)) {
+        dedupMap.set(natKey, r);
+      } else {
+        dedupMap.set(natKey, r);
+      }
+    }
+    const finalOut = [...dedupMap.values()];
+    const removed = rows.length - finalOut.length;
+    Store.local.receiptsAdded = finalOut;
     return removed;
   }
+
+  /* ── KIỂM TRA & CHẨN ĐOÁN TOÀN BỘ DÒNG NHẬP DƯ SO VỚI ĐƠN ĐẶT HÀNG ──
+     Tự động phát hiện:
+     1) Nhân nhầm quy cách 6 đôi/thùng thay vì 5 đôi/thùng (prs = 6*C, dư = C → sửa về 5*C)
+     2) Nhân đôi số lượng (×2) do import trùng ngày
+     3) Nhập vượt số lượng đặt hàng của size đó */
+  Store.auditExcessReceipts = function () {
+    const items = [];
+    const orders = (window.U && U.ORDER_INDEX) ? U.ORDER_INDEX : [];
+    const recs = window.TVS_RECEIPTS || [];
+    for (const o of orders) {
+      for (const sz of SIZES6) {
+        const szInfo = o.sizes && o.sizes[sz];
+        const ordQty = szInfo ? (szInfo.ordered || 0) : 0;
+        const recvQty = szInfo ? (szInfo.received || 0) : 0;
+        if (recvQty <= ordQty) continue;
+        const excess = recvQty - ordQty;
+        const szRows = recs.filter(r => r.ord === o.ord && r.sz === sz);
+        if (!szRows.length) continue;
+
+        /* Tìm dòng nghi vấn gây dư */
+        let targetRow = szRows[szRows.length - 1];
+        let causeType = "over_order";
+        let causeLabel = `Nhập vượt SL đặt hàng (+${excess} đôi)`;
+        let suggestPrs = Math.max(0, targetRow.prs - excess);
+
+        /* 1. Kiểm tra lỗi nhân nhầm 6 đôi/thùng thay vì 5 đôi/thùng: 6*C - 5*C = C = excess */
+        const row6vs5 = szRows.find(r => r.prs % 6 === 0 && (r.prs / 6) === excess);
+        if (row6vs5) {
+          targetRow = row6vs5;
+          const ctnCount = row6vs5.prs / 6;
+          causeType = "pack_6_vs_5";
+          suggestPrs = ctnCount * 5;
+          causeLabel = `Nhân nhầm 6 đôi/thùng thay vì 5 đôi/thùng (${ctnCount} thùng × 5 = ${suggestPrs} đôi, đang ghi ${ctnCount} × 6 = ${row6vs5.prs} đôi)`;
+        } else {
+          /* 2. Kiểm tra lỗi nhân đôi số lượng (×2) trên 1 ngày */
+          const rowDoubled = szRows.find(r => r.prs % 2 === 0 && (r.prs / 2) === excess);
+          if (rowDoubled) {
+            targetRow = rowDoubled;
+            causeType = "doubled";
+            suggestPrs = rowDoubled.prs / 2;
+            causeLabel = `Bị cộng dồn gấp đôi (×2) trên ngày ${rowDoubled.rdLabel} (${rowDoubled.prs} → ${suggestPrs} đôi)`;
+          } else {
+            /* 3. Kiểm tra dòng trùng bằng đúng số dư */
+            const rowExact = szRows.slice().reverse().find(r => r.prs === excess);
+            if (rowExact && szRows.length > 1) {
+              targetRow = rowExact;
+              causeType = "dup_row";
+              suggestPrs = 0;
+              causeLabel = `Dòng nhập thừa đúng +${excess} đôi ngày ${rowExact.rdLabel}`;
+            } else {
+              /* 4. Tìm dòng có prs >= excess để giảm bớt excess */
+              const rowEnough = szRows.slice().reverse().find(r => r.prs >= excess);
+              if (rowEnough) {
+                targetRow = rowEnough;
+                suggestPrs = rowEnough.prs - excess;
+              }
+            }
+          }
+        }
+
+        items.push({
+          key: `${o.ord}|${sz}`,
+          ord: o.ord,
+          ctry: o.ctry,
+          col: o.col,
+          po: o.po,
+          planExp: o.d,
+          sz,
+          ordQty,
+          recvQty,
+          excess,
+          ordTotPrs: o.prs,
+          ordRecvPrs: o.recvPrs,
+          ordBalPrs: o.recvPrs - o.prs,
+          rows: szRows.map(r => ({ rdLabel: r.rdLabel, prs: r.prs, ctn: r.ctn })),
+          targetRdLabel: targetRow.rdLabel,
+          targetCurPrs: targetRow.prs,
+          suggestPrs,
+          causeType,
+          causeLabel,
+        });
+      }
+    }
+    return items;
+  };
+
+  /* Áp dụng sửa nhanh 1 mục nhập dư về đúng SL đặt hàng (ghi nhận đầy đủ vào nhật ký receiptEdits) */
+  Store.fixExcessReceiptItem = function (item, customReason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!item || !item.ord || !item.targetRdLabel || !item.sz) return { ok: false, msg: "Thiếu thông tin dòng cần sửa" };
+    const curSizes = Store.receiptGroupSizes(item.targetRdLabel, item.ord);
+    const nextSizes = Object.assign({}, curSizes);
+    if (item.suggestPrs <= 0) delete nextSizes[item.sz];
+    else nextSizes[item.sz] = item.suggestPrs;
+    const reason = (customReason || "").trim() || `Chuẩn hóa SL nhập dư (${item.sz}: ${item.targetCurPrs} → ${item.suggestPrs} đôi — ${item.causeLabel})`;
+    const remainingKeys = Object.keys(nextSizes).filter(k => nextSizes[k] > 0);
+    if (!remainingKeys.length) {
+      return Store.deleteReceiptGroup(item.targetRdLabel, item.ord, reason);
+    }
+    return Store.editReceiptGroup(item.targetRdLabel, item.ord, nextSizes, reason);
+  };
+
+  /* Sửa hàng loạt toàn bộ các dòng đang bị nhập dư về đúng SL đặt hàng */
+  Store.fixAllExcessReceipts = function (customReason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const list = Store.auditExcessReceipts();
+    if (!list.length) return { ok: true, count: 0 };
+    let count = 0;
+    for (const item of list) {
+      const r = Store.fixExcessReceiptItem(item, customReason);
+      if (r && r.ok) count++;
+    }
+    return { ok: true, count };
+  };
 
   Store.editReceiptGroup = function (rdLabel, ord, newSizes, reason) {
     if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
@@ -689,16 +816,44 @@
       Store.local.receiptsAdded = [];
       Store.local.receiptEdits = {};
     }
-    rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
-    /* ⚠ QUAN TRỌNG: nếu nhóm (ngày + chỉ thị) từng bị XOÁ hoặc SỬA:
-       - Phải xoá các dòng cũ của nhóm đó trong receiptsAdded trước khi gỡ cờ,
-         nếu không các dòng cũ đã xoá trong receiptsAdded sẽ sống lại và cộng dồn với dòng mới! */
-    const revived = [];
+    /* Nếu bật tự động chuẩn hóa dòng nhập vượt SL đặt hàng (autoFixOver) */
+    if (opts.autoFixOver) {
+      rows = rows.map(r => {
+        if (r._suggestPrs !== undefined && r._suggestPrs !== null && r.prs !== r._suggestPrs) {
+          const perCtn = Store.clpPerCtn(r.ord, r.sz);
+          const newPrs = Math.max(0, r._suggestPrs);
+          return Object.assign({}, r, { prs: newPrs, ctn: newPrs > 0 ? Math.ceil(newPrs / perCtn) : 0, diff: 0 });
+        }
+        return r;
+      }).filter(r => r.prs > 0);
+    }
+    /* Khử trùng lặp ngay trong mảng rows đầu vào theo khóa (rdLabel + ord + sz) */
+    const inMap = new Map();
+    for (const r of rows) {
+      const copy = Object.assign({}, r);
+      delete copy._suggestPrs; delete copy._overCause; delete copy._overMsg;
+      copy._id = copy._id || uid();
+      copy._src = src || "manual";
+      const k = `${copy.rdLabel || copy.rd}||${copy.ord}||${copy.sz}`;
+      if (inMap.has(k) && src === "manual" && opts.addMode === "sum") {
+        const prev = inMap.get(k);
+        prev.prs += copy.prs;
+      } else {
+        inMap.set(k, copy);
+      }
+    }
+    rows = [...inMap.values()];
+
+    /* ⚠ QUAN TRỌNG: Chống cộng dồn gấp đôi (×2) khi Import trùng ngày hoặc nhóm từng sửa/xoá:
+       - Khi Import (hoặc upsertGroup !== false): nếu nhóm (Ngày NK + Chỉ thị) đã tồn tại trong receiptsAdded,
+         tự động CẬP NHẬT (thay thế nhóm ngày+chỉ thị đó) thay vì push nối đuôi làm nhân đôi số lượng! */
+    const revived = [], upserted = [];
     for (const gk of new Set(rows.map(r => r.rdLabel + "||" + r.ord))) {
       const e = Store.local.receiptEdits[gk];
+      const hadInLocal = Store.local.receiptsAdded.some(x => gkOf(x) === gk);
+      const inSeed = !Store.local.seedReceiptsOff && SEED_RECEIPTS.some(x => gkOf(x) === gk);
       if (e && (e.deleted || e.sizes)) {
         Store.local.receiptsAdded = Store.local.receiptsAdded.filter(x => gkOf(x) !== gk);
-        const inSeed = !Store.local.seedReceiptsOff && SEED_RECEIPTS.some(x => gkOf(x) === gk);
         if (inSeed) {
           const newSz = {};
           rows.filter(x => gkOf(x) === gk).forEach(x => { newSz[x.sz] = (newSz[x.sz] || 0) + x.prs; });
@@ -714,12 +869,43 @@
             restored: true });
         }
         revived.push(gk.split("||").join(" · "));
+      } else if (src === "import" || opts.upsertGroup) {
+        if (hadInLocal) {
+          Store.local.receiptsAdded = Store.local.receiptsAdded.filter(x => gkOf(x) !== gk);
+          upserted.push(gk.split("||").join(" · "));
+        }
+        if (inSeed) {
+          const newSz = {};
+          rows.filter(x => gkOf(x) === gk).forEach(x => { newSz[x.sz] = (newSz[x.sz] || 0) + x.prs; });
+          const se = Store.local.receiptEdits[gk] || { rev: 0, log: [] };
+          se.rev += 1; se.deleted = false; se.sizes = newSz;
+          se.log.push({ rev: se.rev, at: new Date().toISOString(), by: whoAmI(),
+            reason: "Import cập nhật nhóm dữ liệu gốc", before: Store.receiptGroupSizes(gk.split("||")[0], gk.split("||")[1]), after: newSz });
+          Store.local.receiptEdits[gk] = se;
+          rows = rows.filter(x => gkOf(x) !== gk);
+          upserted.push(gk.split("||").join(" · "));
+        }
+      } else if (src === "manual" && hadInLocal) {
+        /* Nhập tay vào ngày+chỉ thị đã có: gộp cùng size vào bản ghi hiện có thay vì sinh 2 dòng trùng (rdLabel+ord+sz) */
+        for (const r of rows.filter(x => gkOf(x) === gk)) {
+          const ex = Store.local.receiptsAdded.find(x => gkOf(x) === gk && x.sz === r.sz);
+          if (ex) {
+            ex.prs = opts.addMode === "replace" ? r.prs : (ex.prs + r.prs);
+            const perCtn = Store.clpPerCtn(ex.ord, ex.sz);
+            ex.ctn = Math.ceil(ex.prs / perCtn);
+            r._merged = true;
+          }
+        }
+        rows = rows.filter(x => !x._merged);
       }
     }
     Store.local.receiptsAdded.push(...rows);
+    compactReceiptGroupInLocal(null);
     commit();
     if (revived.length && window.App && App.toast)
       App.toast(`ℹ Đã thay thế trạng thái xoá/sửa cũ của ${revived.length} nhóm để nhận dữ liệu mới: ${U.esc(revived.slice(0, 3).join("; "))}${revived.length > 3 ? "…" : ""}`, "warn");
+    else if (upserted.length && window.App && App.toast)
+      App.toast(`🔄 Đã cập nhật (không cộng dồn trùng) ${upserted.length} nhóm ngày+chỉ thị đã tồn tại: ${U.esc(upserted.slice(0, 3).join("; "))}${upserted.length > 3 ? "…" : ""}`, "ok");
   };
   Store.removeOrderRow = function (id) {
     if (!Store.guard()) return;
@@ -1172,8 +1358,9 @@
 
   /* ── Import NHẬP KHO (mapping tự động từ đơn đặt hàng) ─────── */
   Store.importReceipts = function (text) {
-    const rows = Store.parseCSV(text); const out = [], errs = [];
+    const rows = Store.parseCSV(text); const out = [], errs = [], overRows = [], upsertGroups = [];
     const start = rows.length && /ngày|ngay/i.test(rows[0][0]) ? 1 : 0;
+    const addedSoFar = {}, replacedBase = {};
     for (let i = start; i < rows.length; i++) {
       const [d0, ord0, sz0, prs0, qc0, qcd0, note0] = rows[i].map(c => String(c).trim());
       const line = i + 1;
@@ -1184,17 +1371,42 @@
       if (!rd) { errs.push(`Dòng ${line}: ngày NK "${d0}" sai (cần dd/mm/yyyy)`); continue; }
       if (!sz || !o.sizes[sz]) { errs.push(`Dòng ${line}: ${ord} không đặt size "${sz0}"`); continue; }
       if (!prs || prs <= 0) { errs.push(`Dòng ${line}: số đôi "${prs0}" phải > 0`); continue; }
-      const ordered = o.sizes[sz].ordered, recvBefore = o.sizes[sz].received;
+      const rdLabel = U.fmtDate(rd);
+      const key = ord + "|" + sz, gk = rdLabel + "||" + ord;
+      if (replacedBase[gk] === undefined) {
+        const curGrp = Store.receiptGroupSizes(rdLabel, ord);
+        replacedBase[gk] = curGrp;
+        if (Object.keys(curGrp).length) upsertGroups.push(`${rdLabel} · ${ord}`);
+      }
+      const oldSameDay = (replacedBase[gk] && replacedBase[gk][sz]) || 0;
+      const ordered = o.sizes[sz].ordered;
+      const recvBefore = Math.max(0, (o.sizes[sz].received || 0) - oldSameDay) + (addedSoFar[key] || 0);
       const perCtn = Store.clpPerCtn(ord, sz);
-      out.push({
-        rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
+      const diff = (recvBefore + prs) - ordered;
+      const recObj = {
+        rd, rdLabel, ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
         col: o.col.split(",")[0].trim(), sz, prs, ctn: Math.ceil(prs / perCtn),
         qcQty: toInt(qc0), qcDate: Store.parseDate(qcd0), ordered,
-        diff: (recvBefore + prs) - ordered, bat: o.bat, actualExp: null, planExp: o.d,
+        diff, bat: o.bat, actualExp: null, planExp: o.d,
         notProduced: note0 || null,
-      });
+      };
+      if (diff > 0) {
+        const remain = Math.max(0, ordered - recvBefore);
+        if (prs % 6 === 0 && ((prs / 6) === diff || (prs / 6) * 5 === remain)) {
+          recObj._overCause = "pack_6_vs_5";
+          recObj._suggestPrs = (prs / 6) * 5;
+          recObj._overMsg = `Nghi vấn nhân nhầm ${prs / 6} thùng × 6 = ${prs} đôi thay vì quy cách 5 đôi/thùng (${prs / 6} × 5 = ${(prs / 6) * 5} đôi)`;
+        } else {
+          recObj._overCause = "over_order";
+          recObj._suggestPrs = remain;
+          recObj._overMsg = `Vượt SL đặt hàng +${diff} đôi (Đặt: ${ordered} · Đã nhập trước: ${recvBefore} · Còn thiếu: ${remain})`;
+        }
+        overRows.push(recObj);
+      }
+      addedSoFar[key] = (addedSoFar[key] || 0) + prs;
+      out.push(recObj);
     }
-    return { rows: out, errs };
+    return { rows: out, errs, overRows, upsertGroups };
   };
 
   /* ── Import NHẬP KHO THEO NGÀY (mẫu pivot — đúng file gốc) ──── */
@@ -1205,15 +1417,14 @@
     .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/\s+/g, " ").trim();
 
   Store.importReceiptsDaily = function (rows) {
-    const errs = [], out = [], pivot = [], warns = [];
-    const warnedOrds = new Set();
+    const errs = [], out = [], pivot = [], warns = [], overRows = [], upsertGroups = [];
     /* 1. Tìm dòng tiêu đề */
     let hi = -1;
     for (let i = 0; i < Math.min(rows.length, 12); i++) {
       const cs = (rows[i] || []).map(normTxt);
       if (cs.some(c => c.includes("chi thi")) && cs.some(c => c.includes("ngay"))) { hi = i; break; }
     }
-    if (hi < 0) return { rows: [], errs: ["Không tìm thấy dòng tiêu đề — cần các cột 'Ngày Nhập Kho' và 'Chỉ thị' như file mẫu"], pivot };
+    if (hi < 0) return { rows: [], errs: ["Không tìm thấy dòng tiêu đề — cần các cột 'Ngày Nhập Kho' và 'Chỉ thị' như file mẫu"], pivot, overRows, upsertGroups };
     const H = (rows[hi] || []).map(normTxt);
     const ix = {
       date: H.findIndex(c => c.includes("ngay")),
@@ -1226,10 +1437,10 @@
       const m = h.match(/^(?:uk\s*)?([1-9]|10)$/);
       if (m) sizeCols.push({ idx: i, n: +m[1], sz: "UK " + m[1] });
     });
-    if (!sizeCols.length) return { rows: [], errs: ["Không thấy cột size (3, 4, 5… hoặc UK 3…) trên dòng tiêu đề"], pivot };
+    if (!sizeCols.length) return { rows: [], errs: ["Không thấy cột size (3, 4, 5… hoặc UK 3…) trên dòng tiêu đề"], pivot, overRows, upsertGroups };
 
-    /* 2. Đọc từng dòng dữ liệu, cộng dồn để tính thiếu/đủ tuần tự */
-    const addedSoFar = {};
+    /* 2. Đọc từng dòng dữ liệu, tự động trừ SL cũ nếu trùng (Ngày NK + Chỉ thị) để không cộng dồn trùng */
+    const addedSoFar = {}, replacedBase = {};
     const readDate = v => {
       if (typeof v === "number" && window.XlsxLite) { const d = XlsxLite.serialToISO(v); if (d) return d; }
       return Store.parseDate(v);
@@ -1242,36 +1453,61 @@
       const ord = ordRaw.toUpperCase();
       const o = U.orderByCode(ord);
       if (!o) { errs.push(`Dòng ${line}: chỉ thị "${ordRaw}" không có trong đơn đặt hàng`); continue; }
-      if (!warnedOrds.has(ord) && o.recvPrs > 0) {
-        warnedOrds.add(ord);
-        warns.push(`${ord} đã có ${o.recvPrs} đôi nhập kho trong hệ thống — import sẽ CỘNG THÊM, kiểm tra tránh trùng lặp dữ liệu`);
-      }
       const rd = readDate(R[ix.date]);
       if (!rd) { errs.push(`Dòng ${line}: ngày nhập kho "${R[ix.date] ?? ""}" không hợp lệ (dd/mm/yyyy)`); continue; }
+      const rdLabel = U.fmtDate(rd);
+      const gk = rdLabel + "||" + ord;
+      if (replacedBase[gk] === undefined) {
+        const curGrp = Store.receiptGroupSizes(rdLabel, ord);
+        replacedBase[gk] = curGrp;
+        if (Object.keys(curGrp).length) {
+          upsertGroups.push(`${rdLabel} · ${ord}`);
+        }
+      }
       const note = ix.note >= 0 ? String(R[ix.note] ?? "").trim() : "";
-      const pv = { rd, rdLabel: U.fmtDate(rd), ord, ctry: o.ctry, col: o.col.split(",")[0].trim(), po: o.po, sizes: {}, total: 0 };
+      const pv = { rd, rdLabel, ord, ctry: o.ctry, col: o.col.split(",")[0].trim(), po: o.po, sizes: {}, total: 0, isUpsert: !!(replacedBase[gk] && Object.keys(replacedBase[gk]).length) };
       let first = true;
       for (const sc of sizeCols) {
         const q = parseInt(String(R[sc.idx] ?? "").replace(/[.\s]/g, ""), 10);
         if (!q || q <= 0) continue;
         if (!o.sizes[sc.sz]) { errs.push(`Dòng ${line}: ${ord} không đặt size ${sc.sz} (SL ${q} bị bỏ qua)`); continue; }
         const key = ord + "|" + sc.sz;
-        const before = (o.sizes[sc.sz].received || 0) + (addedSoFar[key] || 0);
+        const oldSameDay = (replacedBase[gk] && replacedBase[gk][sc.sz]) || 0;
+        const before = Math.max(0, (o.sizes[sc.sz].received || 0) - oldSameDay) + (addedSoFar[key] || 0);
+        const ordered = o.sizes[sc.sz].ordered;
+        const diff = (before + q) - ordered;
         const perCtn = Store.clpPerCtn(ord, sc.sz);
-        out.push({
-          rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
+        const recObj = {
+          rd, rdLabel, ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
           col: o.col.split(",")[0].trim(), sz: sc.sz, prs: q, ctn: Math.ceil(q / perCtn),
-          qcQty: null, qcDate: null, ordered: o.sizes[sc.sz].ordered,
-          diff: (before + q) - o.sizes[sc.sz].ordered, bat: o.bat, actualExp: null, planExp: o.d,
+          qcQty: null, qcDate: null, ordered,
+          diff, bat: o.bat, actualExp: null, planExp: o.d,
           notProduced: first && note ? note : null,
-        });
+        };
+        if (diff > 0) {
+          const remain = Math.max(0, ordered - before);
+          if (q % 6 === 0 && ((q / 6) === diff || (q / 6) * 5 === remain)) {
+            recObj._overCause = "pack_6_vs_5";
+            recObj._suggestPrs = (q / 6) * 5;
+            recObj._overMsg = `Nghi vấn nhân nhầm ${q / 6} thùng × 6 = ${q} đôi thay vì quy cách 5 đôi/thùng (${q / 6} × 5 = ${(q / 6) * 5} đôi)`;
+          } else {
+            recObj._overCause = "over_order";
+            recObj._suggestPrs = remain;
+            recObj._overMsg = `Vượt SL đặt hàng +${diff} đôi (Đặt: ${ordered} · Đã nhập ngày khác: ${before} · Còn thiếu: ${remain})`;
+          }
+          overRows.push(recObj);
+        }
+        out.push(recObj);
         addedSoFar[key] = (addedSoFar[key] || 0) + q;
         pv.sizes[sc.sz] = q; pv.total += q;
         first = false;
       }
       if (pv.total > 0) pivot.push(pv);
     }
-    return { rows: out, errs, pivot, warns };
+    if (upsertGroups.length) {
+      warns.push(`🔄 Có ${upsertGroups.length} nhóm (Ngày NK + Chỉ thị) đã tồn tại trong kho sẽ được CẬP NHẬT theo file mới (không cộng dồn trùng lặp): ${upsertGroups.slice(0, 6).join("; ")}${upsertGroups.length > 6 ? "…" : ""}`);
+    }
+    return { rows: out, errs, pivot, warns, overRows, upsertGroups };
   };
 
   /* Tự nhận dạng định dạng file import nhập kho:

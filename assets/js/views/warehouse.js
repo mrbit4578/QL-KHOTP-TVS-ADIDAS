@@ -59,6 +59,7 @@
         ? (events.length === 1 ? events[0].lab : `${events[0].lab} → ${events[events.length - 1].lab}`)
         : "chưa có dữ liệu";
 
+      const excessList = Store.auditExcessReceipts ? Store.auditExcessReceipts() : [];
       root.innerHTML = `
         <div class="card" style="margin-bottom:16px">
           <div class="filters" style="background:var(--soft)">
@@ -69,8 +70,17 @@
             <button class="btn" id="rExp">${App.icon("download", "ico")} Export (.csv)</button>
             <button class="btn need-edit" id="rBulkQC" title="Xác nhận kiểm đếm QC cho các dòng nhập kho đang hiển thị">✓ Duyệt QC các dòng đang lọc</button>
             <button class="btn" id="rEditLog">⟲ Nhật ký sửa / xóa nhập kho (${Store.receiptEditSummary ? Store.receiptEditSummary().total : 0})</button>
+            <button class="btn ${excessList.length ? "danger" : ""}" id="rExcessAudit" title="Quét toàn bộ kho để tìm các chỉ thị/size bị nhập dư so với SL đặt hàng KD">
+              ${excessList.length ? `⚠ Kiểm tra nhập dư (${excessList.length})` : `✓ Kiểm tra nhập dư (0)`}
+            </button>
             <span class="f-chipcount">Số thùng tự động mapping từ Packing List (CLP) theo chỉ thị + size</span>
           </div>
+          ${excessList.length ? `<div class="alert warn" style="margin:10px 16px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div class="a-t"><b>⚠ Phát hiện ${excessList.length} size/chỉ thị đang có SL nhập kho SX vượt quá SL đặt hàng KD:</b>
+              ${excessList.slice(0, 3).map(x => `<b>${x.ord} (${x.sz})</b>: nhập ${U.fmt(x.recvQty)} / đặt ${U.fmt(x.ordQty)} (<b style="color:var(--bad)">+${U.fmt(x.excess)}</b> — ${U.esc(x.causeLabel)})`).join(" · ")}
+            </div>
+            <button class="btn small primary need-edit" onclick="Views._whExcessModal()">🔍 Xem & Chuẩn hóa ngay</button>
+          </div>` : ""}
           ${(() => {
             const si = Store.seedReceiptInfo();
             const c = Store.counts();
@@ -353,6 +363,7 @@
         { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
       });
       bind("rEditLog", () => Views._whEditLogModal());
+      bind("rExcessAudit", () => Views._whExcessModal());
       bind("rBulkQC", () => {
         const groups = Views._mtx || [];
         if (!groups.length) { App.toast("Không có dòng nhập kho nào đang hiển thị để duyệt QC", "warn"); return; }
@@ -414,28 +425,43 @@
         <div class="note" style="margin-bottom:6px">${U.flag(o.ctry)} <b>${o.ord}</b> · ${o.ctry} · màu ${o.col} · PO ${o.po} · xuất KD ${U.fmtDate(o.d)}</div>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>Size</th><th class="num">SL đặt</th><th class="num">Đã nhập</th><th class="num">Còn thiếu</th>
-            <th class="num" style="min-width:110px">Nhập kho lần này</th><th class="num">Thùng</th></tr></thead>
+            <th class="num" style="min-width:110px">Nhập kho lần này</th><th class="num">Thùng</th><th>Kiểm tra</th></tr></thead>
           <tbody>${U.SIZES.filter(s => o.sizes[s]).map(s => {
             const c = o.sizes[s], remain = Math.max(0, c.ordered - c.received);
             return `<tr>
               <td><b>${s}</b></td><td class="num">${U.fmt(c.ordered)}</td>
               <td class="num">${U.fmt(c.received)}</td>
               <td class="num ${remain ? "neg" : "pos"}">${U.fmt(remain)}</td>
-              <td class="num"><input class="cell-in" type="number" min="0" placeholder="0" data-sz="${s}"></td>
-              <td class="num nk-ctn">0</td></tr>`;
+              <td class="num"><input class="cell-in" type="number" min="0" placeholder="0" data-sz="${s}" data-rem="${remain}"></td>
+              <td class="num nk-ctn">0</td>
+              <td class="nk-chk note">—</td></tr>`;
           }).join("")}</tbody>
         </table></div>`;
       document.getElementById("nSave").disabled = false;
       grid.querySelectorAll("input[data-sz]").forEach(i => i.addEventListener("input", () => {
-        let p = 0, ct = 0;
+        let p = 0, ct = 0, overCnt = 0;
         grid.querySelectorAll("input[data-sz]").forEach(x => {
           const q = parseInt(x.value || "0", 10) || 0;
+          const rem = parseInt(x.dataset.rem || "0", 10) || 0;
           const perCtn = Store.clpPerCtn(o.ord, x.dataset.sz);
           const c = q ? Math.ceil(q / perCtn) : 0;
-          x.closest("tr").querySelector(".nk-ctn").textContent = U.fmt(c);
+          const tr = x.closest("tr");
+          tr.querySelector(".nk-ctn").textContent = U.fmt(c);
+          const chkEl = tr.querySelector(".nk-chk");
+          if (q > rem) {
+            overCnt++;
+            chkEl.innerHTML = `<span class="bdg bad plain">⚠ Vượt đơn +${U.fmt(q - rem)} đôi (còn thiếu ${U.fmt(rem)})</span>`;
+          } else if (q > 0 && q === rem) {
+            chkEl.innerHTML = `<span class="bdg ok plain">✓ Vừa đủ đơn</span>`;
+          } else if (q > 0) {
+            chkEl.innerHTML = `<span class="note">còn thiếu ${U.fmt(rem - q)}</span>`;
+          } else {
+            chkEl.textContent = "—";
+          }
           p += q; ct += c;
         });
-        document.getElementById("nSum").innerHTML = `Lần nhập này: <b>${U.fmt(p)} đôi</b> = <b>${U.fmt(ct)} thùng</b>`;
+        document.getElementById("nSum").innerHTML = `Lần nhập này: <b>${U.fmt(p)} đôi</b> = <b>${U.fmt(ct)} thùng</b>` +
+          (overCnt ? ` · <span style="color:var(--bad);font-weight:700">⚠ ${overCnt} size vượt SL đặt hàng!</span>` : "");
       }));
     });
 
@@ -447,12 +473,14 @@
       if (!o) return bad("Chọn chỉ thị");
       if (!rd) return bad("Chọn ngày nhập kho");
       const note = document.getElementById("nNote").value.trim();
-      const rows = [];
+      const rows = [], overSizes = [];
       let first = true;
       grid.querySelectorAll("input[data-sz]").forEach(i => {
         const q = parseInt(i.value || "0", 10) || 0;
         if (q <= 0) return;
         const sz = i.dataset.sz, c = o.sizes[sz];
+        const remain = Math.max(0, c.ordered - c.received);
+        if (q > remain) overSizes.push(`${sz}: nhập ${q} > còn thiếu ${remain} (+${q - remain} đôi)`);
         const perCtn = Store.clpPerCtn(o.ord, sz);
         rows.push({
           rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord: o.ord, po: o.po, item: TVS_META.itemCode,
@@ -463,6 +491,9 @@
         first = false;
       });
       if (!rows.length) return bad("Nhập số đôi cho ít nhất 1 size");
+      if (overSizes.length) {
+        if (!confirm(`⚠ CẢNH BÁO NHẬP DƯ SO VỚI ĐƠN ĐẶT HÀNG (${o.ord}):\n\n• ${overSizes.join("\n• ")}\n\nBạn có chắc chắn muốn ghi nhận vượt đơn đặt hàng không? (Bấm Cancel/Huỷ để sửa lại đúng số lượng)`)) return;
+      }
       Store.addReceipts(rows, "manual");
       App.closeModal();
       App.toast(`✓ Đã nhập kho <b>${o.ord}</b>: ${U.fmt(U.sum(rows, r => r.prs))} đôi = ${U.fmt(U.sum(rows, r => r.ctn))} thùng (${U.fmtDate(rd)})`, "ok");
@@ -472,12 +503,24 @@
   /* ── IMPORT nhập kho: nhận .xlsx hoặc .csv theo mẫu pivot theo ngày ── */
   function importReceipts() {
     App.pickDataFile(({ rows: fileRows, name, kind }) => {
-      const { rows, errs, pivot, format, warns } = Store.importReceiptsAuto(fileRows);
+      const { rows, errs, pivot, format, warns, overRows } = Store.importReceiptsAuto(fileRows);
+      const overs = overRows || [];
       let html = `<div class="modal-h"><h3>Import nhập kho — ${U.esc(name)}</h3>
         <span class="bdg acc plain">${kind === "xlsx" ? "Excel .xlsx" : "CSV"} · định dạng ${format === "daily" ? "theo ngày (pivot size)" : "đơn giản"}</span>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div><div class="modal-b">`;
       if (errs.length) html += `<div class="alert" style="margin-bottom:12px"><div class="a-t"><b>${errs.length} dòng lỗi (bị bỏ qua):</b><br>${errs.slice(0, 12).map(U.esc).join("<br>")}${errs.length > 12 ? "<br>…" : ""}</div></div>`;
-      if (warns && warns.length) html += `<div class="alert warn" style="margin-bottom:12px"><div class="a-t"><b>Lưu ý trùng lặp:</b><br>${warns.slice(0, 8).map(U.esc).join("<br>")}</div></div>`;
+      if (warns && warns.length) html += `<div class="alert warn" style="margin-bottom:12px"><div class="a-t"><b>Lưu ý cập nhật ngày trùng:</b><br>${warns.slice(0, 8).map(U.esc).join("<br>")}</div></div>`;
+      if (overs.length) {
+        html += `<div class="alert" style="margin-bottom:12px;border-left:4px solid var(--bad)"><div class="a-t">
+          <b>⚠ Phát hiện ${overs.length} dòng trong file làm SL nhập kho VƯỢT QUÁ SL đặt hàng KD:</b><br>
+          ${overs.slice(0, 10).map(r => `• Ngày <b>${U.esc(r.rdLabel)}</b> · <b>${U.esc(r.ord)} (${r.sz})</b>: File ghi <b>${U.fmt(r.prs)} đôi</b> → <span style="color:var(--bad);font-weight:700">${U.esc(r._overMsg)}</span> · Đề xuất chuẩn hóa: <b style="color:var(--ok)">${U.fmt(r._suggestPrs)} đôi</b>`).join("<br>")}
+          ${overs.length > 10 ? `<br>… và ${overs.length - 10} dòng khác` : ""}
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;padding:6px 10px;background:var(--soft);border-radius:6px;cursor:pointer;font-weight:700;color:var(--ok)">
+            <input type="checkbox" id="riAutoFixOver" checked>
+            <span>🔒 Tự động chuẩn hóa ${overs.length} dòng vượt đơn này về đúng SL chuẩn (${overs.map(r => `${r.ord} ${r.sz}: ${r.prs}→${r._suggestPrs}`).slice(0, 4).join(", ")}${overs.length > 4 ? "…" : ""}) ngay khi nạp</span>
+          </label>
+        </div></div>`;
+      }
       if (!rows.length) { html += `<div class="note">Không có dòng hợp lệ. Kiểm tra file theo đúng mẫu (bấm “File mẫu import”).</div></div>`; App.openModal(html, true); return; }
 
       /* Bảng xem trước 1: đúng dạng pivot của file mẫu */
@@ -485,26 +528,27 @@
         html += `<h4 style="font-size:13px;margin-bottom:6px">① File đọc được (dạng theo ngày như mẫu):</h4>
         <div class="tbl-wrap" style="max-height:24vh;overflow:auto;margin-bottom:14px"><table class="tbl">
           <thead><tr><th>Ngày NK</th><th>Chỉ thị</th><th>Quốc gia</th><th>Màu</th>
-            ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}<th class="num">Tổng đôi</th></tr></thead>
+            ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}<th class="num">Tổng đôi</th><th>Trạng thái</th></tr></thead>
           <tbody>${pivot.map(p => `<tr><td><b>${p.rdLabel}</b></td><td><b>${p.ord}</b></td><td>${U.flag(p.ctry)} ${U.esc(p.ctry)}</td><td>${p.col}</td>
             ${U.SIZES.map(s => `<td class="num">${p.sizes[s] ? U.fmt(p.sizes[s]) : ""}</td>`).join("")}
-            <td class="num"><b>${U.fmt(p.total)}</b></td></tr>`).join("")}</tbody></table></div>`;
+            <td class="num"><b>${U.fmt(p.total)}</b></td>
+            <td>${p.isUpsert ? `<span class="bdg warn plain">🔄 Cập nhật ngày đã có</span>` : `<span class="bdg ok plain">+ Ngày mới</span>`}</td></tr>`).join("")}</tbody></table></div>`;
       }
 
       /* Bảng xem trước 2: đã convert & mapping vào hệ thống */
       html += `<h4 style="font-size:13px;margin-bottom:6px">② Sau khi convert & mapping tự động vào hệ thống (${rows.length} dòng · ${U.fmt(U.sum(rows, r => r.prs))} đôi = ${U.fmt(U.sum(rows, r => r.ctn))} thùng):</h4>
         <div class="tbl-wrap" style="max-height:26vh;overflow:auto"><table class="tbl">
         <thead><tr><th>Ngày NK</th><th>Chỉ thị</th><th>Quốc gia</th><th>PO</th><th>Mã hàng</th><th>Màu</th><th>Size</th>
-          <th class="num">Đôi</th><th class="num">Thùng</th><th class="num">SL đặt</th><th class="num">Thiếu/Đủ</th><th>Ngày xuất KD</th><th>Ghi chú</th></tr></thead>
-        <tbody>${rows.map(r => `<tr><td>${r.rdLabel}</td><td><b>${r.ord}</b></td><td>${U.esc(r.ctry)}</td><td class="mono">${U.esc(r.po)}</td><td class="mono">${r.item}</td><td>${r.col}</td><td><b>${r.sz}</b></td>
-          <td class="num">${U.fmt(r.prs)}</td><td class="num">${r.ctn}</td><td class="num">${U.fmt(r.ordered)}</td>
-          <td class="num ${r.diff < 0 ? "neg" : "pos"}">${r.diff > 0 ? "+" : ""}${r.diff}</td>
-          <td>${U.fmtDate(r.planExp)}</td><td class="note">${r.notProduced ? U.esc(r.notProduced) : ""}</td></tr>`).join("")}</tbody></table></div>
+          <th class="num">Đôi</th><th class="num">Thùng</th><th class="num">SL đặt</th><th class="num">Thiếu/Đủ</th><th>Ngày xuất KD</th><th>Ghi chú / Cảnh báo</th></tr></thead>
+        <tbody>${rows.map(r => `<tr${r.diff > 0 ? ' style="background:rgba(239,68,68,0.12)"' : ''}><td>${r.rdLabel}</td><td><b>${r.ord}</b></td><td>${U.esc(r.ctry)}</td><td class="mono">${U.esc(r.po)}</td><td class="mono">${r.item}</td><td>${r.col}</td><td><b>${r.sz}</b></td>
+          <td class="num"><b>${U.fmt(r.prs)}</b>${r._suggestPrs !== undefined ? ` <span style="color:var(--ok);font-weight:700">→ ${U.fmt(r._suggestPrs)}</span>` : ""}</td><td class="num">${r.ctn}</td><td class="num">${U.fmt(r.ordered)}</td>
+          <td class="num ${r.diff < 0 ? "neg" : (r.diff > 0 ? "neg" : "pos")}">${r.diff > 0 ? "⚠ +" : ""}${r.diff}</td>
+          <td>${U.fmtDate(r.planExp)}</td><td class="note">${r._overMsg ? `<span style="color:var(--bad);font-weight:700">${U.esc(r._overMsg)}</span>` : (r.notProduced ? U.esc(r.notProduced) : "")}</td></tr>`).join("")}</tbody></table></div>
         <div class="mt" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px">
           <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Cách nạp dữ liệu:</div>
           <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-bottom:6px">
             <input type="radio" name="riMode" value="add" checked>
-            <span><b>Thêm vào</b> dữ liệu hiện có <span class="note">— cộng dồn với số liệu đang có trong kho</span></span></label>
+            <span><b>Thêm mới & Cập nhật ngày trùng</b> <span class="note">— thêm ngày mới vào kho; nếu trùng (Ngày NK + Chỉ thị) đã có thì tự động cập nhật (tuyệt đối không cộng dồn gấp đôi)</span></span></label>
           <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px">
             <input type="radio" name="riMode" value="replace">
             <span><b>Thay thế toàn bộ</b> dữ liệu nhập kho <span class="note">— xoá sạch số liệu nhập kho hiện có (kể cả dữ liệu gốc &amp; các chỉnh sửa) rồi nạp file này làm dữ liệu duy nhất</span></span></label>
@@ -516,13 +560,77 @@
       App.openModal(html, true);
       document.getElementById("riApply").onclick = () => {
         const mode = (document.querySelector('input[name="riMode"]:checked') || {}).value || "add";
+        const autoFixEl = document.getElementById("riAutoFixOver");
+        const autoFixOver = autoFixEl ? autoFixEl.checked : false;
         if (mode === "replace" && !confirm("Thay thế TOÀN BỘ dữ liệu nhập kho bằng file này?\n\nSố liệu nhập kho hiện có (kể cả dữ liệu gốc và các chỉnh sửa) sẽ bị xoá.")) return;
-        Store.addReceipts(rows, "import", { replaceAll: mode === "replace" });
+        Store.addReceipts(rows, "import", { replaceAll: mode === "replace", autoFixOver });
         App.closeModal();
-        App.toast(`✓ Đã import ${rows.length} dòng nhập kho (${mode === "replace" ? "thay thế toàn bộ" : "thêm vào"}) — PO/màu/SL đặt/đợt đã mapping tự động`, "ok");
+        App.toast(`✓ Đã import ${rows.length} dòng nhập kho (${mode === "replace" ? "thay thế toàn bộ" : "thêm & cập nhật thông minh"}${autoFixOver && overs.length ? ` · đã tự chuẩn hóa ${overs.length} dòng vượt đơn` : ""})`, "ok");
       };
     });
   }
+
+  /* ═════════ MODAL KIỂM TRA & XỬ LÝ NHẬP DƯ SO VỚI ĐƠN ĐẶT HÀNG ═════════ */
+  Views._whExcessModal = function () {
+    const list = Store.auditExcessReceipts ? Store.auditExcessReceipts() : [];
+    Views._excessItems = list;
+    App.openModal(`
+      <div class="modal-h">
+        <h3>🔍 Kiểm tra & Chuẩn hóa dòng nhập dư so với Đơn đặt hàng (${list.length} mục)</h3>
+        <span class="bdg ${list.length ? "bad" : "ok"} plain">${list.length ? `Đang có ${list.length} size nhập vượt đơn` : "✓ 100% đơn hàng không bị nhập dư"}</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b">
+        ${!list.length
+          ? `<div class="alert ok"><div class="a-t"><b>✓ Tuyệt vời!</b> Toàn bộ các chỉ thị và các size trong kho hiện tại đều có <b>SL nhập kho SX ≤ SL đặt hàng KD</b> (không còn bất kỳ dòng nào bị cộng dồn trùng hay nhân nhầm quy cách thùng).</div></div>`
+          : `<div class="alert warn" style="margin-bottom:12px"><div class="a-t">
+              Hệ thống đã tự động quét và chẩn đoán nguyên nhân gây nhập dư (như <b>nhân nhầm 6 đôi/thùng thay vì 5 đôi/thùng</b> hoặc <b>import trùng ngày</b>). Bấm <b>“✓ Chuẩn hóa ngay”</b> ở từng dòng hoặc <b>“✓ Chuẩn hóa tất cả”</b> để tự động điều chỉnh về đúng SL đặt hàng và lưu đầy đủ vào Nhật ký chỉnh sửa.
+            </div></div>
+            <div class="tbl-wrap" style="max-height:55vh;overflow:auto"><table class="tbl">
+              <thead><tr>
+                <th>Chỉ thị</th><th>Quốc gia · Màu</th><th>Size</th>
+                <th class="num">SL đặt KD</th><th class="num">SL đã nhập</th><th class="num">SL dư</th>
+                <th>Chi tiết các ngày nhập</th><th>Dòng ngày gây dư & Chẩn đoán</th><th class="num">Đề xuất sửa</th><th>Thao tác</th>
+              </tr></thead>
+              <tbody>${list.map((it, idx) => `<tr>
+                <td><b class="clickable" onclick="App.closeModal();Views._openOrder('${it.ord}')">${it.ord}</b><br><span class="note">KD ${U.fmtDate(it.planExp)}</span></td>
+                <td>${U.flag(it.ctry)} ${U.esc(it.ctry)}<br>${U.colorCell(it.col)}</td>
+                <td><b>${it.sz}</b></td>
+                <td class="num"><b>${U.fmt(it.ordQty)}</b></td>
+                <td class="num">${U.fmt(it.recvQty)}</td>
+                <td class="num neg"><b>+${U.fmt(it.excess)}</b></td>
+                <td class="note">${it.rows.map(r => `${r.rdLabel === it.targetRdLabel ? `<b style="color:var(--bad)">${r.rdLabel}: ${U.fmt(r.prs)}</b>` : `${r.rdLabel}: ${U.fmt(r.prs)}`}`).join("<br>")}</td>
+                <td><b>Ngày ${U.esc(it.targetRdLabel)}</b><br><span class="note" style="color:var(--warn)">${U.esc(it.causeLabel)}</span></td>
+                <td class="num"><b>${U.fmt(it.targetCurPrs)} → <span style="color:var(--ok)">${U.fmt(it.suggestPrs)}</span></b></td>
+                <td style="white-space:nowrap">
+                  <button class="btn small primary need-edit" onclick="Views._whFixOneExcess(${idx})">✓ Chuẩn hóa ngay</button>
+                </td>
+              </tr>`).join("")}</tbody>
+            </table></div>`}
+        <div class="mt" style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+          ${list.length ? `<button class="btn primary need-edit" id="btnFixAllExcess">✓ Chuẩn hóa tất cả (${list.length} mục) về đúng SL đặt hàng</button>` : `<span></span>`}
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+    const btnAll = document.getElementById("btnFixAllExcess");
+    if (btnAll) {
+      btnAll.onclick = () => {
+        const r = Store.fixAllExcessReceipts();
+        if (!r || !r.ok) { App.toast("⚠ " + (r && r.msg || "Không thể sửa"), "warn"); return; }
+        App.toast(`✓ Đã chuẩn hóa ${r.count} mục nhập dư về đúng SL đặt hàng và ghi nhật ký`, "ok");
+        Views._whExcessModal();
+      };
+    }
+  };
+
+  Views._whFixOneExcess = function (idx) {
+    const it = (Views._excessItems || [])[idx];
+    if (!it) return;
+    const r = Store.fixExcessReceiptItem(it);
+    if (!r || !r.ok) { App.toast("⚠ " + (r && r.msg || "Không thể sửa"), "warn"); return; }
+    App.toast(`✓ Đã chuẩn hóa ${it.ord} (${it.sz}) ngày ${it.targetRdLabel}: ${it.targetCurPrs} → ${it.suggestPrs} đôi`, "ok");
+    Views._whExcessModal();
+  };
 
   /* ═════════ SỬA / XÓA / LỊCH SỬ 1 DÒNG MA TRẬN NHẬP KHO ═════════ */
   Views._mtx = [];

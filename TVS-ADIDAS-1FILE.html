@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 04/11/2026 08:05) -->
+<!-- BẢN GỘP 1 FILE — sinh tự động bởi tools/build-1file.py (v5.0 · 21/11/2026 16:04) -->
 <title>TVS × adidas — Hệ thống quản lý N-X-T Rubber Boots</title>
 <meta name="description" content="Hệ thống web quản lý Nhập – Xuất – Tồn thành phẩm Rubber Boots adidas | Công ty TNHH Giày Tuấn Việt (TVS)">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9IiMwYzBlMTIiLz4KICA8cG9seWdvbiBwb2ludHM9IjM4LDEyIDU4LDQ4IDQ0LDQ4IDMxLDI0LjUiIGZpbGw9IiNmZmZmZmYiLz4KICA8cG9seWdvbiBwb2ludHM9IjI1LjUsMjIuNSAzOS41LDQ4IDI2LDQ4IDE4LjUsMzQuNSIgZmlsbD0iI2ZmZmZmZiIvPgogIDxwb2x5Z29uIHBvaW50cz0iMTMsMzMuNSAyMSw0OCA3LDQ4IiBmaWxsPSIjZmZmZmZmIi8+CiAgPHJlY3QgeD0iNyIgeT0iNTIiIHdpZHRoPSI1MSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzAwNTBkOCIvPgo8L3N2Zz4K" type="image/svg+xml">
@@ -2490,6 +2490,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       packingMeta: data.packingMeta || {},
       packingLog: data.packingLog || [],
     });
+    compactReceiptGroupInLocal(null);
     persist();
     Store.merge();
     if (window.U && U.rebuild) U.rebuild();
@@ -2574,7 +2575,7 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
   };
   const whoAmI = () => (window.Auth && Auth.current ? Auth.current.u : "?");
 
-  /* Nén gọn các dòng thừa/đã xóa trong receiptsAdded cho 1 nhóm gk (hoặc toàn bộ) */
+  /* Nén gọn các dòng thừa/đã xóa/trùng khóa (rdLabel+ord+sz) trong receiptsAdded cho 1 nhóm gk (hoặc toàn bộ) */
   function compactReceiptGroupInLocal(targetGk) {
     const edits = Store.local.receiptEdits || {};
     const rows = Store.local.receiptsAdded || [];
@@ -2604,10 +2605,136 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       ["qcQty", "qcDate", "actualExp", "notProduced"].forEach(k => { if (c[k] === null) delete c[k]; });
       out.push(c);
     }
-    const removed = rows.length - out.length;
-    Store.local.receiptsAdded = out;
+    /* Khử trùng lặp theo khóa tự nhiên (rdLabel + ord + sz): giữ bản ghi mới nhất nếu 2 bản ghi trùng khóa khác _id */
+    const dedupMap = new Map();
+    for (const r of out) {
+      const natKey = `${r.rdLabel || r.rd}||${r.ord}||${r.sz}`;
+      if (targetGk && gkOf(r) !== targetGk && !dedupMap.has(natKey)) {
+        dedupMap.set(natKey, r);
+      } else {
+        dedupMap.set(natKey, r);
+      }
+    }
+    const finalOut = [...dedupMap.values()];
+    const removed = rows.length - finalOut.length;
+    Store.local.receiptsAdded = finalOut;
     return removed;
   }
+
+  /* ── KIỂM TRA & CHẨN ĐOÁN TOÀN BỘ DÒNG NHẬP DƯ SO VỚI ĐƠN ĐẶT HÀNG ──
+     Tự động phát hiện:
+     1) Nhân nhầm quy cách 6 đôi/thùng thay vì 5 đôi/thùng (prs = 6*C, dư = C → sửa về 5*C)
+     2) Nhân đôi số lượng (×2) do import trùng ngày
+     3) Nhập vượt số lượng đặt hàng của size đó */
+  Store.auditExcessReceipts = function () {
+    const items = [];
+    const orders = (window.U && U.ORDER_INDEX) ? U.ORDER_INDEX : [];
+    const recs = window.TVS_RECEIPTS || [];
+    for (const o of orders) {
+      for (const sz of SIZES6) {
+        const szInfo = o.sizes && o.sizes[sz];
+        const ordQty = szInfo ? (szInfo.ordered || 0) : 0;
+        const recvQty = szInfo ? (szInfo.received || 0) : 0;
+        if (recvQty <= ordQty) continue;
+        const excess = recvQty - ordQty;
+        const szRows = recs.filter(r => r.ord === o.ord && r.sz === sz);
+        if (!szRows.length) continue;
+
+        /* Tìm dòng nghi vấn gây dư */
+        let targetRow = szRows[szRows.length - 1];
+        let causeType = "over_order";
+        let causeLabel = `Nhập vượt SL đặt hàng (+${excess} đôi)`;
+        let suggestPrs = Math.max(0, targetRow.prs - excess);
+
+        /* 1. Kiểm tra lỗi nhân nhầm 6 đôi/thùng thay vì 5 đôi/thùng: 6*C - 5*C = C = excess */
+        const row6vs5 = szRows.find(r => r.prs % 6 === 0 && (r.prs / 6) === excess);
+        if (row6vs5) {
+          targetRow = row6vs5;
+          const ctnCount = row6vs5.prs / 6;
+          causeType = "pack_6_vs_5";
+          suggestPrs = ctnCount * 5;
+          causeLabel = `Nhân nhầm 6 đôi/thùng thay vì 5 đôi/thùng (${ctnCount} thùng × 5 = ${suggestPrs} đôi, đang ghi ${ctnCount} × 6 = ${row6vs5.prs} đôi)`;
+        } else {
+          /* 2. Kiểm tra lỗi nhân đôi số lượng (×2) trên 1 ngày */
+          const rowDoubled = szRows.find(r => r.prs % 2 === 0 && (r.prs / 2) === excess);
+          if (rowDoubled) {
+            targetRow = rowDoubled;
+            causeType = "doubled";
+            suggestPrs = rowDoubled.prs / 2;
+            causeLabel = `Bị cộng dồn gấp đôi (×2) trên ngày ${rowDoubled.rdLabel} (${rowDoubled.prs} → ${suggestPrs} đôi)`;
+          } else {
+            /* 3. Kiểm tra dòng trùng bằng đúng số dư */
+            const rowExact = szRows.slice().reverse().find(r => r.prs === excess);
+            if (rowExact && szRows.length > 1) {
+              targetRow = rowExact;
+              causeType = "dup_row";
+              suggestPrs = 0;
+              causeLabel = `Dòng nhập thừa đúng +${excess} đôi ngày ${rowExact.rdLabel}`;
+            } else {
+              /* 4. Tìm dòng có prs >= excess để giảm bớt excess */
+              const rowEnough = szRows.slice().reverse().find(r => r.prs >= excess);
+              if (rowEnough) {
+                targetRow = rowEnough;
+                suggestPrs = rowEnough.prs - excess;
+              }
+            }
+          }
+        }
+
+        items.push({
+          key: `${o.ord}|${sz}`,
+          ord: o.ord,
+          ctry: o.ctry,
+          col: o.col,
+          po: o.po,
+          planExp: o.d,
+          sz,
+          ordQty,
+          recvQty,
+          excess,
+          ordTotPrs: o.prs,
+          ordRecvPrs: o.recvPrs,
+          ordBalPrs: o.recvPrs - o.prs,
+          rows: szRows.map(r => ({ rdLabel: r.rdLabel, prs: r.prs, ctn: r.ctn })),
+          targetRdLabel: targetRow.rdLabel,
+          targetCurPrs: targetRow.prs,
+          suggestPrs,
+          causeType,
+          causeLabel,
+        });
+      }
+    }
+    return items;
+  };
+
+  /* Áp dụng sửa nhanh 1 mục nhập dư về đúng SL đặt hàng (ghi nhận đầy đủ vào nhật ký receiptEdits) */
+  Store.fixExcessReceiptItem = function (item, customReason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    if (!item || !item.ord || !item.targetRdLabel || !item.sz) return { ok: false, msg: "Thiếu thông tin dòng cần sửa" };
+    const curSizes = Store.receiptGroupSizes(item.targetRdLabel, item.ord);
+    const nextSizes = Object.assign({}, curSizes);
+    if (item.suggestPrs <= 0) delete nextSizes[item.sz];
+    else nextSizes[item.sz] = item.suggestPrs;
+    const reason = (customReason || "").trim() || `Chuẩn hóa SL nhập dư (${item.sz}: ${item.targetCurPrs} → ${item.suggestPrs} đôi — ${item.causeLabel})`;
+    const remainingKeys = Object.keys(nextSizes).filter(k => nextSizes[k] > 0);
+    if (!remainingKeys.length) {
+      return Store.deleteReceiptGroup(item.targetRdLabel, item.ord, reason);
+    }
+    return Store.editReceiptGroup(item.targetRdLabel, item.ord, nextSizes, reason);
+  };
+
+  /* Sửa hàng loạt toàn bộ các dòng đang bị nhập dư về đúng SL đặt hàng */
+  Store.fixAllExcessReceipts = function (customReason) {
+    if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
+    const list = Store.auditExcessReceipts();
+    if (!list.length) return { ok: true, count: 0 };
+    let count = 0;
+    for (const item of list) {
+      const r = Store.fixExcessReceiptItem(item, customReason);
+      if (r && r.ok) count++;
+    }
+    return { ok: true, count };
+  };
 
   Store.editReceiptGroup = function (rdLabel, ord, newSizes, reason) {
     if (!Store.guard()) return { ok: false, msg: "Bạn chỉ có quyền xem" };
@@ -2846,16 +2973,44 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       Store.local.receiptsAdded = [];
       Store.local.receiptEdits = {};
     }
-    rows.forEach(r => { r._id = uid(); r._src = src || "manual"; });
-    /* ⚠ QUAN TRỌNG: nếu nhóm (ngày + chỉ thị) từng bị XOÁ hoặc SỬA:
-       - Phải xoá các dòng cũ của nhóm đó trong receiptsAdded trước khi gỡ cờ,
-         nếu không các dòng cũ đã xoá trong receiptsAdded sẽ sống lại và cộng dồn với dòng mới! */
-    const revived = [];
+    /* Nếu bật tự động chuẩn hóa dòng nhập vượt SL đặt hàng (autoFixOver) */
+    if (opts.autoFixOver) {
+      rows = rows.map(r => {
+        if (r._suggestPrs !== undefined && r._suggestPrs !== null && r.prs !== r._suggestPrs) {
+          const perCtn = Store.clpPerCtn(r.ord, r.sz);
+          const newPrs = Math.max(0, r._suggestPrs);
+          return Object.assign({}, r, { prs: newPrs, ctn: newPrs > 0 ? Math.ceil(newPrs / perCtn) : 0, diff: 0 });
+        }
+        return r;
+      }).filter(r => r.prs > 0);
+    }
+    /* Khử trùng lặp ngay trong mảng rows đầu vào theo khóa (rdLabel + ord + sz) */
+    const inMap = new Map();
+    for (const r of rows) {
+      const copy = Object.assign({}, r);
+      delete copy._suggestPrs; delete copy._overCause; delete copy._overMsg;
+      copy._id = copy._id || uid();
+      copy._src = src || "manual";
+      const k = `${copy.rdLabel || copy.rd}||${copy.ord}||${copy.sz}`;
+      if (inMap.has(k) && src === "manual" && opts.addMode === "sum") {
+        const prev = inMap.get(k);
+        prev.prs += copy.prs;
+      } else {
+        inMap.set(k, copy);
+      }
+    }
+    rows = [...inMap.values()];
+
+    /* ⚠ QUAN TRỌNG: Chống cộng dồn gấp đôi (×2) khi Import trùng ngày hoặc nhóm từng sửa/xoá:
+       - Khi Import (hoặc upsertGroup !== false): nếu nhóm (Ngày NK + Chỉ thị) đã tồn tại trong receiptsAdded,
+         tự động CẬP NHẬT (thay thế nhóm ngày+chỉ thị đó) thay vì push nối đuôi làm nhân đôi số lượng! */
+    const revived = [], upserted = [];
     for (const gk of new Set(rows.map(r => r.rdLabel + "||" + r.ord))) {
       const e = Store.local.receiptEdits[gk];
+      const hadInLocal = Store.local.receiptsAdded.some(x => gkOf(x) === gk);
+      const inSeed = !Store.local.seedReceiptsOff && SEED_RECEIPTS.some(x => gkOf(x) === gk);
       if (e && (e.deleted || e.sizes)) {
         Store.local.receiptsAdded = Store.local.receiptsAdded.filter(x => gkOf(x) !== gk);
-        const inSeed = !Store.local.seedReceiptsOff && SEED_RECEIPTS.some(x => gkOf(x) === gk);
         if (inSeed) {
           const newSz = {};
           rows.filter(x => gkOf(x) === gk).forEach(x => { newSz[x.sz] = (newSz[x.sz] || 0) + x.prs; });
@@ -2871,12 +3026,43 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
             restored: true });
         }
         revived.push(gk.split("||").join(" · "));
+      } else if (src === "import" || opts.upsertGroup) {
+        if (hadInLocal) {
+          Store.local.receiptsAdded = Store.local.receiptsAdded.filter(x => gkOf(x) !== gk);
+          upserted.push(gk.split("||").join(" · "));
+        }
+        if (inSeed) {
+          const newSz = {};
+          rows.filter(x => gkOf(x) === gk).forEach(x => { newSz[x.sz] = (newSz[x.sz] || 0) + x.prs; });
+          const se = Store.local.receiptEdits[gk] || { rev: 0, log: [] };
+          se.rev += 1; se.deleted = false; se.sizes = newSz;
+          se.log.push({ rev: se.rev, at: new Date().toISOString(), by: whoAmI(),
+            reason: "Import cập nhật nhóm dữ liệu gốc", before: Store.receiptGroupSizes(gk.split("||")[0], gk.split("||")[1]), after: newSz });
+          Store.local.receiptEdits[gk] = se;
+          rows = rows.filter(x => gkOf(x) !== gk);
+          upserted.push(gk.split("||").join(" · "));
+        }
+      } else if (src === "manual" && hadInLocal) {
+        /* Nhập tay vào ngày+chỉ thị đã có: gộp cùng size vào bản ghi hiện có thay vì sinh 2 dòng trùng (rdLabel+ord+sz) */
+        for (const r of rows.filter(x => gkOf(x) === gk)) {
+          const ex = Store.local.receiptsAdded.find(x => gkOf(x) === gk && x.sz === r.sz);
+          if (ex) {
+            ex.prs = opts.addMode === "replace" ? r.prs : (ex.prs + r.prs);
+            const perCtn = Store.clpPerCtn(ex.ord, ex.sz);
+            ex.ctn = Math.ceil(ex.prs / perCtn);
+            r._merged = true;
+          }
+        }
+        rows = rows.filter(x => !x._merged);
       }
     }
     Store.local.receiptsAdded.push(...rows);
+    compactReceiptGroupInLocal(null);
     commit();
     if (revived.length && window.App && App.toast)
       App.toast(`ℹ Đã thay thế trạng thái xoá/sửa cũ của ${revived.length} nhóm để nhận dữ liệu mới: ${U.esc(revived.slice(0, 3).join("; "))}${revived.length > 3 ? "…" : ""}`, "warn");
+    else if (upserted.length && window.App && App.toast)
+      App.toast(`🔄 Đã cập nhật (không cộng dồn trùng) ${upserted.length} nhóm ngày+chỉ thị đã tồn tại: ${U.esc(upserted.slice(0, 3).join("; "))}${upserted.length > 3 ? "…" : ""}`, "ok");
   };
   Store.removeOrderRow = function (id) {
     if (!Store.guard()) return;
@@ -3329,8 +3515,9 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
 
   /* ── Import NHẬP KHO (mapping tự động từ đơn đặt hàng) ─────── */
   Store.importReceipts = function (text) {
-    const rows = Store.parseCSV(text); const out = [], errs = [];
+    const rows = Store.parseCSV(text); const out = [], errs = [], overRows = [], upsertGroups = [];
     const start = rows.length && /ngày|ngay/i.test(rows[0][0]) ? 1 : 0;
+    const addedSoFar = {}, replacedBase = {};
     for (let i = start; i < rows.length; i++) {
       const [d0, ord0, sz0, prs0, qc0, qcd0, note0] = rows[i].map(c => String(c).trim());
       const line = i + 1;
@@ -3341,17 +3528,42 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       if (!rd) { errs.push(`Dòng ${line}: ngày NK "${d0}" sai (cần dd/mm/yyyy)`); continue; }
       if (!sz || !o.sizes[sz]) { errs.push(`Dòng ${line}: ${ord} không đặt size "${sz0}"`); continue; }
       if (!prs || prs <= 0) { errs.push(`Dòng ${line}: số đôi "${prs0}" phải > 0`); continue; }
-      const ordered = o.sizes[sz].ordered, recvBefore = o.sizes[sz].received;
+      const rdLabel = U.fmtDate(rd);
+      const key = ord + "|" + sz, gk = rdLabel + "||" + ord;
+      if (replacedBase[gk] === undefined) {
+        const curGrp = Store.receiptGroupSizes(rdLabel, ord);
+        replacedBase[gk] = curGrp;
+        if (Object.keys(curGrp).length) upsertGroups.push(`${rdLabel} · ${ord}`);
+      }
+      const oldSameDay = (replacedBase[gk] && replacedBase[gk][sz]) || 0;
+      const ordered = o.sizes[sz].ordered;
+      const recvBefore = Math.max(0, (o.sizes[sz].received || 0) - oldSameDay) + (addedSoFar[key] || 0);
       const perCtn = Store.clpPerCtn(ord, sz);
-      out.push({
-        rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
+      const diff = (recvBefore + prs) - ordered;
+      const recObj = {
+        rd, rdLabel, ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
         col: o.col.split(",")[0].trim(), sz, prs, ctn: Math.ceil(prs / perCtn),
         qcQty: toInt(qc0), qcDate: Store.parseDate(qcd0), ordered,
-        diff: (recvBefore + prs) - ordered, bat: o.bat, actualExp: null, planExp: o.d,
+        diff, bat: o.bat, actualExp: null, planExp: o.d,
         notProduced: note0 || null,
-      });
+      };
+      if (diff > 0) {
+        const remain = Math.max(0, ordered - recvBefore);
+        if (prs % 6 === 0 && ((prs / 6) === diff || (prs / 6) * 5 === remain)) {
+          recObj._overCause = "pack_6_vs_5";
+          recObj._suggestPrs = (prs / 6) * 5;
+          recObj._overMsg = `Nghi vấn nhân nhầm ${prs / 6} thùng × 6 = ${prs} đôi thay vì quy cách 5 đôi/thùng (${prs / 6} × 5 = ${(prs / 6) * 5} đôi)`;
+        } else {
+          recObj._overCause = "over_order";
+          recObj._suggestPrs = remain;
+          recObj._overMsg = `Vượt SL đặt hàng +${diff} đôi (Đặt: ${ordered} · Đã nhập trước: ${recvBefore} · Còn thiếu: ${remain})`;
+        }
+        overRows.push(recObj);
+      }
+      addedSoFar[key] = (addedSoFar[key] || 0) + prs;
+      out.push(recObj);
     }
-    return { rows: out, errs };
+    return { rows: out, errs, overRows, upsertGroups };
   };
 
   /* ── Import NHẬP KHO THEO NGÀY (mẫu pivot — đúng file gốc) ──── */
@@ -3362,15 +3574,14 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
     .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/\s+/g, " ").trim();
 
   Store.importReceiptsDaily = function (rows) {
-    const errs = [], out = [], pivot = [], warns = [];
-    const warnedOrds = new Set();
+    const errs = [], out = [], pivot = [], warns = [], overRows = [], upsertGroups = [];
     /* 1. Tìm dòng tiêu đề */
     let hi = -1;
     for (let i = 0; i < Math.min(rows.length, 12); i++) {
       const cs = (rows[i] || []).map(normTxt);
       if (cs.some(c => c.includes("chi thi")) && cs.some(c => c.includes("ngay"))) { hi = i; break; }
     }
-    if (hi < 0) return { rows: [], errs: ["Không tìm thấy dòng tiêu đề — cần các cột 'Ngày Nhập Kho' và 'Chỉ thị' như file mẫu"], pivot };
+    if (hi < 0) return { rows: [], errs: ["Không tìm thấy dòng tiêu đề — cần các cột 'Ngày Nhập Kho' và 'Chỉ thị' như file mẫu"], pivot, overRows, upsertGroups };
     const H = (rows[hi] || []).map(normTxt);
     const ix = {
       date: H.findIndex(c => c.includes("ngay")),
@@ -3383,10 +3594,10 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       const m = h.match(/^(?:uk\s*)?([1-9]|10)$/);
       if (m) sizeCols.push({ idx: i, n: +m[1], sz: "UK " + m[1] });
     });
-    if (!sizeCols.length) return { rows: [], errs: ["Không thấy cột size (3, 4, 5… hoặc UK 3…) trên dòng tiêu đề"], pivot };
+    if (!sizeCols.length) return { rows: [], errs: ["Không thấy cột size (3, 4, 5… hoặc UK 3…) trên dòng tiêu đề"], pivot, overRows, upsertGroups };
 
-    /* 2. Đọc từng dòng dữ liệu, cộng dồn để tính thiếu/đủ tuần tự */
-    const addedSoFar = {};
+    /* 2. Đọc từng dòng dữ liệu, tự động trừ SL cũ nếu trùng (Ngày NK + Chỉ thị) để không cộng dồn trùng */
+    const addedSoFar = {}, replacedBase = {};
     const readDate = v => {
       if (typeof v === "number" && window.XlsxLite) { const d = XlsxLite.serialToISO(v); if (d) return d; }
       return Store.parseDate(v);
@@ -3399,36 +3610,61 @@ ${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.open
       const ord = ordRaw.toUpperCase();
       const o = U.orderByCode(ord);
       if (!o) { errs.push(`Dòng ${line}: chỉ thị "${ordRaw}" không có trong đơn đặt hàng`); continue; }
-      if (!warnedOrds.has(ord) && o.recvPrs > 0) {
-        warnedOrds.add(ord);
-        warns.push(`${ord} đã có ${o.recvPrs} đôi nhập kho trong hệ thống — import sẽ CỘNG THÊM, kiểm tra tránh trùng lặp dữ liệu`);
-      }
       const rd = readDate(R[ix.date]);
       if (!rd) { errs.push(`Dòng ${line}: ngày nhập kho "${R[ix.date] ?? ""}" không hợp lệ (dd/mm/yyyy)`); continue; }
+      const rdLabel = U.fmtDate(rd);
+      const gk = rdLabel + "||" + ord;
+      if (replacedBase[gk] === undefined) {
+        const curGrp = Store.receiptGroupSizes(rdLabel, ord);
+        replacedBase[gk] = curGrp;
+        if (Object.keys(curGrp).length) {
+          upsertGroups.push(`${rdLabel} · ${ord}`);
+        }
+      }
       const note = ix.note >= 0 ? String(R[ix.note] ?? "").trim() : "";
-      const pv = { rd, rdLabel: U.fmtDate(rd), ord, ctry: o.ctry, col: o.col.split(",")[0].trim(), po: o.po, sizes: {}, total: 0 };
+      const pv = { rd, rdLabel, ord, ctry: o.ctry, col: o.col.split(",")[0].trim(), po: o.po, sizes: {}, total: 0, isUpsert: !!(replacedBase[gk] && Object.keys(replacedBase[gk]).length) };
       let first = true;
       for (const sc of sizeCols) {
         const q = parseInt(String(R[sc.idx] ?? "").replace(/[.\s]/g, ""), 10);
         if (!q || q <= 0) continue;
         if (!o.sizes[sc.sz]) { errs.push(`Dòng ${line}: ${ord} không đặt size ${sc.sz} (SL ${q} bị bỏ qua)`); continue; }
         const key = ord + "|" + sc.sz;
-        const before = (o.sizes[sc.sz].received || 0) + (addedSoFar[key] || 0);
+        const oldSameDay = (replacedBase[gk] && replacedBase[gk][sc.sz]) || 0;
+        const before = Math.max(0, (o.sizes[sc.sz].received || 0) - oldSameDay) + (addedSoFar[key] || 0);
+        const ordered = o.sizes[sc.sz].ordered;
+        const diff = (before + q) - ordered;
         const perCtn = Store.clpPerCtn(ord, sc.sz);
-        out.push({
-          rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
+        const recObj = {
+          rd, rdLabel, ctry: o.ctry, ord, po: o.po, item: TVS_META.itemCode,
           col: o.col.split(",")[0].trim(), sz: sc.sz, prs: q, ctn: Math.ceil(q / perCtn),
-          qcQty: null, qcDate: null, ordered: o.sizes[sc.sz].ordered,
-          diff: (before + q) - o.sizes[sc.sz].ordered, bat: o.bat, actualExp: null, planExp: o.d,
+          qcQty: null, qcDate: null, ordered,
+          diff, bat: o.bat, actualExp: null, planExp: o.d,
           notProduced: first && note ? note : null,
-        });
+        };
+        if (diff > 0) {
+          const remain = Math.max(0, ordered - before);
+          if (q % 6 === 0 && ((q / 6) === diff || (q / 6) * 5 === remain)) {
+            recObj._overCause = "pack_6_vs_5";
+            recObj._suggestPrs = (q / 6) * 5;
+            recObj._overMsg = `Nghi vấn nhân nhầm ${q / 6} thùng × 6 = ${q} đôi thay vì quy cách 5 đôi/thùng (${q / 6} × 5 = ${(q / 6) * 5} đôi)`;
+          } else {
+            recObj._overCause = "over_order";
+            recObj._suggestPrs = remain;
+            recObj._overMsg = `Vượt SL đặt hàng +${diff} đôi (Đặt: ${ordered} · Đã nhập ngày khác: ${before} · Còn thiếu: ${remain})`;
+          }
+          overRows.push(recObj);
+        }
+        out.push(recObj);
         addedSoFar[key] = (addedSoFar[key] || 0) + q;
         pv.sizes[sc.sz] = q; pv.total += q;
         first = false;
       }
       if (pv.total > 0) pivot.push(pv);
     }
-    return { rows: out, errs, pivot, warns };
+    if (upsertGroups.length) {
+      warns.push(`🔄 Có ${upsertGroups.length} nhóm (Ngày NK + Chỉ thị) đã tồn tại trong kho sẽ được CẬP NHẬT theo file mới (không cộng dồn trùng lặp): ${upsertGroups.slice(0, 6).join("; ")}${upsertGroups.length > 6 ? "…" : ""}`);
+    }
+    return { rows: out, errs, pivot, warns, overRows, upsertGroups };
   };
 
   /* Tự nhận dạng định dạng file import nhập kho:
@@ -4296,6 +4532,9 @@ window.TVS_GH = {
   };
 
   const chip = () => { if (window.App && App.renderSyncChip) App.renderSyncChip(); };
+  const DIRTY_KEY = "TVS_SYNC_DIRTY";
+  const isDirty = () => { try { return localStorage.getItem(DIRTY_KEY) === "1"; } catch (e) { return false; } };
+  const setDirty = v => { try { if (v) localStorage.setItem(DIRTY_KEY, "1"); else localStorage.removeItem(DIRTY_KEY); } catch (e) {} };
 
   /* Gộp an toàn dữ liệu remote & local khi xảy ra xung đột 409 hoặc đang chờ lưu */
   Sync.mergePayload = function (remote, local) {
@@ -4314,13 +4553,27 @@ window.TVS_GH = {
       }
       return out;
     };
+    const receiptEdits = mergeEdits(remote.receiptEdits, local.receiptEdits);
+    const orderEdits = mergeEdits(remote.orderEdits, local.orderEdits);
+    /* Gộp theo khóa nghiệp vụ tự nhiên (rdLabel+ord+sz / ord+sz), tuyệt đối không dùng _id ngẫu nhiên
+       để tránh nhân đôi số lượng khi 2 phiên làm việc cùng import 1 file */
+    const rawReceipts = mergeArr(remote.receiptsAdded, local.receiptsAdded, x => ((x.rdLabel || x.rd) + "|" + x.ord + "|" + x.sz))
+      .filter(r => {
+        const e = receiptEdits[(r.rdLabel || "") + "||" + r.ord];
+        return !(e && e.deleted);
+      });
+    const rawOrders = mergeArr(remote.ordersAdded, local.ordersAdded, x => (x.ord + "|" + x.sz))
+      .filter(r => {
+        const e = orderEdits[r.ord];
+        return !(e && e.deleted);
+      });
     return {
-      ordersAdded: mergeArr(remote.ordersAdded, local.ordersAdded, x => x._id || (x.ord + "|" + x.sz)),
-      receiptsAdded: mergeArr(remote.receiptsAdded, local.receiptsAdded, x => x._id || (x.rd + "|" + x.ord + "|" + x.sz)),
+      ordersAdded: rawOrders,
+      receiptsAdded: rawReceipts,
       shipments: mergeArr(remote.shipments, local.shipments, x => x.id || x.code),
       seq: Math.max(remote.seq || 1, local.seq || 1),
-      receiptEdits: mergeEdits(remote.receiptEdits, local.receiptEdits),
-      orderEdits: mergeEdits(remote.orderEdits, local.orderEdits),
+      receiptEdits,
+      orderEdits,
       seedReceiptsOff: local.seedReceiptsOff !== undefined ? local.seedReceiptsOff : !!remote.seedReceiptsOff,
       packingAdded: Object.assign({}, remote.packingAdded || {}, local.packingAdded || {}),
       packingMeta: Object.assign({}, remote.packingMeta || {}, local.packingMeta || {}),
@@ -4398,15 +4651,9 @@ window.TVS_GH = {
       Sync.state.sha = j.sha;
       const data = JSON.parse(b64decodeUtf8(j.content));
       if (window.Store && Store.replaceLocal) {
-        // Bảo vệ dữ liệu local: luôn gộp nếu trên máy có phiếu xuất kho hoặc dữ liệu mới
-        const hasLocal = Store.local && (
-          (Store.local.shipments && Store.local.shipments.length > 0) ||
-          (Store.local.ordersAdded && Store.local.ordersAdded.length > 0) ||
-          (Store.local.receiptsAdded && Store.local.receiptsAdded.length > 0) ||
-          (Store.local.receiptEdits && Object.keys(Store.local.receiptEdits).length > 0) ||
-          (Store.local.orderEdits && Object.keys(Store.local.orderEdits).length > 0)
-        );
-        const merged = (Sync.state.pending || hasLocal) ? Sync.mergePayload(data, Store.local) : data;
+        /* Chỉ gộp đè dữ liệu local lên remote khi trên máy thực sự đang có thay đổi chưa đồng bộ lên GitHub (pending/dirty).
+           Nếu máy đã đồng bộ xong, dùng trực tiếp bản mới nhất từ GitHub để không phục hồi nhầm các dòng cũ đã sửa/xoá. */
+        const merged = (Sync.state.pending || isDirty()) ? Sync.mergePayload(data, Store.local) : data;
         Store.replaceLocal(merged);
       }
       Sync.state.lastSync = new Date();
@@ -4425,6 +4672,7 @@ window.TVS_GH = {
   /* ── GHI dữ liệu chung lên GitHub (chỉ editor có token) ── */
   let timer = null;
   Sync.queue = function () {
+    setDirty(true);
     if (!(window.Auth && Auth.canEdit())) return;
     Sync.state.pending = true;
     Sync.state.error = null;
@@ -4521,6 +4769,7 @@ window.TVS_GH = {
       Sync.state.pending = false;
       Sync.state.error = null;
       Sync.state.offline = false;
+      setDirty(false);
       App.toast("☁ Đã lưu dữ liệu lên GitHub thành công (" + U.esc(Auth.current.name) + ")", "ok");
     } catch (e) {
       Sync.state.error = String(e.message || e);
@@ -5892,6 +6141,7 @@ window.TVS_GH = {
         ? (events.length === 1 ? events[0].lab : `${events[0].lab} → ${events[events.length - 1].lab}`)
         : "chưa có dữ liệu";
 
+      const excessList = Store.auditExcessReceipts ? Store.auditExcessReceipts() : [];
       root.innerHTML = `
         <div class="card" style="margin-bottom:16px">
           <div class="filters" style="background:var(--soft)">
@@ -5902,8 +6152,17 @@ window.TVS_GH = {
             <button class="btn" id="rExp">${App.icon("download", "ico")} Export (.csv)</button>
             <button class="btn need-edit" id="rBulkQC" title="Xác nhận kiểm đếm QC cho các dòng nhập kho đang hiển thị">✓ Duyệt QC các dòng đang lọc</button>
             <button class="btn" id="rEditLog">⟲ Nhật ký sửa / xóa nhập kho (${Store.receiptEditSummary ? Store.receiptEditSummary().total : 0})</button>
+            <button class="btn ${excessList.length ? "danger" : ""}" id="rExcessAudit" title="Quét toàn bộ kho để tìm các chỉ thị/size bị nhập dư so với SL đặt hàng KD">
+              ${excessList.length ? `⚠ Kiểm tra nhập dư (${excessList.length})` : `✓ Kiểm tra nhập dư (0)`}
+            </button>
             <span class="f-chipcount">Số thùng tự động mapping từ Packing List (CLP) theo chỉ thị + size</span>
           </div>
+          ${excessList.length ? `<div class="alert warn" style="margin:10px 16px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div class="a-t"><b>⚠ Phát hiện ${excessList.length} size/chỉ thị đang có SL nhập kho SX vượt quá SL đặt hàng KD:</b>
+              ${excessList.slice(0, 3).map(x => `<b>${x.ord} (${x.sz})</b>: nhập ${U.fmt(x.recvQty)} / đặt ${U.fmt(x.ordQty)} (<b style="color:var(--bad)">+${U.fmt(x.excess)}</b> — ${U.esc(x.causeLabel)})`).join(" · ")}
+            </div>
+            <button class="btn small primary need-edit" onclick="Views._whExcessModal()">🔍 Xem & Chuẩn hóa ngay</button>
+          </div>` : ""}
           ${(() => {
             const si = Store.seedReceiptInfo();
             const c = Store.counts();
@@ -6186,6 +6445,7 @@ window.TVS_GH = {
         { Store.clearAllReceipts(); App.toast("Đã xoá sạch dữ liệu nhập kho — hãy Import file để nạp bộ dữ liệu mới", "warn"); }
       });
       bind("rEditLog", () => Views._whEditLogModal());
+      bind("rExcessAudit", () => Views._whExcessModal());
       bind("rBulkQC", () => {
         const groups = Views._mtx || [];
         if (!groups.length) { App.toast("Không có dòng nhập kho nào đang hiển thị để duyệt QC", "warn"); return; }
@@ -6247,28 +6507,43 @@ window.TVS_GH = {
         <div class="note" style="margin-bottom:6px">${U.flag(o.ctry)} <b>${o.ord}</b> · ${o.ctry} · màu ${o.col} · PO ${o.po} · xuất KD ${U.fmtDate(o.d)}</div>
         <div class="tbl-wrap"><table class="tbl">
           <thead><tr><th>Size</th><th class="num">SL đặt</th><th class="num">Đã nhập</th><th class="num">Còn thiếu</th>
-            <th class="num" style="min-width:110px">Nhập kho lần này</th><th class="num">Thùng</th></tr></thead>
+            <th class="num" style="min-width:110px">Nhập kho lần này</th><th class="num">Thùng</th><th>Kiểm tra</th></tr></thead>
           <tbody>${U.SIZES.filter(s => o.sizes[s]).map(s => {
             const c = o.sizes[s], remain = Math.max(0, c.ordered - c.received);
             return `<tr>
               <td><b>${s}</b></td><td class="num">${U.fmt(c.ordered)}</td>
               <td class="num">${U.fmt(c.received)}</td>
               <td class="num ${remain ? "neg" : "pos"}">${U.fmt(remain)}</td>
-              <td class="num"><input class="cell-in" type="number" min="0" placeholder="0" data-sz="${s}"></td>
-              <td class="num nk-ctn">0</td></tr>`;
+              <td class="num"><input class="cell-in" type="number" min="0" placeholder="0" data-sz="${s}" data-rem="${remain}"></td>
+              <td class="num nk-ctn">0</td>
+              <td class="nk-chk note">—</td></tr>`;
           }).join("")}</tbody>
         </table></div>`;
       document.getElementById("nSave").disabled = false;
       grid.querySelectorAll("input[data-sz]").forEach(i => i.addEventListener("input", () => {
-        let p = 0, ct = 0;
+        let p = 0, ct = 0, overCnt = 0;
         grid.querySelectorAll("input[data-sz]").forEach(x => {
           const q = parseInt(x.value || "0", 10) || 0;
+          const rem = parseInt(x.dataset.rem || "0", 10) || 0;
           const perCtn = Store.clpPerCtn(o.ord, x.dataset.sz);
           const c = q ? Math.ceil(q / perCtn) : 0;
-          x.closest("tr").querySelector(".nk-ctn").textContent = U.fmt(c);
+          const tr = x.closest("tr");
+          tr.querySelector(".nk-ctn").textContent = U.fmt(c);
+          const chkEl = tr.querySelector(".nk-chk");
+          if (q > rem) {
+            overCnt++;
+            chkEl.innerHTML = `<span class="bdg bad plain">⚠ Vượt đơn +${U.fmt(q - rem)} đôi (còn thiếu ${U.fmt(rem)})</span>`;
+          } else if (q > 0 && q === rem) {
+            chkEl.innerHTML = `<span class="bdg ok plain">✓ Vừa đủ đơn</span>`;
+          } else if (q > 0) {
+            chkEl.innerHTML = `<span class="note">còn thiếu ${U.fmt(rem - q)}</span>`;
+          } else {
+            chkEl.textContent = "—";
+          }
           p += q; ct += c;
         });
-        document.getElementById("nSum").innerHTML = `Lần nhập này: <b>${U.fmt(p)} đôi</b> = <b>${U.fmt(ct)} thùng</b>`;
+        document.getElementById("nSum").innerHTML = `Lần nhập này: <b>${U.fmt(p)} đôi</b> = <b>${U.fmt(ct)} thùng</b>` +
+          (overCnt ? ` · <span style="color:var(--bad);font-weight:700">⚠ ${overCnt} size vượt SL đặt hàng!</span>` : "");
       }));
     });
 
@@ -6280,12 +6555,14 @@ window.TVS_GH = {
       if (!o) return bad("Chọn chỉ thị");
       if (!rd) return bad("Chọn ngày nhập kho");
       const note = document.getElementById("nNote").value.trim();
-      const rows = [];
+      const rows = [], overSizes = [];
       let first = true;
       grid.querySelectorAll("input[data-sz]").forEach(i => {
         const q = parseInt(i.value || "0", 10) || 0;
         if (q <= 0) return;
         const sz = i.dataset.sz, c = o.sizes[sz];
+        const remain = Math.max(0, c.ordered - c.received);
+        if (q > remain) overSizes.push(`${sz}: nhập ${q} > còn thiếu ${remain} (+${q - remain} đôi)`);
         const perCtn = Store.clpPerCtn(o.ord, sz);
         rows.push({
           rd, rdLabel: U.fmtDate(rd), ctry: o.ctry, ord: o.ord, po: o.po, item: TVS_META.itemCode,
@@ -6296,6 +6573,9 @@ window.TVS_GH = {
         first = false;
       });
       if (!rows.length) return bad("Nhập số đôi cho ít nhất 1 size");
+      if (overSizes.length) {
+        if (!confirm(`⚠ CẢNH BÁO NHẬP DƯ SO VỚI ĐƠN ĐẶT HÀNG (${o.ord}):\n\n• ${overSizes.join("\n• ")}\n\nBạn có chắc chắn muốn ghi nhận vượt đơn đặt hàng không? (Bấm Cancel/Huỷ để sửa lại đúng số lượng)`)) return;
+      }
       Store.addReceipts(rows, "manual");
       App.closeModal();
       App.toast(`✓ Đã nhập kho <b>${o.ord}</b>: ${U.fmt(U.sum(rows, r => r.prs))} đôi = ${U.fmt(U.sum(rows, r => r.ctn))} thùng (${U.fmtDate(rd)})`, "ok");
@@ -6305,12 +6585,24 @@ window.TVS_GH = {
   /* ── IMPORT nhập kho: nhận .xlsx hoặc .csv theo mẫu pivot theo ngày ── */
   function importReceipts() {
     App.pickDataFile(({ rows: fileRows, name, kind }) => {
-      const { rows, errs, pivot, format, warns } = Store.importReceiptsAuto(fileRows);
+      const { rows, errs, pivot, format, warns, overRows } = Store.importReceiptsAuto(fileRows);
+      const overs = overRows || [];
       let html = `<div class="modal-h"><h3>Import nhập kho — ${U.esc(name)}</h3>
         <span class="bdg acc plain">${kind === "xlsx" ? "Excel .xlsx" : "CSV"} · định dạng ${format === "daily" ? "theo ngày (pivot size)" : "đơn giản"}</span>
         <button class="modal-x" onclick="App.closeModal()">✕</button></div><div class="modal-b">`;
       if (errs.length) html += `<div class="alert" style="margin-bottom:12px"><div class="a-t"><b>${errs.length} dòng lỗi (bị bỏ qua):</b><br>${errs.slice(0, 12).map(U.esc).join("<br>")}${errs.length > 12 ? "<br>…" : ""}</div></div>`;
-      if (warns && warns.length) html += `<div class="alert warn" style="margin-bottom:12px"><div class="a-t"><b>Lưu ý trùng lặp:</b><br>${warns.slice(0, 8).map(U.esc).join("<br>")}</div></div>`;
+      if (warns && warns.length) html += `<div class="alert warn" style="margin-bottom:12px"><div class="a-t"><b>Lưu ý cập nhật ngày trùng:</b><br>${warns.slice(0, 8).map(U.esc).join("<br>")}</div></div>`;
+      if (overs.length) {
+        html += `<div class="alert" style="margin-bottom:12px;border-left:4px solid var(--bad)"><div class="a-t">
+          <b>⚠ Phát hiện ${overs.length} dòng trong file làm SL nhập kho VƯỢT QUÁ SL đặt hàng KD:</b><br>
+          ${overs.slice(0, 10).map(r => `• Ngày <b>${U.esc(r.rdLabel)}</b> · <b>${U.esc(r.ord)} (${r.sz})</b>: File ghi <b>${U.fmt(r.prs)} đôi</b> → <span style="color:var(--bad);font-weight:700">${U.esc(r._overMsg)}</span> · Đề xuất chuẩn hóa: <b style="color:var(--ok)">${U.fmt(r._suggestPrs)} đôi</b>`).join("<br>")}
+          ${overs.length > 10 ? `<br>… và ${overs.length - 10} dòng khác` : ""}
+          <label style="display:flex;gap:8px;align-items:center;margin-top:8px;padding:6px 10px;background:var(--soft);border-radius:6px;cursor:pointer;font-weight:700;color:var(--ok)">
+            <input type="checkbox" id="riAutoFixOver" checked>
+            <span>🔒 Tự động chuẩn hóa ${overs.length} dòng vượt đơn này về đúng SL chuẩn (${overs.map(r => `${r.ord} ${r.sz}: ${r.prs}→${r._suggestPrs}`).slice(0, 4).join(", ")}${overs.length > 4 ? "…" : ""}) ngay khi nạp</span>
+          </label>
+        </div></div>`;
+      }
       if (!rows.length) { html += `<div class="note">Không có dòng hợp lệ. Kiểm tra file theo đúng mẫu (bấm “File mẫu import”).</div></div>`; App.openModal(html, true); return; }
 
       /* Bảng xem trước 1: đúng dạng pivot của file mẫu */
@@ -6318,26 +6610,27 @@ window.TVS_GH = {
         html += `<h4 style="font-size:13px;margin-bottom:6px">① File đọc được (dạng theo ngày như mẫu):</h4>
         <div class="tbl-wrap" style="max-height:24vh;overflow:auto;margin-bottom:14px"><table class="tbl">
           <thead><tr><th>Ngày NK</th><th>Chỉ thị</th><th>Quốc gia</th><th>Màu</th>
-            ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}<th class="num">Tổng đôi</th></tr></thead>
+            ${U.SIZES.map(s => `<th class="num">${s.replace("UK ", "")}</th>`).join("")}<th class="num">Tổng đôi</th><th>Trạng thái</th></tr></thead>
           <tbody>${pivot.map(p => `<tr><td><b>${p.rdLabel}</b></td><td><b>${p.ord}</b></td><td>${U.flag(p.ctry)} ${U.esc(p.ctry)}</td><td>${p.col}</td>
             ${U.SIZES.map(s => `<td class="num">${p.sizes[s] ? U.fmt(p.sizes[s]) : ""}</td>`).join("")}
-            <td class="num"><b>${U.fmt(p.total)}</b></td></tr>`).join("")}</tbody></table></div>`;
+            <td class="num"><b>${U.fmt(p.total)}</b></td>
+            <td>${p.isUpsert ? `<span class="bdg warn plain">🔄 Cập nhật ngày đã có</span>` : `<span class="bdg ok plain">+ Ngày mới</span>`}</td></tr>`).join("")}</tbody></table></div>`;
       }
 
       /* Bảng xem trước 2: đã convert & mapping vào hệ thống */
       html += `<h4 style="font-size:13px;margin-bottom:6px">② Sau khi convert & mapping tự động vào hệ thống (${rows.length} dòng · ${U.fmt(U.sum(rows, r => r.prs))} đôi = ${U.fmt(U.sum(rows, r => r.ctn))} thùng):</h4>
         <div class="tbl-wrap" style="max-height:26vh;overflow:auto"><table class="tbl">
         <thead><tr><th>Ngày NK</th><th>Chỉ thị</th><th>Quốc gia</th><th>PO</th><th>Mã hàng</th><th>Màu</th><th>Size</th>
-          <th class="num">Đôi</th><th class="num">Thùng</th><th class="num">SL đặt</th><th class="num">Thiếu/Đủ</th><th>Ngày xuất KD</th><th>Ghi chú</th></tr></thead>
-        <tbody>${rows.map(r => `<tr><td>${r.rdLabel}</td><td><b>${r.ord}</b></td><td>${U.esc(r.ctry)}</td><td class="mono">${U.esc(r.po)}</td><td class="mono">${r.item}</td><td>${r.col}</td><td><b>${r.sz}</b></td>
-          <td class="num">${U.fmt(r.prs)}</td><td class="num">${r.ctn}</td><td class="num">${U.fmt(r.ordered)}</td>
-          <td class="num ${r.diff < 0 ? "neg" : "pos"}">${r.diff > 0 ? "+" : ""}${r.diff}</td>
-          <td>${U.fmtDate(r.planExp)}</td><td class="note">${r.notProduced ? U.esc(r.notProduced) : ""}</td></tr>`).join("")}</tbody></table></div>
+          <th class="num">Đôi</th><th class="num">Thùng</th><th class="num">SL đặt</th><th class="num">Thiếu/Đủ</th><th>Ngày xuất KD</th><th>Ghi chú / Cảnh báo</th></tr></thead>
+        <tbody>${rows.map(r => `<tr${r.diff > 0 ? ' style="background:rgba(239,68,68,0.12)"' : ''}><td>${r.rdLabel}</td><td><b>${r.ord}</b></td><td>${U.esc(r.ctry)}</td><td class="mono">${U.esc(r.po)}</td><td class="mono">${r.item}</td><td>${r.col}</td><td><b>${r.sz}</b></td>
+          <td class="num"><b>${U.fmt(r.prs)}</b>${r._suggestPrs !== undefined ? ` <span style="color:var(--ok);font-weight:700">→ ${U.fmt(r._suggestPrs)}</span>` : ""}</td><td class="num">${r.ctn}</td><td class="num">${U.fmt(r.ordered)}</td>
+          <td class="num ${r.diff < 0 ? "neg" : (r.diff > 0 ? "neg" : "pos")}">${r.diff > 0 ? "⚠ +" : ""}${r.diff}</td>
+          <td>${U.fmtDate(r.planExp)}</td><td class="note">${r._overMsg ? `<span style="color:var(--bad);font-weight:700">${U.esc(r._overMsg)}</span>` : (r.notProduced ? U.esc(r.notProduced) : "")}</td></tr>`).join("")}</tbody></table></div>
         <div class="mt" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px">
           <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Cách nạp dữ liệu:</div>
           <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-bottom:6px">
             <input type="radio" name="riMode" value="add" checked>
-            <span><b>Thêm vào</b> dữ liệu hiện có <span class="note">— cộng dồn với số liệu đang có trong kho</span></span></label>
+            <span><b>Thêm mới & Cập nhật ngày trùng</b> <span class="note">— thêm ngày mới vào kho; nếu trùng (Ngày NK + Chỉ thị) đã có thì tự động cập nhật (tuyệt đối không cộng dồn gấp đôi)</span></span></label>
           <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px">
             <input type="radio" name="riMode" value="replace">
             <span><b>Thay thế toàn bộ</b> dữ liệu nhập kho <span class="note">— xoá sạch số liệu nhập kho hiện có (kể cả dữ liệu gốc &amp; các chỉnh sửa) rồi nạp file này làm dữ liệu duy nhất</span></span></label>
@@ -6349,13 +6642,77 @@ window.TVS_GH = {
       App.openModal(html, true);
       document.getElementById("riApply").onclick = () => {
         const mode = (document.querySelector('input[name="riMode"]:checked') || {}).value || "add";
+        const autoFixEl = document.getElementById("riAutoFixOver");
+        const autoFixOver = autoFixEl ? autoFixEl.checked : false;
         if (mode === "replace" && !confirm("Thay thế TOÀN BỘ dữ liệu nhập kho bằng file này?\n\nSố liệu nhập kho hiện có (kể cả dữ liệu gốc và các chỉnh sửa) sẽ bị xoá.")) return;
-        Store.addReceipts(rows, "import", { replaceAll: mode === "replace" });
+        Store.addReceipts(rows, "import", { replaceAll: mode === "replace", autoFixOver });
         App.closeModal();
-        App.toast(`✓ Đã import ${rows.length} dòng nhập kho (${mode === "replace" ? "thay thế toàn bộ" : "thêm vào"}) — PO/màu/SL đặt/đợt đã mapping tự động`, "ok");
+        App.toast(`✓ Đã import ${rows.length} dòng nhập kho (${mode === "replace" ? "thay thế toàn bộ" : "thêm & cập nhật thông minh"}${autoFixOver && overs.length ? ` · đã tự chuẩn hóa ${overs.length} dòng vượt đơn` : ""})`, "ok");
       };
     });
   }
+
+  /* ═════════ MODAL KIỂM TRA & XỬ LÝ NHẬP DƯ SO VỚI ĐƠN ĐẶT HÀNG ═════════ */
+  Views._whExcessModal = function () {
+    const list = Store.auditExcessReceipts ? Store.auditExcessReceipts() : [];
+    Views._excessItems = list;
+    App.openModal(`
+      <div class="modal-h">
+        <h3>🔍 Kiểm tra & Chuẩn hóa dòng nhập dư so với Đơn đặt hàng (${list.length} mục)</h3>
+        <span class="bdg ${list.length ? "bad" : "ok"} plain">${list.length ? `Đang có ${list.length} size nhập vượt đơn` : "✓ 100% đơn hàng không bị nhập dư"}</span>
+        <button class="modal-x" onclick="App.closeModal()">✕</button>
+      </div>
+      <div class="modal-b">
+        ${!list.length
+          ? `<div class="alert ok"><div class="a-t"><b>✓ Tuyệt vời!</b> Toàn bộ các chỉ thị và các size trong kho hiện tại đều có <b>SL nhập kho SX ≤ SL đặt hàng KD</b> (không còn bất kỳ dòng nào bị cộng dồn trùng hay nhân nhầm quy cách thùng).</div></div>`
+          : `<div class="alert warn" style="margin-bottom:12px"><div class="a-t">
+              Hệ thống đã tự động quét và chẩn đoán nguyên nhân gây nhập dư (như <b>nhân nhầm 6 đôi/thùng thay vì 5 đôi/thùng</b> hoặc <b>import trùng ngày</b>). Bấm <b>“✓ Chuẩn hóa ngay”</b> ở từng dòng hoặc <b>“✓ Chuẩn hóa tất cả”</b> để tự động điều chỉnh về đúng SL đặt hàng và lưu đầy đủ vào Nhật ký chỉnh sửa.
+            </div></div>
+            <div class="tbl-wrap" style="max-height:55vh;overflow:auto"><table class="tbl">
+              <thead><tr>
+                <th>Chỉ thị</th><th>Quốc gia · Màu</th><th>Size</th>
+                <th class="num">SL đặt KD</th><th class="num">SL đã nhập</th><th class="num">SL dư</th>
+                <th>Chi tiết các ngày nhập</th><th>Dòng ngày gây dư & Chẩn đoán</th><th class="num">Đề xuất sửa</th><th>Thao tác</th>
+              </tr></thead>
+              <tbody>${list.map((it, idx) => `<tr>
+                <td><b class="clickable" onclick="App.closeModal();Views._openOrder('${it.ord}')">${it.ord}</b><br><span class="note">KD ${U.fmtDate(it.planExp)}</span></td>
+                <td>${U.flag(it.ctry)} ${U.esc(it.ctry)}<br>${U.colorCell(it.col)}</td>
+                <td><b>${it.sz}</b></td>
+                <td class="num"><b>${U.fmt(it.ordQty)}</b></td>
+                <td class="num">${U.fmt(it.recvQty)}</td>
+                <td class="num neg"><b>+${U.fmt(it.excess)}</b></td>
+                <td class="note">${it.rows.map(r => `${r.rdLabel === it.targetRdLabel ? `<b style="color:var(--bad)">${r.rdLabel}: ${U.fmt(r.prs)}</b>` : `${r.rdLabel}: ${U.fmt(r.prs)}`}`).join("<br>")}</td>
+                <td><b>Ngày ${U.esc(it.targetRdLabel)}</b><br><span class="note" style="color:var(--warn)">${U.esc(it.causeLabel)}</span></td>
+                <td class="num"><b>${U.fmt(it.targetCurPrs)} → <span style="color:var(--ok)">${U.fmt(it.suggestPrs)}</span></b></td>
+                <td style="white-space:nowrap">
+                  <button class="btn small primary need-edit" onclick="Views._whFixOneExcess(${idx})">✓ Chuẩn hóa ngay</button>
+                </td>
+              </tr>`).join("")}</tbody>
+            </table></div>`}
+        <div class="mt" style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+          ${list.length ? `<button class="btn primary need-edit" id="btnFixAllExcess">✓ Chuẩn hóa tất cả (${list.length} mục) về đúng SL đặt hàng</button>` : `<span></span>`}
+          <button class="btn" onclick="App.closeModal()">Đóng</button>
+        </div>
+      </div>`, true);
+    const btnAll = document.getElementById("btnFixAllExcess");
+    if (btnAll) {
+      btnAll.onclick = () => {
+        const r = Store.fixAllExcessReceipts();
+        if (!r || !r.ok) { App.toast("⚠ " + (r && r.msg || "Không thể sửa"), "warn"); return; }
+        App.toast(`✓ Đã chuẩn hóa ${r.count} mục nhập dư về đúng SL đặt hàng và ghi nhật ký`, "ok");
+        Views._whExcessModal();
+      };
+    }
+  };
+
+  Views._whFixOneExcess = function (idx) {
+    const it = (Views._excessItems || [])[idx];
+    if (!it) return;
+    const r = Store.fixExcessReceiptItem(it);
+    if (!r || !r.ok) { App.toast("⚠ " + (r && r.msg || "Không thể sửa"), "warn"); return; }
+    App.toast(`✓ Đã chuẩn hóa ${it.ord} (${it.sz}) ngày ${it.targetRdLabel}: ${it.targetCurPrs} → ${it.suggestPrs} đôi`, "ok");
+    Views._whExcessModal();
+  };
 
   /* ═════════ SỬA / XÓA / LỊCH SỬ 1 DÒNG MA TRẬN NHẬP KHO ═════════ */
   Views._mtx = [];

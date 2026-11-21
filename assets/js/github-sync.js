@@ -51,6 +51,9 @@
   };
 
   const chip = () => { if (window.App && App.renderSyncChip) App.renderSyncChip(); };
+  const DIRTY_KEY = "TVS_SYNC_DIRTY";
+  const isDirty = () => { try { return localStorage.getItem(DIRTY_KEY) === "1"; } catch (e) { return false; } };
+  const setDirty = v => { try { if (v) localStorage.setItem(DIRTY_KEY, "1"); else localStorage.removeItem(DIRTY_KEY); } catch (e) {} };
 
   /* Gộp an toàn dữ liệu remote & local khi xảy ra xung đột 409 hoặc đang chờ lưu */
   Sync.mergePayload = function (remote, local) {
@@ -69,13 +72,27 @@
       }
       return out;
     };
+    const receiptEdits = mergeEdits(remote.receiptEdits, local.receiptEdits);
+    const orderEdits = mergeEdits(remote.orderEdits, local.orderEdits);
+    /* Gộp theo khóa nghiệp vụ tự nhiên (rdLabel+ord+sz / ord+sz), tuyệt đối không dùng _id ngẫu nhiên
+       để tránh nhân đôi số lượng khi 2 phiên làm việc cùng import 1 file */
+    const rawReceipts = mergeArr(remote.receiptsAdded, local.receiptsAdded, x => ((x.rdLabel || x.rd) + "|" + x.ord + "|" + x.sz))
+      .filter(r => {
+        const e = receiptEdits[(r.rdLabel || "") + "||" + r.ord];
+        return !(e && e.deleted);
+      });
+    const rawOrders = mergeArr(remote.ordersAdded, local.ordersAdded, x => (x.ord + "|" + x.sz))
+      .filter(r => {
+        const e = orderEdits[r.ord];
+        return !(e && e.deleted);
+      });
     return {
-      ordersAdded: mergeArr(remote.ordersAdded, local.ordersAdded, x => x._id || (x.ord + "|" + x.sz)),
-      receiptsAdded: mergeArr(remote.receiptsAdded, local.receiptsAdded, x => x._id || (x.rd + "|" + x.ord + "|" + x.sz)),
+      ordersAdded: rawOrders,
+      receiptsAdded: rawReceipts,
       shipments: mergeArr(remote.shipments, local.shipments, x => x.id || x.code),
       seq: Math.max(remote.seq || 1, local.seq || 1),
-      receiptEdits: mergeEdits(remote.receiptEdits, local.receiptEdits),
-      orderEdits: mergeEdits(remote.orderEdits, local.orderEdits),
+      receiptEdits,
+      orderEdits,
       seedReceiptsOff: local.seedReceiptsOff !== undefined ? local.seedReceiptsOff : !!remote.seedReceiptsOff,
       packingAdded: Object.assign({}, remote.packingAdded || {}, local.packingAdded || {}),
       packingMeta: Object.assign({}, remote.packingMeta || {}, local.packingMeta || {}),
@@ -153,15 +170,9 @@
       Sync.state.sha = j.sha;
       const data = JSON.parse(b64decodeUtf8(j.content));
       if (window.Store && Store.replaceLocal) {
-        // Bảo vệ dữ liệu local: luôn gộp nếu trên máy có phiếu xuất kho hoặc dữ liệu mới
-        const hasLocal = Store.local && (
-          (Store.local.shipments && Store.local.shipments.length > 0) ||
-          (Store.local.ordersAdded && Store.local.ordersAdded.length > 0) ||
-          (Store.local.receiptsAdded && Store.local.receiptsAdded.length > 0) ||
-          (Store.local.receiptEdits && Object.keys(Store.local.receiptEdits).length > 0) ||
-          (Store.local.orderEdits && Object.keys(Store.local.orderEdits).length > 0)
-        );
-        const merged = (Sync.state.pending || hasLocal) ? Sync.mergePayload(data, Store.local) : data;
+        /* Chỉ gộp đè dữ liệu local lên remote khi trên máy thực sự đang có thay đổi chưa đồng bộ lên GitHub (pending/dirty).
+           Nếu máy đã đồng bộ xong, dùng trực tiếp bản mới nhất từ GitHub để không phục hồi nhầm các dòng cũ đã sửa/xoá. */
+        const merged = (Sync.state.pending || isDirty()) ? Sync.mergePayload(data, Store.local) : data;
         Store.replaceLocal(merged);
       }
       Sync.state.lastSync = new Date();
@@ -180,6 +191,7 @@
   /* ── GHI dữ liệu chung lên GitHub (chỉ editor có token) ── */
   let timer = null;
   Sync.queue = function () {
+    setDirty(true);
     if (!(window.Auth && Auth.canEdit())) return;
     Sync.state.pending = true;
     Sync.state.error = null;
@@ -276,6 +288,7 @@
       Sync.state.pending = false;
       Sync.state.error = null;
       Sync.state.offline = false;
+      setDirty(false);
       App.toast("☁ Đã lưu dữ liệu lên GitHub thành công (" + U.esc(Auth.current.name) + ")", "ok");
     } catch (e) {
       Sync.state.error = String(e.message || e);
